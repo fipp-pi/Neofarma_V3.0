@@ -1,0 +1,309 @@
+<%- include('partials/header') %>
+
+<main class="main">
+
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Registrar</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li class="current">Registrar</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section id="register" class="register section">
+    <div class="container" data-aos="fade-up" data-aos-delay="100">
+      <div class="row justify-content-center">
+        <div class="col-lg-10">
+          <div class="registration-form-wrapper">
+            <div class="form-header text-center">
+              <h2>Crie a sua Conta</h2>
+              <p>Preencha os dados abaixo para criar sua conta (campos em conformidade com o cadastro do sistema).</p>
+            </div>
+
+            <div class="row">
+              <div class="col-lg-8 mx-auto">
+                <form id="formRegister" method="post" novalidate>
+                  <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Nome completo" required minlength="3" autocomplete="name" value="">
+                    <label for="full_name">Nome completo *</label>
+                  </div>
+
+                  <div class="form-floating mb-3">
+                    <input type="email" class="form-control" id="email" name="email" placeholder="Email" required autocomplete="email" value="">
+                    <label for="email">E-mail *</label>
+                  </div>
+
+                  <div class="row mb-3">
+                    <div class="col-md-6">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="document" name="document" placeholder="CPF" maxlength="14" autocomplete="off" value="">
+                        <label for="document">CPF</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-floating">
+                        <input type="tel" class="form-control" id="register_phone" name="phone" placeholder="(99) 9 9999 9999" maxlength="18" autocomplete="tel" value="" inputmode="numeric">
+                        <label for="register_phone">Telefone (ex: (99) 9 9999 9999)</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-floating mb-3">
+                    <input type="date" class="form-control" id="birth_date" name="birth_date" placeholder="Data de nascimento" autocomplete="bday">
+                    <label for="birth_date">Data de nascimento</label>
+                  </div>
+
+                  <div class="row mb-3">
+                    <div class="col-md-6">
+                      <div class="form-floating">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Senha" required minlength="6" autocomplete="new-password">
+                        <label for="password">Senha *</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-floating">
+                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirmar senha" required minlength="6" autocomplete="new-password">
+                        <label for="confirmPassword">Confirmar senha *</label>
+                      </div>
+                    </div>
+                    <small id="erroSenha" class="text-danger" style="display:none;">As senhas não coincidem.</small>
+                  </div>
+
+                  <div class="form-floating mb-3">
+                    <select class="form-select" id="country" name="country">
+                      <option value="">Selecione seu país</option>
+                      <option value="Brasil" selected>Brasil</option>
+                      <option value="Portugal">Portugal</option>
+                      <option value="Estados Unidos">Estados Unidos</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                    <label for="country">País</label>
+                  </div>
+
+                  <h6 class="mb-3 mt-2">Endereço</h6>
+                  <div class="row mb-3">
+                    <div class="col-md-4">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="cep" name="cep" placeholder="CEP" maxlength="9" autocomplete="postal-code" value="">
+                        <label for="cep">CEP *</label>
+                        <small id="erroCep" class="text-danger" style="display:none;"></small>
+                      </div>
+                    </div>
+                    <div class="col-md-8">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="street" name="street" placeholder="Rua / Avenida" autocomplete="address-line1" value="">
+                        <label for="street">Rua / Logradouro *</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row mb-3">
+                    <div class="col-md-4">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="number" name="number" placeholder="Número" autocomplete="off" value="">
+                        <label for="number">Número *</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="complement" name="complement" placeholder="Complemento" autocomplete="off" value="">
+                        <label for="complement">Complemento</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="district" name="district" placeholder="Bairro" autocomplete="address-level2" value="">
+                        <label for="district">Bairro *</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row mb-3">
+                    <div class="col-md-6">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="city" name="city" placeholder="Cidade" autocomplete="address-level2" value="">
+                        <label for="city">Cidade *</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-floating">
+                        <input type="text" class="form-control" id="state" name="state" placeholder="UF" maxlength="2" autocomplete="address-level1" value="">
+                        <label for="state">Estado (UF) *</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="termsCheck" name="termsCheck" required>
+                    <label class="form-check-label" for="termsCheck">
+                      Concordo com os <a href="/tos">Termos de Serviço</a> e a <a href="/privacy">Política de Privacidade</a>
+                    </label>
+                  </div>
+
+                  <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" id="marketingCheck" name="marketingCheck">
+                    <label class="form-check-label" for="marketingCheck">
+                      Gostaria de receber ofertas e novidades por e-mail
+                    </label>
+                  </div>
+
+                  <div id="msgErroRegister" class="alert alert-danger d-none mb-3"></div>
+                  <div class="d-grid mb-4">
+                    <button type="submit" class="btn btn-register" id="btnCriarConta">Criar conta</button>
+                  </div>
+
+                  <div class="login-link text-center">
+                    <p>Já possui uma conta? <a href="/login">Entrar</a></p>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <div class="social-login">
+              <div class="row">
+                <div class="col-lg-8 mx-auto">
+                  <div class="divider"><span>ou registrar com</span></div>
+                  <div class="social-buttons">
+                    <a href="https://www.google.com/intl/pt-BR/account/about/" class="btn btn-social" target="_blank"><i class="bi bi-google"></i><span>Google</span></a>
+                    <a href="https://www.facebook.com" class="btn btn-social" target="_blank"><i class="bi bi-facebook"></i><span>Facebook</span></a>
+                    <a href="https://account.apple.com" class="btn btn-social" target="_blank"><i class="bi bi-apple"></i><span>Apple</span></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="decorative-elements">
+              <div class="circle circle-1"></div>
+              <div class="circle circle-2"></div>
+              <div class="circle circle-3"></div>
+              <div class="square square-1"></div>
+              <div class="square square-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function() {
+  var form = document.getElementById('formRegister');
+  var erroSenha = document.getElementById('erroSenha');
+  var msgErro = document.getElementById('msgErroRegister');
+  var btn = document.getElementById('btnCriarConta');
+  if (!form) return;
+
+  // Máscara telefone Brasil: (DD) 9 XXXX XXXX — id único para não ser sobrescrito pelo main.js (checkout)
+  var phoneInput = document.getElementById('register_phone');
+  if (phoneInput) {
+    phoneInput.addEventListener('input', function() {
+      var raw = this.value.replace(/\D/g, '');
+      if (raw.length > 11) raw = raw.slice(0, 11);
+      var ddd = raw.slice(0, 2);   // 2 primeiros = DDD
+      var nono = raw.slice(2, 3);  // 3º = 9 (nono dígito)
+      var bloco1 = raw.slice(3, 7); // 4 dígitos
+      var bloco2 = raw.slice(7, 11); // 4 dígitos
+      if (raw.length === 0) { this.value = ''; return; }
+      if (raw.length <= 2) { this.value = '(' + ddd; return; }
+      if (raw.length === 3) { this.value = '(' + ddd + ') ' + nono; return; }
+      if (raw.length <= 7) { this.value = '(' + ddd + ') ' + nono + ' ' + bloco1; return; }
+      this.value = '(' + ddd + ') ' + nono + ' ' + bloco1 + ' ' + bloco2;
+    });
+  }
+
+  function validarSenha() {
+    var p = document.getElementById('password').value;
+    var c = document.getElementById('confirmPassword').value;
+    if (c && p !== c) {
+      erroSenha.style.display = 'block';
+      return false;
+    }
+    erroSenha.style.display = 'none';
+    return true;
+  }
+  document.getElementById('confirmPassword').addEventListener('input', validarSenha);
+
+  // Máscara CEP e busca ViaCEP
+  var cepInput = document.getElementById('cep');
+  var erroCep = document.getElementById('erroCep');
+  if (cepInput) {
+    cepInput.addEventListener('input', function() {
+      var v = this.value.replace(/\D/g, '');
+      if (v.length > 8) v = v.slice(0, 8);
+      this.value = v.length > 5 ? v.slice(0, 5) + '-' + v.slice(5) : v;
+      if (erroCep) erroCep.style.display = 'none';
+    });
+    cepInput.addEventListener('blur', function() {
+      var cep = this.value.replace(/\D/g, '');
+      if (cep.length !== 8) return;
+      fetch('https://viacep.com.br/ws/' + cep + '/json/')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.erro) {
+            if (erroCep) { erroCep.textContent = 'CEP não encontrado.'; erroCep.style.display = 'block'; }
+            return;
+          }
+          var street = document.getElementById('street');
+          var district = document.getElementById('district');
+          var city = document.getElementById('city');
+          var state = document.getElementById('state');
+          if (street) street.value = data.logradouro || '';
+          if (district) district.value = data.bairro || '';
+          if (city) city.value = data.localidade || '';
+          if (state) state.value = data.uf || '';
+          if (erroCep) erroCep.style.display = 'none';
+        })
+        .catch(function() { if (erroCep) { erroCep.textContent = 'Erro ao buscar CEP.'; erroCep.style.display = 'block'; } });
+    });
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!validarSenha()) return;
+    msgErro.classList.add('d-none');
+    btn.disabled = true;
+
+    var fd = new FormData(form);
+    var body = {
+      full_name: fd.get('full_name') || '',
+      email: (fd.get('email') || '').trim().toLowerCase(),
+      password: fd.get('password') || '',
+      document: fd.get('document') || null,
+      phone: fd.get('phone') || null,
+      birth_date: fd.get('birth_date') || null,
+      country: fd.get('country') || null,
+      cep: (fd.get('cep') || '').replace(/\D/g, ''),
+      street: (fd.get('street') || '').trim(),
+      number: (fd.get('number') || '').trim(),
+      complement: (fd.get('complement') || '').trim() || null,
+      district: (fd.get('district') || '').trim(),
+      city: (fd.get('city') || '').trim(),
+      state: (fd.get('state') || '').trim().toUpperCase()
+    };
+
+    fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
+    .then(function(result) {
+      btn.disabled = false;
+      if (result.data.ok && result.data.redirect) {
+        window.neofarmaToast(result.data.message || 'Conta criada! Faça login.', 'success');
+        window.location.href = result.data.redirect;
+      } else {
+        msgErro.textContent = result.data.message || 'Erro ao criar conta.';
+        msgErro.classList.remove('d-none');
+      }
+    })
+    .catch(function() { btn.disabled = false; msgErro.textContent = 'Erro de conexão.'; msgErro.classList.remove('d-none'); });
+  });
+})();
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,240 @@
+<%- include('partials/header') %>
+
+<div class="container">
+  <%
+    function toLocaleString(v) {
+      const n = Number(v || 0);
+      return n.toFixed(2).replace('.', ',');
+    }
+    const totalOrders = Number(summary && summary.total_orders ? summary.total_orders : 0);
+    const pending = Number(summary && summary.pending_count ? summary.pending_count : 0);
+    const failed = Number(summary && summary.failed_count ? summary.failed_count : 0);
+    const paid = Math.max(0, totalOrders - pending - failed);
+
+    const pct = function (value, base) {
+      const b = Number(base || 0);
+      if (!b) return 0;
+      return Math.max(0, Math.min(100, Number((Number(value || 0) * 100 / b).toFixed(1))));
+    };
+
+    const pendingPct = pct(pending, totalOrders);
+    const failedPct = pct(failed, totalOrders);
+    const paidPct = pct(paid, totalOrders);
+
+    const pixRev = Number(revenueByMethod && revenueByMethod.PIX ? revenueByMethod.PIX : 0);
+    const boletoRev = Number(revenueByMethod && revenueByMethod.BOLETO ? revenueByMethod.BOLETO : 0);
+    const cardRev = Number(revenueByMethod && revenueByMethod.CREDIT_CARD ? revenueByMethod.CREDIT_CARD : 0);
+    const totalRevByMethod = pixRev + boletoRev + cardRev;
+
+    const pixPct = pct(pixRev, totalRevByMethod);
+    const boletoPct = pct(boletoRev, totalRevByMethod);
+    const cardPct = pct(cardRev, totalRevByMethod);
+  %>
+
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Finanças</h2>
+      <p class="text-muted mb-0">Resumo financeiro e atalhos para relatórios e pedidos.</p>
+    </div>
+
+    <div class="text-muted small">Visão consolidada dos últimos 30 dias.</div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Receita (pagos)</div>
+      <div class="display-6 neo-accent-strong">R$ <%= summary && summary.revenue_paid ? toLocaleString(summary.revenue_paid) : '0,00' %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Pendentes</div>
+          <div class="display-6" style="font-weight: 700;"><%= summary && summary.pending_count ? summary.pending_count : 0 %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Falhou</div>
+          <div class="display-6" style="font-weight: 700;"><%= summary && summary.failed_count ? summary.failed_count : 0 %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Total de pedidos</div>
+          <div class="display-6" style="font-weight: 700;"><%= summary && summary.total_orders ? summary.total_orders : 0 %></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted small">Distribuição de pedidos (status)</div>
+            <strong class="small">Base: <%= totalOrders %></strong>
+          </div>
+          <div style="height: 250px;">
+            <canvas id="ordersStatusChart" aria-label="Gráfico de status de pedidos"></canvas>
+          </div>
+          <div class="small text-muted mt-2">
+            Pagos: <strong><%= paid %></strong> | Pendentes: <strong><%= pending %></strong> | Falhou: <strong><%= failed %></strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted small">Participação da receita por método</div>
+            <strong class="small">Total: R$ <%= toLocaleString(totalRevByMethod) %></strong>
+          </div>
+          <div style="height: 250px;">
+            <canvas id="revenueByMethodChart" aria-label="Gráfico de receita por método"></canvas>
+          </div>
+          <div class="small text-muted mt-2">
+            PIX: <strong>R$ <%= toLocaleString(pixRev) %></strong> | BOLETO: <strong>R$ <%= toLocaleString(boletoRev) %></strong> | CARTÃO: <strong>R$ <%= toLocaleString(cardRev) %></strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <a
+        class="card text-decoration-none text-dark h-100 border-primary"
+        href="/admin/financas/pedidos"
+      >
+        <div class="card-body">
+          <div class="text-muted small">Pedidos / Transações</div>
+          <div style="font-weight: 700; font-size: 1.1rem;">Gerenciar pagamentos</div>
+          <div class="text-muted small mt-1">Tabela + Tela cheia + ações</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a
+        class="card text-decoration-none text-dark h-100 border-primary"
+        href="/admin/financas/relatorios"
+      >
+        <div class="card-body">
+          <div class="text-muted small">Relatórios</div>
+          <div style="font-weight: 700; font-size: 1.1rem;">Receitas e Top vendidos</div>
+          <div class="text-muted small mt-1">Por método, por dia, e mais vendidos</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a
+        class="card text-decoration-none text-dark h-100 border-primary"
+        href="/admin/financas/recibos"
+      >
+        <div class="card-body">
+          <div class="text-muted small">Recibos</div>
+          <div style="font-weight: 700; font-size: 1.1rem;">Últimas operações pagas</div>
+          <div class="text-muted small mt-1">Detalhes Pix/Boleto</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    if (!window.Chart) return;
+
+    var numberPtBr = function (v) {
+      return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    var statusCtx = document.getElementById('ordersStatusChart');
+    if (statusCtx) {
+      new window.Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Pagos', 'Pendentes', 'Falhou'],
+          datasets: [{
+            data: [<%= paid %>, <%= pending %>, <%= failed %>],
+            backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+            borderWidth: 0,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  var total = <%= totalOrders %> || 0;
+                  var value = Number(ctx.raw || 0);
+                  var pct = total ? ((value * 100) / total).toFixed(1) : '0.0';
+                  return ctx.label + ': ' + value + ' (' + pct + '%)';
+                }
+              }
+            }
+          },
+          cutout: '62%',
+        }
+      });
+    }
+
+    var revCtx = document.getElementById('revenueByMethodChart');
+    if (revCtx) {
+      new window.Chart(revCtx, {
+        type: 'bar',
+        data: {
+          labels: ['PIX', 'BOLETO', 'CARTÃO'],
+          datasets: [{
+            label: 'Receita (R$)',
+            data: [<%= pixRev %>, <%= boletoRev %>, <%= cardRev %>],
+            backgroundColor: ['#0d6efd', '#6c757d', '#0dcaf0'],
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  return 'R$ ' + numberPtBr(ctx.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                callback: function (value) {
+                  return 'R$ ' + numberPtBr(value);
+                }
+              },
+              grid: { color: 'rgba(0,0,0,0.06)' }
+            },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+  })();
+</script>
+
+<%- include('partials/footer') %>
+

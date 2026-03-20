@@ -1,0 +1,280 @@
+<%- include('partials/header') %>
+<div class="container">
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Categorias</h2>
+      <p class="text-muted mb-0">Cadastre categorias para organizar os produtos.</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control" id="buscaInput" placeholder="Buscar..." onkeyup="filtrarTabela()">
+      </div>
+      <button type="button" class="btn btn-success d-flex align-items-center" onclick="abrirModalCat()" data-bs-toggle="modal" data-bs-target="#modalEditar">
+        <i class="bi bi-plus-lg me-2"></i> Novo
+      </button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle" id="tabelaCat">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nome</th>
+            <th>Slug</th>
+            <th>Pai</th>
+            <th>Ativo</th>
+            <th>Descrição</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (list && list.length) { list.forEach(function(item) { %>
+            <tr>
+              <td><%= item.id %></td>
+              <td class="fw-bold"><%= item.name %></td>
+              <td><%= item.slug || '-' %></td>
+              <td><%= (typeof parentNames !== 'undefined' && parentNames[item.parent_id]) ? parentNames[item.parent_id] : (item.parent_id ? item.parent_id : '-') %></td>
+              <td><%= item.is_active ? 'Sim' : 'Não' %></td>
+              <td><%= item.description || '-' %></td>
+              <td class="text-end">
+                <button type="button" class="btn-action btn-view" onclick="verCat(<%= item.id %>)" title="Ver"><i class="bi bi-eye"></i></button>
+                <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarCat(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
+          <% }); } %>
+        </tbody>
+      </table>
+    </div>
+    <div id="mensagemVazia" class="text-center py-5" style="display: <%= (list && list.length) ? 'none' : 'block' %>;">
+      <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
+      <p class="text-muted mt-2">Nenhuma categoria cadastrada.</p>
+      <button type="button" class="btn btn-outline-success btn-sm mt-2" onclick="abrirModalCat()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeira categoria</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-body { padding: 0; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+  .cadastro-view { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+  .cadastro-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
+  .cadastro-view-section { margin-bottom: 1.25rem; }
+  .cadastro-view-section:last-child { margin-bottom: 0; }
+  .cadastro-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
+  .cadastro-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
+  .cadastro-view-row:last-child { border-bottom: none; }
+  .cadastro-view-label { font-size: 0.85rem; color: #6c757d; min-width: 110px; flex-shrink: 0; }
+  .cadastro-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
+  .cadastro-edit { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-edit-section { margin-bottom: 1.5rem; }
+  .cadastro-edit-section:last-of-type { margin-bottom: 0; }
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .cadastro-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; margin-bottom: 0.25rem; }
+  .cadastro-edit .form-control, .cadastro-edit .form-select { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
+  .cadastro-edit .form-control:focus, .cadastro-edit .form-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+  .modal-cadastro .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
+  .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+  .modal-header-danger { background: #dc3545; color: #fff; }
+  .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+</style>
+
+<!-- Modal Ver -->
+<div class="modal fade modal-cadastro" id="modalVisualizar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-tags me-2"></i>Dados da categoria</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="conteudoVisualizacao">
+        <div class="cadastro-view"><div class="text-center text-muted py-4">Carregando...</div></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novo/Editar -->
+<div class="modal fade modal-cadastro" id="modalEditar" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEditarTitle"><i class="bi bi-pencil-square me-2"></i>Nova categoria</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cat_id">
+        <div class="cadastro-edit">
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Dados da categoria</div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="cat_name" class="form-label">Nome *</label>
+                <input type="text" class="form-control" id="cat_name" required placeholder="Nome da categoria">
+              </div>
+              <div class="col-12">
+                <label for="cat_slug" class="form-label">Slug</label>
+                <input type="text" class="form-control" id="cat_slug" placeholder="gerado automaticamente se vazio">
+              </div>
+              <div class="col-12">
+                <label for="cat_parent_id" class="form-label">Categoria pai</label>
+                <select class="form-select" id="cat_parent_id">
+                  <option value="">Nenhuma</option>
+                  <% if (list && list.length) { list.forEach(function(c) { if (c.id) { %>
+                  <option value="<%= c.id %>"><%= c.name %></option>
+                  <% } }); } %>
+                </select>
+              </div>
+              <div class="col-12">
+                <label for="cat_description" class="form-label">Descrição</label>
+                <input type="text" class="form-control" id="cat_description" placeholder="Descrição opcional">
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="cat_is_active" checked>
+                  <label class="form-check-label" for="cat_is_active">Ativo</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="btnSalvarCat"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Excluir -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header modal-header-danger">
+        <h5 class="modal-title"><i class="bi bi-trash-fill me-2"></i>Excluir categoria</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Tem certeza que deseja remover a categoria <strong id="exclusaoNome"></strong>?<br>Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Sim, Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+<script>
+  function filtrarTabela() {
+    var q = (document.getElementById('buscaInput').value || '').toLowerCase();
+    var trs = document.querySelectorAll('#tabelaCat tbody tr');
+    trs.forEach(function(tr) {
+      var txt = tr.textContent.toLowerCase();
+      tr.style.display = txt.indexOf(q) >= 0 ? '' : 'none';
+    });
+  }
+  function abrirModalCat() {
+    [].forEach.call(document.getElementById('cat_parent_id').options, function(opt) { opt.disabled = false; opt.hidden = false; });
+    document.getElementById('cat_id').value = '';
+    document.getElementById('cat_name').value = '';
+    document.getElementById('cat_slug').value = '';
+    document.getElementById('cat_parent_id').value = '';
+    document.getElementById('cat_description').value = '';
+    document.getElementById('cat_is_active').checked = true;
+    document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Nova categoria';
+  }
+  function verCat(id) {
+    var item = [].find.call(document.querySelectorAll('#tabelaCat tbody tr'), function(tr) {
+      return parseInt(tr.cells[0].textContent, 10) === id;
+    });
+    if (!item) return;
+    var nome = item.cells[1].textContent;
+    var slug = item.cells[2].textContent;
+    var pai = item.cells[3].textContent;
+    var ativo = item.cells[4].textContent;
+    var desc = item.cells[5].textContent;
+    var inicial = nome ? nome.charAt(0).toUpperCase() : '?';
+    var html = '<div class="cadastro-view">' +
+      '<div class="cadastro-view-avatar">' + inicial + '</div>' +
+      '<div class="cadastro-view-nome">' + nome + '</div>' +
+      '<div class="cadastro-view-section">' +
+        '<div class="cadastro-view-section-title">Dados</div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Slug</span><span class="cadastro-view-value">' + (slug === '-' ? '-' : slug) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Categoria pai</span><span class="cadastro-view-value">' + (pai === '-' ? '-' : pai) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Ativo</span><span class="cadastro-view-value">' + ativo + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Descrição</span><span class="cadastro-view-value">' + (desc === '-' ? '-' : desc) + '</span></div>' +
+      '</div></div>';
+    document.getElementById('conteudoVisualizacao').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
+  }
+  function editarCat(btn) {
+    try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+    var sel = document.getElementById('cat_parent_id');
+    [].forEach.call(sel.options, function(opt) {
+      opt.disabled = opt.value === String(item.id);
+      opt.hidden = opt.value === String(item.id);
+    });
+    document.getElementById('cat_id').value = item.id || '';
+    document.getElementById('cat_name').value = item.name || '';
+    document.getElementById('cat_slug').value = item.slug || '';
+    document.getElementById('cat_parent_id').value = item.parent_id != null ? item.parent_id : '';
+    document.getElementById('cat_description').value = item.description || '';
+    document.getElementById('cat_is_active').checked = item.is_active !== 0 && item.is_active !== false;
+    document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar categoria';
+    new bootstrap.Modal(document.getElementById('modalEditar')).show();
+  }
+  var exclusaoId = null;
+  function abrirModalExclusao(id, nome) {
+    exclusaoId = id;
+    document.getElementById('exclusaoNome').textContent = nome || ('#' + id);
+    new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+  }
+  document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
+    if (!exclusaoId) return;
+    var id = exclusaoId;
+    exclusaoId = null;
+    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
+    fetch('/admin/categorias/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) location.reload(); else window.neofarmaToast(d.message, 'danger');
+    }).catch(function() { window.neofarmaToast('Erro ao excluir.', 'danger'); });
+  });
+  document.getElementById('btnSalvarCat').addEventListener('click', function() {
+    var id = document.getElementById('cat_id').value;
+    var name = document.getElementById('cat_name').value.trim();
+    if (!name) { window.neofarmaToast('Nome é obrigatório.', 'danger'); return; }
+    var body = {
+      name: name,
+      slug: document.getElementById('cat_slug').value.trim() || null,
+      parent_id: document.getElementById('cat_parent_id').value ? parseInt(document.getElementById('cat_parent_id').value, 10) : null,
+      description: document.getElementById('cat_description').value.trim() || null,
+      is_active: document.getElementById('cat_is_active').checked
+    };
+    if (id) body.id = parseInt(id, 10);
+    var btn = document.getElementById('btnSalvarCat');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+    fetch('/admin/categorias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+        if (d.ok) { bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide(); location.reload(); }
+        else window.neofarmaToast(d.message, 'danger');
+      })
+      .catch(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar'; window.neofarmaToast('Erro ao salvar.', 'danger'); });
+  });
+</script>

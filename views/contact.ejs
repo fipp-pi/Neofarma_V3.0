@@ -1,0 +1,123 @@
+<%- include('partials/header') %>
+
+<main class="main">
+  <!-- Page Title -->
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Contato</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Inicio</a></li>
+          <li class="current">Contato</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Contact 2 Section -->
+  <section id="contact-2" class="contact-2 section">
+
+    <div class="container" data-aos="fade-up" data-aos-delay="100">
+
+      <!-- Contact Info Boxes -->
+      <div class="row gy-4 mb-5">
+        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
+          <div class="contact-info-box">
+            <div class="icon-box">
+              <i class="bi bi-geo-alt"></i>
+            </div>
+            <div class="info-content">
+              <h4>Endereço:</h4>
+              <p>Av. Saúde Natural, 123 - São Paulo/SP</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
+          <div class="contact-info-box">
+            <div class="icon-box">
+              <i class="bi bi-envelope"></i>
+            </div>
+            <div class="info-content">
+              <h4>Email:</h4>
+              <p>contato@neofarma.com</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Google Maps (Full Width) -->
+      <div class="map-section" data-aos="fade-up" data-aos-delay="200">
+        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3512.942695853416!2d-51.405438524935775!3d-22.133287179807006!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9493f45ba9b74c71%3A0xee06e2c0934ed7d3!2sUnoeste%20-%20Campus%20I!5e1!3m2!1spt-BR!2sbr!4v1756438550450!5m2!1spt-BR!2sbr" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+
+      <!-- Contact Form Section -->
+      <div class="container form-container-overlap">
+        <div class="row justify-content-center" data-aos="fade-up" data-aos-delay="300">
+          <div class="col-lg-10">
+            <div class="contact-form-wrapper">
+              <h2 class="text-center mb-4">Entre em Contato:</h2>
+
+              <form id="contactForm" class="php-email-form">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <div class="input-with-icon">
+                        <i class="bi bi-person"></i>
+                        <input type="text" class="form-control" name="name" placeholder="Primeiro Nome" required>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <div class="input-with-icon">
+                        <i class="bi bi-envelope"></i>
+                        <input type="email" class="form-control" name="email" placeholder="Email" required>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-12">
+                    <div class="form-group">
+                      <div class="input-with-icon">
+                        <i class="bi bi-text-left"></i>
+                        <input type="text" class="form-control" name="subject" placeholder="Assunto" required>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="form-group">
+                      <div class="input-with-icon">
+                        <i class="bi bi-chat-dots message-icon"></i>
+                        <textarea class="form-control" name="message" placeholder="Escreva uma Mensagem..." style="height: 180px" required></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-12 text-center">
+                    <button type="button" class="btn btn-primary btn-submit" onclick="enviarMensagem()">ENVIAR MENSAGEM</button>
+                  </div>
+                </div>
+              </form>
+
+              <!-- Mensagem de Sucesso -->
+              <div id="contactSuccess" class="alert alert-success mt-3 d-none">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                Sua mensagem foi enviada! Responderemos em breve.
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </section><!-- /Contact 2 Section -->
+
+</main>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,152 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">
+        Produtos
+        <% if (selectedLab) { %>
+          <small class="text-muted">- <%= selectedLab %></small>
+        <% } %>
+      </h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <% if (selectedLab) { %>
+            <li><a href="/produtos">Produtos</a></li>
+            <li class="current"><%= selectedLab %></li>
+          <% } else { %>
+            <li class="current">Produtos</li>
+          <% } %>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <% if (availableLabs && availableLabs.length) { %>
+    <section class="section pb-0">
+      <div class="container">
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/produtos" class="btn btn-sm <%= !selectedLab ? 'btn-dark' : 'btn-outline-dark' %>">Todos</a>
+          <% availableLabs.forEach(function(lab) { %>
+            <a
+              href="/produtos?lab=<%= encodeURIComponent(lab) %>"
+              class="btn btn-sm <%= selectedLab && selectedLab.toLowerCase() === String(lab).toLowerCase() ? 'btn-dark' : 'btn-outline-dark' %>"
+            ><%= lab %></a>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="section">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <p class="mb-0 text-muted">
+          <strong><%= allProducts.length %></strong> produto<%= allProducts.length === 1 ? '' : 's' %> encontrado<%= allProducts.length === 1 ? '' : 's' %>
+          <% if (selectedLab) { %>
+            para o laboratório <strong><%= selectedLab %></strong>
+          <% } %>
+        </p>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Em promoção</h3>
+        <span class="text-muted small"><%= emPromocao.length %> produtos</span>
+      </div>
+      <div class="row g-3">
+        <% if (emPromocao.length) { emPromocao.forEach(function(p) { %>
+          <div class="col-6 col-md-4 col-lg-3">
+            <a href="/produtos/<%= p.id %>" class="text-decoration-none text-dark">
+              <div class="card h-100 border-0 shadow-sm">
+                <img src="<%= p.thumb_url %>" class="card-img-top" alt="<%= p.name %>" style="aspect-ratio:1/1; object-fit:cover;">
+                <div class="card-body">
+                  <h6 class="card-title mb-1"><%= p.name %></h6>
+                  <small class="text-muted d-block mb-2"><%= p.lab_name || 'NeoFarma' %></small>
+                  <small class="d-block mb-2 <%= p.can_buy ? 'text-success' : 'text-danger' %>">
+                    <%= p.can_buy ? ('Estoque: ' + p.available_stock) : 'Sem estoque' %>
+                  </small>
+                  <% if (p.has_promo) { %>
+                    <div><small class="text-muted text-decoration-line-through">R$ <%= p.price_display %></small></div>
+                    <strong class="text-success">R$ <%= p.promo_display %></strong>
+                  <% } else { %>
+                    <strong>R$ <%= p.price_display %></strong>
+                  <% } %>
+                  <button class="btn btn-sm btn-primary mt-2 btn-add-cart" data-id="<%= p.id %>" <%= p.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
+                </div>
+              </div>
+            </a>
+          </div>
+        <% }); } else { %>
+          <div class="col-12"><p class="text-muted">Nenhum produto em promoção no momento.</p></div>
+        <% } %>
+      </div>
+    </div>
+  </section>
+
+  <section class="section pt-0">
+    <div class="container">
+      <h3 class="mb-3">Mais vendidos</h3>
+      <div class="row g-3">
+        <% maisVendidos.forEach(function(p) { %>
+          <div class="col-6 col-md-4 col-lg-3">
+            <a href="/produtos/<%= p.id %>" class="text-decoration-none text-dark">
+              <div class="card h-100 border-0 shadow-sm">
+                <img src="<%= p.thumb_url %>" class="card-img-top" alt="<%= p.name %>" style="aspect-ratio:1/1; object-fit:cover;">
+                <div class="card-body">
+                  <h6 class="card-title mb-1"><%= p.name %></h6>
+                  <small class="text-muted d-block mb-2"><%= p.lab_name || 'NeoFarma' %></small>
+                  <strong><%= p.has_promo ? 'R$ ' + p.promo_display : 'R$ ' + p.price_display %></strong>
+                  <button class="btn btn-sm btn-primary mt-2 btn-add-cart" data-id="<%= p.id %>" <%= p.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
+                </div>
+              </div>
+            </a>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </section>
+
+  <section class="section pt-0">
+    <div class="container">
+      <h3 class="mb-3">Populares</h3>
+      <div class="row g-3">
+        <% populares.forEach(function(p) { %>
+          <div class="col-6 col-md-4 col-lg-3">
+            <a href="/produtos/<%= p.id %>" class="text-decoration-none text-dark">
+              <div class="card h-100 border-0 shadow-sm">
+                <img src="<%= p.thumb_url %>" class="card-img-top" alt="<%= p.name %>" style="aspect-ratio:1/1; object-fit:cover;">
+                <div class="card-body">
+                  <h6 class="card-title mb-1"><%= p.name %></h6>
+                  <small class="text-muted d-block mb-2"><%= p.lab_name || 'NeoFarma' %></small>
+                  <strong><%= p.has_promo ? 'R$ ' + p.promo_display : 'R$ ' + p.price_display %></strong>
+                  <button class="btn btn-sm btn-primary mt-2 btn-add-cart" data-id="<%= p.id %>" <%= p.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
+                </div>
+              </div>
+            </a>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  document.querySelectorAll('.btn-add-cart').forEach((btn) => {
+    btn.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      const productId = Number(btn.getAttribute('data-id'));
+      const resp = await fetch('/api/cart/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, quantity: 1 })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        window.dispatchEvent(new Event('cart:changed'));
+        btn.textContent = 'Adicionado!';
+        setTimeout(() => { btn.textContent = 'Adicionar ao Carrinho'; }, 1000);
+      } else {
+        window.neofarmaToast(data.message || 'Erro ao adicionar no carrinho.', 'danger');
+      }
+    });
+  });
+</script>
+<%- include('partials/footer') %>

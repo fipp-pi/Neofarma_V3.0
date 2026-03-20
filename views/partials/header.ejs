@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title><%= locals.title ? title : 'NeoFarma' %></title>
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+  <!-- Favicons -->
+  <link href="/assets/img/favicon.png" rel="icon">
+  <link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+  <!-- Vendor CSS Files -->
+  <link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+  <link href="/assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="/assets/vendor/drift-zoom/drift-basic.css" rel="stylesheet">
+
+  <!-- Main CSS File -->
+  <link href="/assets/css/main.css" rel="stylesheet">
+
+  <!-- =======================================================
+  * Template Name: NiceShop
+  * Template URL: https://bootstrapmade.com/niceshop-bootstrap-ecommerce-template/
+  * Updated: Jul 25 2025 with Bootstrap v5.3.7
+  * Author: BootstrapMade.com
+  * License: https://bootstrapmade.com/license/
+  ======================================================== -->
+</head>
+
+<body class="<%= locals.bodyClass ? bodyClass : '' %>">
+
+  <!-- Global toast (substitui alert() por mensagem mais profissional) -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+    <div id="neofarmaToast" class="toast align-items-center border-0 text-bg-success" role="status" aria-live="polite" aria-atomic="true" aria-label="Mensagem" data-bs-delay="4000">
+      <div class="d-flex align-items-center">
+        <div id="neofarmaToastIcon" class="p-2 me-2 d-flex align-items-center justify-content-center">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <div id="neofarmaToastBody" class="toast-body"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmação global (substitui confirm() por UX mais profissional) -->
+  <div class="modal fade" id="neofarmaConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="neofarmaConfirmTitle">Confirmação</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0 text-muted" id="neofarmaConfirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="neofarmaConfirmCancelBtn">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="neofarmaConfirmConfirmBtn">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.neofarmaToast = window.neofarmaToast || function (message, type) {
+      try {
+        var toastEl = document.getElementById('neofarmaToast');
+        if (!toastEl) return;
+        var bodyEl = document.getElementById('neofarmaToastBody');
+        var iconEl = document.getElementById('neofarmaToastIcon');
+
+        if (bodyEl) bodyEl.textContent = (message == null ? '' : String(message));
+
+        toastEl.classList.remove('text-bg-success', 'text-bg-danger', 'text-bg-warning', 'text-bg-info', 'text-bg-primary');
+
+        var iconClass = 'bi bi-check2-circle';
+        if (type === 'danger') { toastEl.classList.add('text-bg-danger'); iconClass = 'bi bi-exclamation-octagon'; }
+        else if (type === 'success') { toastEl.classList.add('text-bg-success'); iconClass = 'bi bi-check2-circle'; }
+        else if (type === 'warning') { toastEl.classList.add('text-bg-warning'); iconClass = 'bi bi-exclamation-triangle'; }
+        else { toastEl.classList.add('text-bg-primary'); iconClass = 'bi bi-info-circle'; }
+
+        if (iconEl) iconEl.innerHTML = '<i class="' + iconClass + '"></i>';
+
+        if (window.bootstrap && window.bootstrap.Toast) {
+          window.bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        } else {
+          // fallback simples caso bootstrap JS não esteja pronto ainda
+          toastEl.classList.add('show');
+          setTimeout(function () { toastEl.classList.remove('show'); }, 4000);
+        }
+      } catch (e) {
+        // silencioso
+      }
+    };
+
+    window.neofarmaConfirm = window.neofarmaConfirm || function (opts) {
+      opts = opts || {};
+      return new Promise(function (resolve) {
+        try {
+          var modalEl = document.getElementById('neofarmaConfirmModal');
+          if (!modalEl) return resolve(false);
+
+          var titleEl = document.getElementById('neofarmaConfirmTitle');
+          var msgEl = document.getElementById('neofarmaConfirmMessage');
+          var confirmBtn = document.getElementById('neofarmaConfirmConfirmBtn');
+          var resolved = false;
+
+          if (titleEl) titleEl.textContent = opts.title ? String(opts.title) : 'Confirmação';
+          if (msgEl) msgEl.textContent = opts.message ? String(opts.message) : '';
+          if (confirmBtn) confirmBtn.textContent = opts.confirmText ? String(opts.confirmText) : 'Confirmar';
+
+          var modalInstance = null;
+          if (window.bootstrap && window.bootstrap.Modal) {
+            modalInstance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+          }
+
+          function finalize(value) {
+            if (resolved) return;
+            resolved = true;
+            resolve(!!value);
+          }
+
+          if (confirmBtn) {
+            confirmBtn.onclick = function () {
+              if (modalInstance) modalInstance.hide();
+              finalize(true);
+            };
+          }
+
+          modalEl.addEventListener('hidden.bs.modal', function () {
+            // quando fechar por X, ESC ou "Cancelar"
+            finalize(false);
+          }, { once: true });
+
+          if (modalInstance) modalInstance.show();
+          else finalize(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    };
+  </script>
+
+  <header id="header" class="header sticky-top">
+   
+
+    <!-- Main Header -->
+    <div class="main-header">
+      <div class="container-fluid container-xl">
+        <div class="d-flex py-3 align-items-center justify-content-between">
+
+          <!-- Logo -->
+          <a href="/" class="logo d-flex align-items-center">
+            <!-- Uncomment the line below if you also wish to use an image logo -->
+            <img src="/assets/img/other/logo-neofarma.png" alt="logo NeoFarma">
+            <h1 class="sitename">NeoFarma</h1>
+          </a>
+
+          <!-- Search -->
+          <form class="search-form desktop-search-form">
+            <div class="input-group">
+              <input type="text" class="form-control" placeholder="Procurar Produtos">
+              <button class="btn" type="submit">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </form>
+
+          <!-- Actions -->
+          <div class="header-actions d-flex align-items-center justify-content-end">
+
+            <!-- Mobile Search Toggle -->
+            <button class="header-action-btn mobile-search-toggle d-xl-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileSearch" aria-expanded="false" aria-controls="mobileSearch">
+              <i class="bi bi-search"></i>
+            </button>
+
+            <!-- Account -->
+            <div class="dropdown account-dropdown">
+              <button class="header-action-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person"></i>
+                <% if (locals.user) { %><span class="d-none d-md-inline ms-1">Conta</span><% } %>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end">
+                <% if (locals.user) { %>
+                <div class="dropdown-header">
+                  <h6 class="mb-0">Olá, <span class="sitename"><%= user.full_name || user.email %></span></h6>
+                  <p class="mb-0 small text-muted">Você está logado</p>
+                </div>
+                <div class="dropdown-body">
+                  <a class="dropdown-item d-flex align-items-center" href="/account">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span>Meu Perfil</span>
+                  </a>
+                  <a class="dropdown-item d-flex align-items-center" href="/account">
+                    <i class="bi bi-bag-check me-2"></i>
+                    <span>Minhas Compras</span>
+                  </a>
+                  <a class="dropdown-item d-flex align-items-center" href="/account">
+                    <i class="bi bi-gear me-2"></i>
+                    <span>Configurações</span>
+                  </a>
+                </div>
+                <div class="dropdown-footer">
+                  <a href="/logout" class="btn btn-outline-danger w-100">Sair da conta</a>
+                </div>
+                <% } else { %>
+                <div class="dropdown-header">
+                  <h6>Bem-vindo ao <span class="sitename">NeoFarma</span></h6>
+                  <p class="mb-0">Minha Conta &amp; Meus Pedidos</p>
+                </div>
+                <div class="dropdown-body">
+                  <a class="dropdown-item d-flex align-items-center" href="/account">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span>Meu Perfil</span>
+                  </a>
+                  <a class="dropdown-item d-flex align-items-center" href="/account">
+                    <i class="bi bi-bag-check me-2"></i>
+                    <span>Minhas Compras</span>
+                  </a>
+                </div>
+                <div class="dropdown-footer">
+                  <a href="/login" class="btn btn-primary w-100 mb-2">Entrar</a>
+                  <a href="/register" class="btn btn-outline-primary w-100">Registrar</a>
+                </div>
+                <% } %>
+              </div>
+            </div>
+
+            <!-- Cart -->
+            <a href="/cart" class="header-action-btn">
+              <i class="bi bi-cart3"></i>
+              <span class="badge" data-cart-count><%= typeof cartItemCount !== 'undefined' ? cartItemCount : 0 %></span>
+            </a>
+
+            <!-- Mobile Navigation Toggle -->
+            <i class="mobile-nav-toggle d-xl-none bi bi-list me-0"></i>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="header-nav">
+      <div class="container-fluid container-xl position-relative">
+        <nav id="navmenu" class="navmenu">
+          <ul>
+            <li><a href="/" class="<%= locals.activeNav === 'home' ? 'active' : '' %>">Inicio</a></li>
+            <li><a href="/about" class="<%= locals.activeNav === 'about' ? 'active' : '' %>">Sobre</a></li>
+            <li><a href="/category" class="<%= locals.activeNav === 'category' ? 'active' : '' %>">Categoria</a></li>
+            <li><a href="/contact" class="<%= locals.activeNav === 'contact' ? 'active' : '' %>">Contato</a></li>
+
+          </ul>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Mobile Search Form -->
+    <div class="collapse" id="mobileSearch">
+      <div class="container">
+        <form class="search-form">
+          <div class="input-group">
+            <input type="text" class="form-control" placeholder="Procurar Produtos">
+            <button class="btn" type="submit">
+              <i class="bi bi-search"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </header>
+

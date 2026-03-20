@@ -1,0 +1,748 @@
+<%- include('partials/header') %>
+
+<style>
+  /* Alinha botões da conta com a cor de destaque do site (--accent-color) */
+  .account .content-area .section-header .header-actions .btn-primary,
+  .account .content-area .settings-section .form-buttons .btn-primary {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--contrast-color);
+  }
+  .account .content-area .section-header .header-actions .btn-primary:hover,
+  .account .content-area .settings-section .form-buttons .btn-primary:hover {
+    background-color: color-mix(in srgb, var(--accent-color), #000 12%);
+    border-color: color-mix(in srgb, var(--accent-color), #000 12%);
+    color: var(--contrast-color);
+  }
+</style>
+
+<main class="main">
+
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Conta</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li class="current">Conta</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section id="account" class="account section">
+    <div class="container" data-aos="fade-up" data-aos-delay="100">
+
+      <div class="mobile-menu d-lg-none mb-4">
+        <button class="mobile-menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#profileMenu">
+          <i class="bi bi-grid"></i>
+          <span>Menu</span>
+        </button>
+      </div>
+
+      <div class="row g-4">
+        <!-- Menu lateral do perfil -->
+        <div class="col-lg-3">
+          <div class="profile-menu collapse d-lg-block" id="profileMenu">
+            <div class="user-info" data-aos="fade-right">
+              <h4><%= profile.full_name || 'Usuário' %></h4>
+              <div class="user-status">
+                <i class="bi bi-award"></i>
+                <span>Membro</span>
+              </div>
+            </div>
+
+            <nav class="menu-nav">
+              <ul class="nav flex-column" role="tablist">
+                <li class="nav-item">
+                  <a class="nav-link" data-bs-toggle="tab" href="#orders">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Meus Pedidos</span>
+                    <span class="badge"><%= typeof ordersCount !== 'undefined' ? ordersCount : 0 %></span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" data-bs-toggle="tab" href="#wishlist">
+                    <i class="bi bi-heart"></i>
+                    <span>Favoritos</span>
+                    <span class="badge">0</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" data-bs-toggle="tab" href="#wallet">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Métodos de Pagamento</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" data-bs-toggle="tab" href="#reviews">
+                    <i class="bi bi-star"></i>
+                    <span>Minhas Análises</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" data-bs-toggle="tab" href="#addresses">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Endereço</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link active" data-bs-toggle="tab" href="#settings">
+                    <i class="bi bi-gear"></i>
+                    <span>Config. de Conta</span>
+                  </a>
+                </li>
+              </ul>
+
+              <div class="menu-footer">
+                <a href="/contact" class="help-link">
+                  <i class="bi bi-question-circle"></i>
+                  <span>Central de Ajuda</span>
+                </a>
+                <a href="/logout" class="logout-link">
+                  <i class="bi bi-box-arrow-right"></i>
+                  <span>Sair</span>
+                </a>
+              </div>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Área de conteúdo (abas) -->
+        <div class="col-lg-9">
+          <div class="content-area">
+            <div class="tab-content">
+              <!-- Meus Pedidos -->
+              <div class="tab-pane fade" id="orders">
+                <div class="section-header" data-aos="fade-up">
+                  <h2>Meus Pedidos</h2>
+                </div>
+                <div class="orders-grid">
+                  <% if (typeof orders !== 'undefined' && orders.length) { %>
+                    <% orders.forEach(function(order) { %>
+                      <div class="card mb-3 border-0 shadow-sm" data-aos="fade-up">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div>
+                              <h6 class="mb-1">Pedido #<%= order.id %></h6>
+                              <small class="text-muted">
+                                <%= new Date(order.created_at).toLocaleDateString('pt-BR') %> -
+                                <%= order.items_count || 0 %> item(ns)
+                              </small>
+                            </div>
+                            <span class="badge bg-<%= order.status_ui.badge %>"><%= order.status_ui.label %></span>
+                          </div>
+                          <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                              <small class="text-muted d-block">Pagamento: <%= order.payment_method %> / <%= order.payment_status %></small>
+                              <strong>Total: R$ <%= Number(order.total || 0).toFixed(2).replace('.', ',') %></strong>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                              <% if (order.can_cancel) { %>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-order" data-order-id="<%= order.id %>">
+                                  Cancelar pedido
+                                </button>
+                              <% } %>
+                              <a class="btn btn-sm btn-outline-primary" href="/order-confirmation?order=<%= order.id %>">
+                                Ver detalhes
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    <% }) %>
+                  <% } else { %>
+                    <p class="text-muted">Você ainda não fez nenhum pedido.</p>
+                  <% } %>
+                </div>
+              </div>
+
+              <!-- Favoritos -->
+              <div class="tab-pane fade" id="wishlist">
+                <div class="section-header" data-aos="fade-up">
+                  <h2>Meus Favoritos</h2>
+                </div>
+                <p class="text-muted">Nenhum item nos favoritos.</p>
+              </div>
+
+              <!-- Métodos de Pagamento -->
+              <div class="tab-pane fade" id="wallet">
+                <div class="section-header" data-aos="fade-up">
+                  <h2>Métodos de Pagamento</h2>
+                </div>
+                <p class="text-muted">Nenhum método de pagamento cadastrado.</p>
+              </div>
+
+              <!-- Minhas Análises -->
+              <div class="tab-pane fade" id="reviews">
+                <div class="section-header" data-aos="fade-up">
+                  <h2>Minhas Análises</h2>
+                </div>
+                <p class="text-muted">Você ainda não escreveu análises.</p>
+              </div>
+
+              <!-- Endereço -->
+              <div class="tab-pane fade" id="addresses">
+                <div class="section-header" data-aos="fade-up">
+                  <h2>Meus Endereços</h2>
+                  <div class="header-actions">
+                    <button type="button" class="btn btn-primary" id="btnNovoEndereco">
+                      <i class="bi bi-plus-lg"></i> Novo endereço
+                    </button>
+                  </div>
+                </div>
+
+                <div class="addresses-grid" id="addressesList">
+                  <% if (typeof addresses !== 'undefined' && addresses.length) { %>
+                    <% addresses.forEach(function(addr) {
+                      var zip = addr.zip_code ? (String(addr.zip_code).length === 8 ? String(addr.zip_code).slice(0,5) + '-' + String(addr.zip_code).slice(5) : addr.zip_code) : '';
+                    %>
+                  <div class="address-card <%= addr.is_default ? 'default' : '' %>" data-address-id="<%= addr.address_id %>" data-aos="fade-up">
+                    <div class="card-header">
+                      <h4><%= addr.label || 'Endereço' %></h4>
+                      <% if (addr.is_default) { %><span class="default-badge">Padrão</span><% } %>
+                    </div>
+                    <div class="card-body">
+                      <p class="address-text">
+                        <%= addr.street || '' %> <%= addr.number || '' %><% if (addr.complement) { %><br><%= addr.complement %><% } %>
+                        <br><%= addr.district || '' %> - <%= addr.city || '' %>, <%= addr.state || '' %> <%= zip %>
+                        <br><%= addr.country || 'Brasil' %>
+                      </p>
+                    </div>
+                    <div class="card-actions">
+                      <button type="button" class="btn-edit btn-edit-addr" data-id="<%= addr.address_id %>" data-label="<%= addr.label || '' %>" data-street="<%= addr.street || '' %>" data-number="<%= addr.number || '' %>" data-complement="<%= addr.complement || '' %>" data-district="<%= addr.district || '' %>" data-city="<%= addr.city || '' %>" data-state="<%= addr.state || '' %>" data-country="<%= addr.country || '' %>" data-zip="<%= zip %>">
+                        <i class="bi bi-pencil"></i> Editar
+                      </button>
+                      <% if (!addr.is_default) { %>
+                      <button type="button" class="btn-make-default btn-set-default-addr" data-id="<%= addr.address_id %>">Definir como padrão</button>
+                      <% } %>
+                      <button type="button" class="btn-remove btn-remove-addr" data-id="<%= addr.address_id %>">
+                        <i class="bi bi-trash"></i> Remover
+                      </button>
+                    </div>
+                  </div>
+                  <% }); %>
+                  <% } else { %>
+                  <p class="text-muted">Nenhum endereço cadastrado. Adicione um acima.</p>
+                  <% } %>
+                </div>
+
+                <!-- Formulário adicionar/editar endereço (oculto por padrão) -->
+                <div class="settings-section mt-4" id="formAddressWrap" style="display: none;">
+                  <h3 id="formAddressTitle">Novo endereço</h3>
+                  <form id="formAddress" class="settings-form">
+                    <input type="hidden" id="addressId" name="address_id" value="">
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        <label for="addr_cep" class="form-label">CEP</label>
+                        <input type="text" class="form-control" id="addr_cep" name="cep" maxlength="9">
+                        <small id="erroCepAddr" class="text-danger" style="display:none;"></small>
+                      </div>
+                      <div class="col-md-8">
+                        <label for="addr_street" class="form-label">Rua / Logradouro</label>
+                        <input type="text" class="form-control" id="addr_street" name="street">
+                      </div>
+                      <div class="col-md-4">
+                        <label for="addr_number" class="form-label">Número</label>
+                        <input type="text" class="form-control" id="addr_number" name="number">
+                      </div>
+                      <div class="col-md-4">
+                        <label for="addr_complement" class="form-label">Complemento</label>
+                        <input type="text" class="form-control" id="addr_complement" name="complement">
+                      </div>
+                      <div class="col-md-4">
+                        <label for="addr_district" class="form-label">Bairro</label>
+                        <input type="text" class="form-control" id="addr_district" name="district">
+                      </div>
+                      <div class="col-md-6">
+                        <label for="addr_city" class="form-label">Cidade</label>
+                        <input type="text" class="form-control" id="addr_city" name="city">
+                      </div>
+                      <div class="col-md-6">
+                        <label for="addr_state" class="form-label">Estado (UF)</label>
+                        <input type="text" class="form-control" id="addr_state" name="state" maxlength="2">
+                      </div>
+                      <div class="col-md-12">
+                        <label for="addr_country" class="form-label">País</label>
+                        <select class="form-select" id="addr_country" name="country">
+                          <option value="Brasil">Brasil</option>
+                          <option value="Portugal">Portugal</option>
+                          <option value="Estados Unidos">Estados Unidos</option>
+                          <option value="Outro">Outro</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div id="msgErroAddr" class="alert alert-danger d-none mt-3"></div>
+                    <div id="msgOkAddr" class="alert alert-success d-none mt-3"></div>
+                    <div class="form-buttons mt-3">
+                      <button type="submit" class="btn btn-primary" id="btnSalvarAddr">Adicionar endereço</button>
+                      <button type="button" class="btn btn-outline-secondary" id="btnCancelarAddr">Cancelar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Config. de Conta -->
+              <div class="tab-pane fade show active" id="settings">
+                <div class="section-header" data-aos="fade-up">
+                  <h2>Config. de Conta</h2>
+                </div>
+
+                <div class="settings-content">
+                  <div class="settings-section" data-aos="fade-up">
+                    <h3>Informações Pessoais</h3>
+                    <form id="formAccount" class="settings-form" novalidate>
+                      <div class="row g-3">
+                        <div class="col-md-12">
+                          <label for="full_name" class="form-label">Nome completo</label>
+                          <input type="text" class="form-control" id="full_name" name="full_name" required minlength="3" value="<%= profile.full_name || '' %>">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="email" class="form-label">Email</label>
+                          <input type="email" class="form-control" id="email" name="email" required value="<%= profile.email || '' %>">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="account_phone" class="form-label">Telefone</label>
+                          <input type="tel" class="form-control" id="account_phone" name="phone" maxlength="18" value="<%= profile.phone || '' %>">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="document" class="form-label">CPF</label>
+                          <input type="text" class="form-control" id="document" name="document" maxlength="14" value="<%= profile.document || '' %>">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="birth_date" class="form-label">Data de nascimento</label>
+                          <input type="date" class="form-control" id="birth_date" name="birth_date" value="<%= profile.birth_date ? (typeof profile.birth_date === 'string' ? profile.birth_date.slice(0,10) : profile.birth_date.toISOString().slice(0,10)) : '' %>">
+                        </div>
+                        <div class="col-md-12">
+                          <label for="country" class="form-label">País</label>
+                          <select class="form-select" id="country" name="country">
+                            <option value="Brasil" <%= (profile.country || 'Brasil') === 'Brasil' ? 'selected' : '' %>>Brasil</option>
+                            <option value="Portugal" <%= profile.country === 'Portugal' ? 'selected' : '' %>>Portugal</option>
+                            <option value="Estados Unidos" <%= profile.country === 'Estados Unidos' ? 'selected' : '' %>>Estados Unidos</option>
+                            <option value="Outro" <%= profile.country === 'Outro' ? 'selected' : '' %>>Outro</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div id="msgErroAccount" class="alert alert-danger d-none mt-3"></div>
+                      <div id="msgOkAccount" class="alert alert-success d-none mt-3"></div>
+                      <div class="form-buttons mt-4">
+                        <button type="submit" class="btn-save" id="btnSalvar">Salvar Alterações</button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div class="settings-section" data-aos="fade-up" data-aos-delay="100">
+                    <h3>Alterar senha</h3>
+                    <p class="text-muted small">Informe a senha atual e defina uma nova senha (mínimo 6 caracteres).</p>
+                    <form id="formAlterarSenha" class="settings-form" novalidate>
+                      <div class="row g-3">
+                        <div class="col-md-12">
+                          <label for="senha_atual" class="form-label">Senha atual *</label>
+                          <input type="password" class="form-control" id="senha_atual" name="senha_atual" required autocomplete="current-password" placeholder="Sua senha atual">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="nova_senha" class="form-label">Nova senha *</label>
+                          <input type="password" class="form-control" id="nova_senha" name="nova_senha" required minlength="6" autocomplete="new-password" placeholder="Mín. 6 caracteres">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="confirmar_nova_senha" class="form-label">Confirmar nova senha *</label>
+                          <input type="password" class="form-control" id="confirmar_nova_senha" name="confirmar_nova_senha" required minlength="6" autocomplete="new-password" placeholder="Repita a nova senha">
+                        </div>
+                      </div>
+                      <div id="msgErroSenha" class="alert alert-danger d-none mt-3"></div>
+                      <div id="msgOkSenha" class="alert alert-success d-none mt-3"></div>
+                      <div class="form-buttons mt-3">
+                        <button type="submit" class="btn btn-primary" id="btnAlterarSenha">Alterar senha</button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div class="settings-section danger-zone" data-aos="fade-up" data-aos-delay="200">
+                    <h3>Deletar Conta</h3>
+                    <div class="danger-zone-content">
+                      <p>Uma vez que deletar sua conta, não poderá recuperá-la. Entre em contato com o suporte se precisar.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modal cancelamento de pedido (sem confirm() / alert()) -->
+  <div class="modal fade" id="modalCancelPedido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Cancelar pedido</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p id="modalCancelPedidoMsg" class="mb-0 text-muted">Deseja cancelar este pedido?</p>
+          <div class="mt-2 small text-muted">
+            O estoque será devolvido aos lotes assim que o cancelamento for processado.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar</button>
+          <button type="button" class="btn btn-danger" id="modalCancelPedidoConfirmBtn">Confirmar cancelamento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function() {
+  var form = document.getElementById('formAccount');
+  var btn = document.getElementById('btnSalvar');
+  var msgErro = document.getElementById('msgErroAccount');
+  var msgOk = document.getElementById('msgOkAccount');
+  if (!form) return;
+
+  var phoneInput = document.getElementById('account_phone');
+  if (phoneInput) {
+    phoneInput.addEventListener('input', function() {
+      var raw = this.value.replace(/\D/g, '');
+      if (raw.length > 11) raw = raw.slice(0, 11);
+      var ddd = raw.slice(0, 2), nono = raw.slice(2, 3), bloco1 = raw.slice(3, 7), bloco2 = raw.slice(7, 11);
+      if (raw.length === 0) { this.value = ''; return; }
+      if (raw.length <= 2) { this.value = '(' + ddd; return; }
+      if (raw.length === 3) { this.value = '(' + ddd + ') ' + nono; return; }
+      if (raw.length <= 7) { this.value = '(' + ddd + ') ' + nono + ' ' + bloco1; return; }
+      this.value = '(' + ddd + ') ' + nono + ' ' + bloco1 + ' ' + bloco2;
+    });
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    msgErro.classList.add('d-none');
+    msgOk.classList.add('d-none');
+    btn.disabled = true;
+
+    var fd = new FormData(form);
+    var body = {
+      full_name: fd.get('full_name') || '',
+      email: (fd.get('email') || '').trim().toLowerCase(),
+      document: fd.get('document') || null,
+      phone: fd.get('phone') || null,
+      birth_date: fd.get('birth_date') || null,
+      country: fd.get('country') || null
+    };
+
+    fetch('/account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
+    .then(function(result) {
+      btn.disabled = false;
+      if (result.status === 401 && result.data.redirect) {
+        window.location.href = result.data.redirect;
+        return;
+      }
+      if (result.data.ok) {
+        msgOk.textContent = result.data.message || 'Dados salvos.';
+        msgOk.classList.remove('d-none');
+        msgErro.classList.add('d-none');
+      } else {
+        msgErro.textContent = result.data.message || 'Erro ao salvar.';
+        msgErro.classList.remove('d-none');
+        msgOk.classList.add('d-none');
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      msgErro.textContent = 'Erro de conexão. Tente novamente.';
+      msgErro.classList.remove('d-none');
+    });
+  });
+
+  // ---- Aba Endereço: adicionar / editar / remover / definir padrão ----
+  var formAddressWrap = document.getElementById('formAddressWrap');
+  var formAddress = document.getElementById('formAddress');
+  var formAddressTitle = document.getElementById('formAddressTitle');
+  var addressIdInput = document.getElementById('addressId');
+  var btnNovoEndereco = document.getElementById('btnNovoEndereco');
+  var btnCancelarAddr = document.getElementById('btnCancelarAddr');
+  var msgErroAddr = document.getElementById('msgErroAddr');
+  var msgOkAddr = document.getElementById('msgOkAddr');
+
+  var btnSalvarAddr = document.getElementById('btnSalvarAddr');
+  function showAddressForm(editId) {
+    if (editId) {
+      formAddressTitle.textContent = 'Editar endereço';
+      addressIdInput.value = editId;
+      if (btnSalvarAddr) btnSalvarAddr.textContent = 'Salvar alterações';
+    } else {
+      formAddressTitle.textContent = 'Novo endereço';
+      addressIdInput.value = '';
+      formAddress.reset();
+      if (btnSalvarAddr) btnSalvarAddr.textContent = 'Adicionar endereço';
+    }
+    msgErroAddr.classList.add('d-none');
+    msgOkAddr.classList.add('d-none');
+    formAddressWrap.style.display = 'block';
+  }
+
+  function hideAddressForm() {
+    formAddressWrap.style.display = 'none';
+    addressIdInput.value = '';
+  }
+
+  if (btnNovoEndereco) {
+    btnNovoEndereco.addEventListener('click', function() { showAddressForm(null); });
+  }
+  if (btnCancelarAddr) {
+    btnCancelarAddr.addEventListener('click', hideAddressForm);
+  }
+
+  document.querySelectorAll('.btn-edit-addr').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.getAttribute('data-id');
+      document.getElementById('addr_cep').value = this.getAttribute('data-zip') || '';
+      document.getElementById('addr_street').value = this.getAttribute('data-street') || '';
+      document.getElementById('addr_number').value = this.getAttribute('data-number') || '';
+      document.getElementById('addr_complement').value = this.getAttribute('data-complement') || '';
+      document.getElementById('addr_district').value = this.getAttribute('data-district') || '';
+      document.getElementById('addr_city').value = this.getAttribute('data-city') || '';
+      document.getElementById('addr_state').value = this.getAttribute('data-state') || '';
+      document.getElementById('addr_country').value = this.getAttribute('data-country') || 'Brasil';
+      showAddressForm(id);
+    });
+  });
+
+  document.querySelectorAll('.btn-remove-addr').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.getAttribute('data-id');
+      window.neofarmaConfirm({
+        title: 'Remover endereço',
+        message: 'Remover este endereço?'
+      }).then(function(ok) {
+        if (!ok) return;
+        fetch('/account/address/' + id, { method: 'DELETE', headers: { 'Accept': 'application/json' } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.ok) window.location.reload();
+            else window.neofarmaToast(data.message || 'Erro ao remover.', 'danger');
+          })
+          .catch(function() { window.neofarmaToast('Erro de conexão.', 'danger'); });
+      });
+    });
+  });
+
+  document.querySelectorAll('.btn-set-default-addr').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.getAttribute('data-id');
+      fetch('/account/address/' + id + '/default', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) window.location.reload();
+          else window.neofarmaToast(data.message || 'Erro.', 'danger');
+        })
+        .catch(function() { window.neofarmaToast('Erro de conexão.', 'danger'); });
+    });
+  });
+
+  var addrCep = document.getElementById('addr_cep');
+  var erroCepAddr = document.getElementById('erroCepAddr');
+  if (addrCep) {
+    addrCep.addEventListener('input', function() {
+      var v = this.value.replace(/\D/g, '');
+      if (v.length > 8) v = v.slice(0, 8);
+      this.value = v.length > 5 ? v.slice(0, 5) + '-' + v.slice(5) : v;
+      if (erroCepAddr) erroCepAddr.style.display = 'none';
+    });
+    addrCep.addEventListener('blur', function() {
+      var cep = this.value.replace(/\D/g, '');
+      if (cep.length !== 8) return;
+      fetch('https://viacep.com.br/ws/' + cep + '/json/').then(function(r) { return r.json(); }).then(function(data) {
+        if (data.erro) { if (erroCepAddr) { erroCepAddr.textContent = 'CEP não encontrado.'; erroCepAddr.style.display = 'block'; } return; }
+        var street = document.getElementById('addr_street'); var district = document.getElementById('addr_district');
+        var city = document.getElementById('addr_city'); var state = document.getElementById('addr_state');
+        if (street) street.value = data.logradouro || ''; if (district) district.value = data.bairro || '';
+        if (city) city.value = data.localidade || ''; if (state) state.value = data.uf || '';
+        if (erroCepAddr) erroCepAddr.style.display = 'none';
+      }).catch(function() { if (erroCepAddr) { erroCepAddr.textContent = 'Erro ao buscar CEP.'; erroCepAddr.style.display = 'block'; } });
+    });
+  }
+
+  // ---- Alterar senha ----
+  var formAlterarSenha = document.getElementById('formAlterarSenha');
+  var msgErroSenha = document.getElementById('msgErroSenha');
+  var msgOkSenha = document.getElementById('msgOkSenha');
+  var btnAlterarSenha = document.getElementById('btnAlterarSenha');
+  if (formAlterarSenha) {
+    formAlterarSenha.addEventListener('submit', function(e) {
+      e.preventDefault();
+      msgErroSenha.classList.add('d-none');
+      msgOkSenha.classList.add('d-none');
+      var nova = document.getElementById('nova_senha').value;
+      var conf = document.getElementById('confirmar_nova_senha').value;
+      if (nova.length < 6) {
+        msgErroSenha.textContent = 'A nova senha deve ter no mínimo 6 caracteres.';
+        msgErroSenha.classList.remove('d-none');
+        return;
+      }
+      if (nova !== conf) {
+        msgErroSenha.textContent = 'A nova senha e a confirmação não coincidem.';
+        msgErroSenha.classList.remove('d-none');
+        return;
+      }
+      if (btnAlterarSenha) btnAlterarSenha.disabled = true;
+      fetch('/account/alterar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          senha_atual: document.getElementById('senha_atual').value,
+          nova_senha: nova,
+          confirmar_nova_senha: conf
+        })
+      })
+      .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
+      .then(function(result) {
+        if (btnAlterarSenha) btnAlterarSenha.disabled = false;
+        if (result.status === 401 && result.data.redirect) {
+          window.location.href = result.data.redirect;
+          return;
+        }
+        if (result.data.ok) {
+          msgOkSenha.textContent = result.data.message || 'Senha alterada com sucesso.';
+          msgOkSenha.classList.remove('d-none');
+          msgErroSenha.classList.add('d-none');
+          formAlterarSenha.reset();
+        } else {
+          msgErroSenha.textContent = result.data.message || 'Erro ao alterar senha.';
+          msgErroSenha.classList.remove('d-none');
+          msgOkSenha.classList.add('d-none');
+        }
+      })
+      .catch(function() {
+        if (btnAlterarSenha) btnAlterarSenha.disabled = false;
+        msgErroSenha.textContent = 'Erro de conexão. Tente novamente.';
+        msgErroSenha.classList.remove('d-none');
+      });
+    });
+  }
+
+  if (formAddress) {
+    formAddress.addEventListener('submit', function(e) {
+      e.preventDefault();
+      msgErroAddr.classList.add('d-none');
+      msgOkAddr.classList.add('d-none');
+      var id = addressIdInput.value.trim();
+      var body = {
+        cep: (document.getElementById('addr_cep').value || '').replace(/\D/g, ''),
+        street: (document.getElementById('addr_street').value || '').trim(),
+        number: (document.getElementById('addr_number').value || '').trim(),
+        complement: (document.getElementById('addr_complement').value || '').trim() || null,
+        district: (document.getElementById('addr_district').value || '').trim(),
+        city: (document.getElementById('addr_city').value || '').trim(),
+        state: (document.getElementById('addr_state').value || '').trim().toUpperCase(),
+        country: (document.getElementById('addr_country').value || 'Brasil').trim()
+      };
+      if (body.cep.length !== 8) {
+        msgErroAddr.textContent = 'CEP deve ter 8 dígitos.';
+        msgErroAddr.classList.remove('d-none');
+        return;
+      }
+      if (!body.street || !body.number || !body.district || !body.city || !body.state) {
+        msgErroAddr.textContent = 'Preencha rua, número, bairro, cidade e estado.';
+        msgErroAddr.classList.remove('d-none');
+        return;
+      }
+      var url = id ? '/account/address/' + id : '/account/address';
+      var method = id ? 'PUT' : 'POST';
+      fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body)
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            msgOkAddr.textContent = data.message || 'Salvo.';
+            msgOkAddr.classList.remove('d-none');
+            setTimeout(function() { window.location.reload(); }, 800);
+          } else {
+            msgErroAddr.textContent = data.message || 'Erro ao salvar.';
+            msgErroAddr.classList.remove('d-none');
+          }
+        })
+        .catch(function() {
+          msgErroAddr.textContent = 'Erro de conexão.';
+          msgErroAddr.classList.remove('d-none');
+        });
+    });
+  }
+
+  var modalCancelPedidoEl = document.getElementById('modalCancelPedido');
+  var modalCancelPedidoMsg = document.getElementById('modalCancelPedidoMsg');
+  var modalCancelPedidoConfirmBtn = document.getElementById('modalCancelPedidoConfirmBtn');
+  var modalCancelPedido = null;
+  var pendingCancel = null; // { orderId, btn }
+
+  function openCancelModal(orderId, btn) {
+    pendingCancel = { orderId: orderId, btn: btn || null };
+    if (modalCancelPedidoMsg) modalCancelPedidoMsg.textContent = 'Deseja cancelar o pedido #' + orderId + '?';
+    if (!modalCancelPedido && window.bootstrap && window.bootstrap.Modal && modalCancelPedidoEl) {
+      modalCancelPedido = new window.bootstrap.Modal(modalCancelPedidoEl);
+    }
+    if (modalCancelPedido) modalCancelPedido.show();
+  }
+
+  if (modalCancelPedidoConfirmBtn) {
+    modalCancelPedidoConfirmBtn.addEventListener('click', function() {
+      if (!pendingCancel || !pendingCancel.orderId) return;
+      var orderId = pendingCancel.orderId;
+      var btn = pendingCancel.btn;
+
+      modalCancelPedidoConfirmBtn.disabled = true;
+      if (btn) btn.disabled = true;
+
+      fetch('/account/orders/' + encodeURIComponent(orderId) + '/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: '{}'
+      })
+        .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
+        .then(function(result) {
+          if (result.status === 401 && result.data && result.data.redirect) {
+            window.location.href = result.data.redirect;
+            return;
+          }
+          if (result.data && result.data.ok) {
+            window.location.reload();
+            return;
+          }
+          window.neofarmaToast((result.data && result.data.message) || 'Não foi possível cancelar.', 'danger');
+        })
+        .catch(function() {
+          window.neofarmaToast('Erro de conexão.', 'danger');
+        })
+        .finally(function() {
+          modalCancelPedidoConfirmBtn.disabled = false;
+          if (btn) btn.disabled = false;
+          pendingCancel = null;
+          if (modalCancelPedido) modalCancelPedido.hide();
+        });
+    });
+  }
+
+  document.addEventListener('click', function(ev) {
+    var btn = ev.target && ev.target.closest && ev.target.closest('.btn-cancel-order');
+    if (!btn) return;
+    var id = btn.getAttribute('data-order-id');
+    if (!id) return;
+    openCancelModal(id, btn);
+  });
+})();
+</script>
+
+<%- include('partials/footer') %>

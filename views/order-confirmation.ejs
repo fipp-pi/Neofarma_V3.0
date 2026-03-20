@@ -1,0 +1,168 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Pedido confirmado</h1>
+      <nav class="breadcrumbs"><ol><li><a href="/">Início</a></li><li class="current">Pedido confirmado</li></ol></nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="alert alert-success">
+        Pedido <strong>#<%= order.id %></strong> criado com sucesso.
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="border rounded p-3">
+            <h5 class="mb-3">Resumo da compra</h5>
+            <% items.forEach((i) => { %>
+              <div class="d-flex justify-content-between border-bottom py-2">
+                <div class="d-flex gap-2">
+                  <img src="<%= i.image_url %>" alt="<%= i.product_name %>" style="width:56px;height:56px;object-fit:cover;">
+                  <div>
+                    <strong><%= i.product_name %></strong><br>
+                    <small>Lote: <%= i.batch_id %> | Qtd: <%= i.quantity %></small>
+                  </div>
+                </div>
+                <div>R$ <%= Number(i.line_total).toFixed(2).replace('.', ',') %></div>
+              </div>
+            <% }) %>
+            <div class="d-flex justify-content-between mt-3"><span>Subtotal</span><strong>R$ <%= Number(order.subtotal).toFixed(2).replace('.', ',') %></strong></div>
+            <div class="d-flex justify-content-between"><span>Frete</span><strong>R$ <%= Number(order.shipping_cost).toFixed(2).replace('.', ',') %></strong></div>
+            <hr>
+            <div class="d-flex justify-content-between"><span>Total</span><strong>R$ <%= Number(order.total).toFixed(2).replace('.', ',') %></strong></div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="border rounded p-3">
+            <h5 class="mb-3">Pagamento</h5>
+            <p><strong>Método:</strong> <%= order.payment_method %></p>
+            <p><strong>Status:</strong> <%= payment ? payment.status : order.payment_status %></p>
+            <% if (payment && payment.method === 'PIX') { %>
+              <div class="small">
+                <% const qr = payment.pix_qr_code || ''; const isDataUri = String(qr).startsWith('data:image'); %>
+                <% if (isDataUri) { %>
+                  <div class="mb-2">
+                    <img
+                      src="<%= qr %>"
+                      alt="QR Code PIX (simulado)"
+                      style="width:220px; max-width:100%; height:auto; border:1px solid rgba(0,0,0,0.08); border-radius:10px; padding:6px; background:#fff;"
+                    >
+                  </div>
+                <% } %>
+                <p class="mt-2"><strong>QR dinâmico (simulado):</strong> <span class="text-muted small">imagem gerada para demonstração</span></p>
+                <p><strong>Copia e Cola:</strong><br><code class="pix-copy-paste-code"><%= payment.pix_copy_paste %></code></p>
+                <button type="button" class="btn btn-sm btn-outline-primary w-100 btn-copy-pix mt-1">Copiar copia e cola</button>
+              </div>
+            <% } %>
+            <% if (payment && payment.method === 'BOLETO') { %>
+              <div class="small">
+                <%
+                  const barcodeRaw = String(payment.boleto_barcode || '');
+                  const digits = barcodeRaw.replace(/\D/g, '');
+                  const slice5 = function(start) { return digits.slice(start, start + 5); };
+                  const linhaDigitavelSimulada =
+                    [slice5(0), slice5(5), slice5(10), slice5(15), slice5(20), slice5(25), slice5(30), slice5(35)]
+                      .filter(Boolean)
+                      .join('.');
+                %>
+                <p><strong>Código de barras:</strong><br><code class="boleto-barcode-code"><%= payment.boleto_barcode %></code></p>
+                <p><strong>Linha digitável (simulada):</strong><br><code class="boleto-linha-digitavel-code"><%= linhaDigitavelSimulada %></code></p>
+                <p><strong>Vencimento:</strong> <%= payment.boleto_due_date %></p>
+
+                <div class="mt-3 border rounded p-3 bg-light">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">BOLETO (simulado)</div>
+                      <div class="text-muted small">Valor: R$ <%= Number(payment.amount || 0).toFixed(2).replace('.', ',') %></div>
+                    </div>
+                    <div class="text-end">
+                      <div class="text-muted small">Venc.</div>
+                      <div class="fw-semibold"><%= payment.boleto_due_date %></div>
+                    </div>
+                  </div>
+                  <div class="mt-3 small">
+                    <div class="text-muted mb-1">Linha digitável</div>
+                    <div><code class="text-break boleto-linha-digitavel-code"><%= linhaDigitavelSimulada %></code></div>
+                  </div>
+                  <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 btn-copy-boleto-linha mb-2">Copiar linha digitável</button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary w-100"
+                      onclick="window.print()"
+                    >
+                      Imprimir boleto
+                    </button>
+                  </div>
+                </div>
+              </div>
+            <% } %>
+            <% if (payment && payment.method === 'CREDIT_CARD') { %>
+              <div class="small">
+                <p><strong>Cartão:</strong> <%= payment.card_brand %> final <%= payment.card_last4 %></p>
+                <p><strong>Parcelas:</strong> <%= payment.installments || 1 %>x (juros <%= Number(payment.interest_rate || 0).toFixed(2).replace('.', ',') %>%)</p>
+              </div>
+            <% } %>
+            <a href="/account" class="btn btn-outline-primary w-100 mt-2">Ver na minha conta</a>
+            <a href="/produtos" class="btn btn-primary w-100 mt-2">Continuar comprando</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  (function () {
+    function copyToClipboard(text) {
+      return new Promise(function (resolve) {
+        var str = String(text == null ? '' : text);
+        if (!str) return resolve(false);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(str).then(function () { resolve(true); }).catch(function () { resolve(false); });
+        } else {
+          try {
+            var ta = document.createElement('textarea');
+            ta.value = str;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            ta.style.top = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            resolve(true);
+          } catch (_) {
+            resolve(false);
+          }
+        }
+      });
+    }
+
+    function toast(msg, type) {
+      if (window.neofarmaToast) return window.neofarmaToast(msg, type);
+    }
+
+    document.querySelectorAll('.btn-copy-pix').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var box = btn.closest('.small') || document;
+        var codeEl = box.querySelector('.pix-copy-paste-code');
+        var ok = await copyToClipboard(codeEl ? codeEl.textContent : '');
+        toast(ok ? 'Copiado com sucesso.' : 'Não foi possível copiar.', ok ? 'success' : 'danger');
+      });
+    });
+
+    document.querySelectorAll('.btn-copy-boleto-linha').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var box = btn.closest('.small') || document;
+        var codeEl = box.querySelector('.boleto-linha-digitavel-code');
+        var ok = await copyToClipboard(codeEl ? codeEl.textContent : '');
+        toast(ok ? 'Linha digitável copiada.' : 'Não foi possível copiar.', ok ? 'success' : 'danger');
+      });
+    });
+  })();
+</script>
+
+<%- include('partials/footer') %>

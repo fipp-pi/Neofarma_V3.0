@@ -1,0 +1,178 @@
+<%- include('partials/header') %>
+
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Catálogo Avançado</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li class="current">Category</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="row g-4">
+        <aside class="col-lg-3">
+          <form method="GET" action="/category" class="widgets-container">
+            <div class="widget-item mb-4">
+              <h3 class="widget-title">Busca</h3>
+              <input
+                type="text"
+                class="form-control"
+                name="q"
+                value="<%= filters.q || '' %>"
+                placeholder="Nome, SKU ou laboratório"
+              >
+            </div>
+
+            <div class="widget-item mb-4">
+              <h3 class="widget-title">Faixa de preço</h3>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small mb-1">Mín.</label>
+                  <input type="number" step="0.01" min="0" class="form-control" name="min_price" value="<%= filters.min_price %>" placeholder="0,00">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small mb-1">Máx.</label>
+                  <input type="number" step="0.01" min="0" class="form-control" name="max_price" value="<%= filters.max_price %>" placeholder="0,00">
+                </div>
+              </div>
+              <div class="small text-muted mt-2">
+                Faixa disponível: R$ <%= Number(priceBounds.min || 0).toFixed(2).replace('.', ',') %> até R$ <%= Number(priceBounds.max || 0).toFixed(2).replace('.', ',') %>
+              </div>
+            </div>
+
+            <div class="widget-item mb-4">
+              <h3 class="widget-title">Categorias</h3>
+              <select class="form-select" name="category">
+                <option value="">Todas</option>
+                <% categories.forEach(function(c) { %>
+                  <option value="<%= c.id %>" <%= String(filters.category) === String(c.id) ? 'selected' : '' %>>
+                    <%= c.name %> (<%= c.total %>)
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="widget-item mb-4">
+              <h3 class="widget-title">Laboratório</h3>
+              <select class="form-select" name="lab">
+                <option value="">Todos</option>
+                <% labs.forEach(function(l) { %>
+                  <option value="<%= l.name %>" <%= filters.lab === l.name ? 'selected' : '' %>>
+                    <%= l.name %> (<%= l.total %>)
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="widget-item mb-4">
+              <h3 class="widget-title">Ordenação</h3>
+              <select class="form-select" name="sort">
+                <option value="relevance" <%= filters.sort === 'relevance' ? 'selected' : '' %>>Mais recentes</option>
+                <option value="price_asc" <%= filters.sort === 'price_asc' ? 'selected' : '' %>>Menor preço</option>
+                <option value="price_desc" <%= filters.sort === 'price_desc' ? 'selected' : '' %>>Maior preço</option>
+                <option value="name_asc" <%= filters.sort === 'name_asc' ? 'selected' : '' %>>Nome A-Z</option>
+                <option value="name_desc" <%= filters.sort === 'name_desc' ? 'selected' : '' %>>Nome Z-A</option>
+              </select>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button class="btn btn-primary" type="submit">Aplicar filtros</button>
+              <a href="/category" class="btn btn-outline-secondary">Limpar</a>
+            </div>
+          </form>
+        </aside>
+
+        <div class="col-lg-9">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">Produtos</h4>
+            <div class="text-muted small">
+              <strong><%= pagination.total %></strong> resultado<%= pagination.total === 1 ? '' : 's' %>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <% if (products && products.length) { %>
+              <% products.forEach(function(p) { %>
+                <div class="col-6 col-md-4">
+                  <a href="/produtos/<%= p.id %>" class="text-decoration-none text-dark">
+                    <div class="card h-100 border-0 shadow-sm">
+                      <img src="<%= p.thumb_url %>" class="card-img-top" alt="<%= p.name %>" style="aspect-ratio:1/1; object-fit:cover;">
+                      <div class="card-body">
+                        <h6 class="card-title mb-1"><%= p.name %></h6>
+                        <small class="text-muted d-block mb-2"><%= p.lab_name || 'NeoFarma' %></small>
+                        <small class="d-block mb-2 <%= p.can_buy ? 'text-success' : 'text-danger' %>">
+                          <%= p.can_buy ? ('Estoque: ' + p.available_stock) : 'Sem estoque' %>
+                        </small>
+                        <% if (p.has_promo) { %>
+                          <div><small class="text-muted text-decoration-line-through">R$ <%= p.price_display %></small></div>
+                          <strong class="text-success">R$ <%= p.promo_display %></strong>
+                        <% } else { %>
+                          <strong>R$ <%= p.price_display %></strong>
+                        <% } %>
+                        <button class="btn btn-sm btn-primary mt-2 btn-add-cart" data-id="<%= p.id %>" <%= p.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="col-12">
+                <div class="alert alert-light border">Nenhum produto encontrado com os filtros selecionados.</div>
+              </div>
+            <% } %>
+          </div>
+
+          <% if (pagination.totalPages > 1) { %>
+            <nav class="mt-4">
+              <ul class="pagination justify-content-center">
+                <% 
+                  const qsBase = 'q=' + encodeURIComponent(filters.q || '')
+                    + '&lab=' + encodeURIComponent(filters.lab || '')
+                    + '&category=' + encodeURIComponent(filters.category || '')
+                    + '&min_price=' + encodeURIComponent(filters.min_price || '')
+                    + '&max_price=' + encodeURIComponent(filters.max_price || '')
+                    + '&sort=' + encodeURIComponent(filters.sort || 'relevance');
+                %>
+                <% for (let pg = 1; pg <= pagination.totalPages; pg++) { %>
+                  <li class="page-item <%= pg === pagination.page ? 'active' : '' %>">
+                    <a class="page-link" href="/category?<%= qsBase %>&page=<%= pg %>"><%= pg %></a>
+                  </li>
+                <% } %>
+              </ul>
+            </nav>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  document.querySelectorAll('.btn-add-cart').forEach((btn) => {
+    btn.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      const productId = Number(btn.getAttribute('data-id'));
+      const resp = await fetch('/api/cart/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, quantity: 1 })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        window.dispatchEvent(new Event('cart:changed'));
+        btn.textContent = 'Adicionado!';
+        setTimeout(() => { btn.textContent = 'Adicionar ao Carrinho'; }, 1000);
+      } else if (window.neofarmaToast) {
+        window.neofarmaToast(data.message || 'Erro ao adicionar no carrinho.', 'danger');
+      }
+    });
+  });
+</script>
+
+<%- include('partials/footer') %>

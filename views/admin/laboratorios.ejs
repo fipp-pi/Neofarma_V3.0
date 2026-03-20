@@ -1,0 +1,453 @@
+<%- include('partials/header') %>
+<div class="container">
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Laboratórios</h2>
+      <p class="text-muted mb-0">Cadastre os laboratórios fabricantes dos produtos.</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control" id="buscaInput" placeholder="Buscar..." onkeyup="filtrarTabela()">
+      </div>
+      <button type="button" class="btn btn-success d-flex align-items-center" onclick="abrirModalLab()" data-bs-toggle="modal" data-bs-target="#modalEditar">
+        <i class="bi bi-plus-lg me-2"></i> Novo
+      </button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle" id="tabelaLab">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nome</th>
+            <th>CNPJ</th>
+            <th>E-mail</th>
+            <th>Telefone</th>
+            <th>Cidade</th>
+            <th>Ativo</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (list && list.length) { list.forEach(function(item) {
+            var cnpjFmt = item.cnpj && item.cnpj.length === 14 ? item.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (item.cnpj || '-');
+          %>
+            <tr>
+              <td><%= item.id %></td>
+              <td class="fw-bold"><%= item.name %></td>
+              <td><%= cnpjFmt %></td>
+              <td><%= item.email || '-' %></td>
+              <td><%= item.phone || '-' %></td>
+              <td><%= item.city || '-' %></td>
+              <td><%= item.is_active ? 'Sim' : 'Não' %></td>
+              <td class="text-end">
+                <button type="button" class="btn-action btn-view" onclick="verLab(<%= item.id %>)" title="Ver"><i class="bi bi-eye"></i></button>
+                <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarLab(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
+          <% }); } %>
+        </tbody>
+      </table>
+    </div>
+    <div id="mensagemVazia" class="text-center py-5" style="display: <%= (list && list.length) ? 'none' : 'block' %>;">
+      <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
+      <p class="text-muted mt-2">Nenhum laboratório cadastrado.</p>
+      <button type="button" class="btn btn-outline-success btn-sm mt-2" onclick="abrirModalLab()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeiro laboratório</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-body { padding: 0; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+  .cadastro-view { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+  .cadastro-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
+  .cadastro-view-section { margin-bottom: 1.25rem; }
+  .cadastro-view-section:last-child { margin-bottom: 0; }
+  .cadastro-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
+  .cadastro-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
+  .cadastro-view-row:last-child { border-bottom: none; }
+  .cadastro-view-label { font-size: 0.85rem; color: #6c757d; min-width: 110px; flex-shrink: 0; }
+  .cadastro-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
+  .cadastro-edit { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-edit-section { margin-bottom: 1.5rem; }
+  .cadastro-edit-section:last-of-type { margin-bottom: 0; }
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .cadastro-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; margin-bottom: 0.25rem; }
+  .cadastro-edit .form-control, .cadastro-edit .form-select { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
+  .cadastro-edit .form-control:focus, .cadastro-edit .form-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+  .modal-cadastro .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
+  .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+  .modal-header-danger { background: #dc3545; color: #fff; }
+  .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+</style>
+
+<!-- Modal Ver -->
+<div class="modal fade modal-cadastro" id="modalVisualizar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bank me-2"></i>Dados do laboratório</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="conteudoVisualizacao"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novo/Editar -->
+<div class="modal fade modal-cadastro" id="modalEditar" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEditarTitle"><i class="bi bi-pencil-square me-2"></i>Novo laboratório</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="lab_id">
+        <input type="hidden" id="lab_address_id">
+        <div class="cadastro-edit">
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Dados do laboratório</div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="lab_name" class="form-label">Nome *</label>
+                <input type="text" class="form-control" id="lab_name" required placeholder="Nome do laboratório">
+              </div>
+              <div class="col-md-6">
+                <label for="lab_cnpj" class="form-label">CNPJ</label>
+                <input type="text" class="form-control" id="lab_cnpj" placeholder="00.000.000/0000-00" maxlength="18" aria-describedby="lab_cnpj_feedback">
+                <div class="invalid-feedback d-block" id="lab_cnpj_feedback" role="alert" style="display: none;"></div>
+              </div>
+              <div class="col-md-6">
+                <label for="lab_email" class="form-label">E-mail</label>
+                <input type="email" class="form-control" id="lab_email" placeholder="email@exemplo.com">
+              </div>
+              <div class="col-md-6">
+                <label for="lab_phone" class="form-label">Telefone</label>
+                <input type="text" class="form-control" id="lab_phone" placeholder="Telefone">
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="lab_is_active" checked>
+                  <label class="form-check-label" for="lab_is_active">Ativo</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Endereço (opcional)</div>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label for="lab_zip_code" class="form-label">CEP</label>
+                <input type="text" class="form-control" id="lab_zip_code" placeholder="00000-000" maxlength="9" title="Digite o CEP para preencher o endereço automaticamente" aria-describedby="lab_zip_code_feedback">
+                <div class="invalid-feedback d-block" id="lab_zip_code_feedback" role="alert" style="display: none;"></div>
+              </div>
+              <div class="col-md-9">
+                <label for="lab_street" class="form-label">Logradouro</label>
+                <input type="text" class="form-control" id="lab_street" placeholder="Preenchido pelo CEP">
+              </div>
+              <div class="col-4">
+                <label for="lab_number" class="form-label">Número</label>
+                <input type="text" class="form-control" id="lab_number" placeholder="Número">
+              </div>
+              <div class="col-4">
+                <label for="lab_complement" class="form-label">Complemento</label>
+                <input type="text" class="form-control" id="lab_complement" placeholder="Complemento">
+              </div>
+              <div class="col-4">
+                <label for="lab_district" class="form-label">Bairro</label>
+                <input type="text" class="form-control" id="lab_district" placeholder="Preenchido pelo CEP">
+              </div>
+              <div class="col-5">
+                <label for="lab_city" class="form-label">Cidade</label>
+                <input type="text" class="form-control" id="lab_city" placeholder="Preenchido pelo CEP">
+              </div>
+              <div class="col-2">
+                <label for="lab_state" class="form-label">UF</label>
+                <input type="text" class="form-control" id="lab_state" placeholder="UF" maxlength="2">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="btnSalvarLab"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Excluir -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header modal-header-danger">
+        <h5 class="modal-title"><i class="bi bi-trash-fill me-2"></i>Excluir laboratório</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Tem certeza que deseja remover o laboratório <strong id="exclusaoNome"></strong>?<br>Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Sim, Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+<script>
+  function formatCNPJ(v) {
+    var d = (v || '').replace(/[^0-9]/g, '');
+    if (d.length <= 2) return d;
+    if (d.length <= 5) return d.slice(0,2) + '.' + d.slice(2);
+    if (d.length <= 8) return d.slice(0,2) + '.' + d.slice(2,5) + '.' + d.slice(5);
+    if (d.length <= 12) return d.slice(0,2) + '.' + d.slice(2,5) + '.' + d.slice(5,8) + '/' + d.slice(8);
+    return d.slice(0,2) + '.' + d.slice(2,5) + '.' + d.slice(5,8) + '/' + d.slice(8,12) + '-' + d.slice(12,14);
+  }
+  function stripCNPJ(v) { return (v || '').replace(/[^0-9]/g, ''); }
+  function calcularDVsCNPJ(base12) {
+    if (!base12 || base12.length !== 12) return null;
+    var w1 = [5,4,3,2,9,8,7,6,5,4,3,2], w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    var i, sum = 0; for (i = 0; i < 12; i++) sum += parseInt(base12[i],10) * w1[i];
+    var d1 = (sum % 11) < 2 ? 0 : 11 - (sum % 11);
+    sum = 0; for (i = 0; i < 12; i++) sum += parseInt(base12[i],10) * w2[i]; sum += d1 * w2[12];
+    var d2 = (sum % 11) < 2 ? 0 : 11 - (sum % 11);
+    return String(d1) + String(d2);
+  }
+  function validarCNPJ(digits) {
+    if (digits.length !== 14) return false;
+    if (/^(\d)\1+$/.test(digits)) return false;
+    var w1 = [5,4,3,2,9,8,7,6,5,4,3,2], w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    var i, sum = 0; for (i = 0; i < 12; i++) sum += parseInt(digits[i],10) * w1[i];
+    var d1 = (sum % 11) < 2 ? 0 : 11 - (sum % 11); if (d1 !== parseInt(digits[12],10)) return false;
+    sum = 0; for (i = 0; i < 13; i++) sum += parseInt(digits[i],10) * w2[i];
+    var d2 = (sum % 11) < 2 ? 0 : 11 - (sum % 11); if (d2 !== parseInt(digits[13],10)) return false;
+    return true;
+  }
+  document.getElementById('lab_cnpj').addEventListener('input', function() {
+    this.value = formatCNPJ(this.value);
+    this.classList.remove('is-invalid');
+    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+  });
+  document.getElementById('lab_cnpj').addEventListener('focus', function() {
+    this.classList.remove('is-invalid');
+    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+  });
+  function formatCEP(v) {
+    var d = (v || '').replace(/\D/g, '');
+    if (d.length <= 5) return d;
+    return d.slice(0, 5) + '-' + d.slice(5, 8);
+  }
+  var labCepBuscando = false;
+  function mostrarErroCepLab(msg) {
+    var inp = document.getElementById('lab_zip_code');
+    var fb = document.getElementById('lab_zip_code_feedback');
+    inp.classList.add('is-invalid');
+    fb.textContent = msg;
+    fb.style.display = 'block';
+  }
+  function limparErroCepLab() {
+    document.getElementById('lab_zip_code').classList.remove('is-invalid');
+    document.getElementById('lab_zip_code_feedback').style.display = 'none';
+  }
+  function buscarCepLab() {
+    var cep = (document.getElementById('lab_zip_code').value || '').replace(/\D/g, '');
+    if (cep.length !== 8) { limparErroCepLab(); return; }
+    if (labCepBuscando) return;
+    labCepBuscando = true;
+    limparErroCepLab();
+    var street = document.getElementById('lab_street');
+    var district = document.getElementById('lab_district');
+    var city = document.getElementById('lab_city');
+    var state = document.getElementById('lab_state');
+    street.disabled = true;
+    district.disabled = true;
+    city.disabled = true;
+    state.disabled = true;
+    street.placeholder = 'Buscando...';
+    fetch('https://viacep.com.br/ws/' + cep + '/json/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        labCepBuscando = false;
+        street.disabled = false;
+        district.disabled = false;
+        city.disabled = false;
+        state.disabled = false;
+        street.placeholder = 'Preenchido pelo CEP';
+        if (data.erro) {
+          mostrarErroCepLab('CEP não encontrado.');
+          return;
+        }
+        if (data.logradouro) street.value = data.logradouro;
+        if (data.bairro) district.value = data.bairro;
+        if (data.localidade) city.value = data.localidade;
+        if (data.uf) state.value = data.uf;
+      })
+      .catch(function() {
+        labCepBuscando = false;
+        street.disabled = false;
+        district.disabled = false;
+        city.disabled = false;
+        state.disabled = false;
+        street.placeholder = 'Preenchido pelo CEP';
+        mostrarErroCepLab('Erro ao buscar CEP. Tente novamente.');
+      });
+  }
+  document.getElementById('lab_zip_code').addEventListener('input', function() {
+    this.value = formatCEP(this.value);
+    limparErroCepLab();
+  });
+  document.getElementById('lab_zip_code').addEventListener('blur', function() {
+    if (this.value.replace(/\D/g, '').length === 8) buscarCepLab();
+  });
+  document.getElementById('lab_zip_code').addEventListener('focus', function() {
+    limparErroCepLab();
+  });
+  function filtrarTabela() {
+    var q = (document.getElementById('buscaInput').value || '').toLowerCase();
+    document.querySelectorAll('#tabelaLab tbody tr').forEach(function(tr) {
+      tr.style.display = tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+    });
+  }
+  function abrirModalLab() {
+    document.getElementById('lab_id').value = '';
+    document.getElementById('lab_address_id').value = '';
+    document.getElementById('lab_name').value = '';
+    document.getElementById('lab_cnpj').value = '';
+    document.getElementById('lab_cnpj').classList.remove('is-invalid');
+    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+    document.getElementById('lab_email').value = '';
+    document.getElementById('lab_phone').value = '';
+    document.getElementById('lab_is_active').checked = true;
+    ['lab_street','lab_number','lab_complement','lab_district','lab_city','lab_state','lab_zip_code'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Novo laboratório';
+    document.getElementById('lab_cnpj').classList.remove('is-invalid');
+    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+    limparErroCepLab();
+  }
+  function verLab(id) {
+    var tr = [].find.call(document.querySelectorAll('#tabelaLab tbody tr'), function(r) { return parseInt(r.cells[0].textContent, 10) === id; });
+    if (!tr) return;
+    var nome = tr.cells[1].textContent;
+    var cnpj = tr.cells[2].textContent;
+    var email = tr.cells[3].textContent;
+    var phone = tr.cells[4].textContent;
+    var city = tr.cells[5].textContent;
+    var ativo = tr.cells[6].textContent;
+    var inicial = nome ? nome.charAt(0).toUpperCase() : '?';
+    var html = '<div class="cadastro-view">' +
+      '<div class="cadastro-view-avatar">' + inicial + '</div>' +
+      '<div class="cadastro-view-nome">' + nome + '</div>' +
+      '<div class="cadastro-view-section">' +
+        '<div class="cadastro-view-section-title">Dados</div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">CNPJ</span><span class="cadastro-view-value">' + (cnpj === '-' ? '-' : cnpj) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">E-mail</span><span class="cadastro-view-value"><i class="bi bi-envelope"></i>' + (email === '-' ? '-' : email) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Telefone</span><span class="cadastro-view-value"><i class="bi bi-telephone"></i>' + (phone === '-' ? '-' : phone) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Ativo</span><span class="cadastro-view-value">' + ativo + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Cidade</span><span class="cadastro-view-value">' + (city === '-' ? '-' : city) + '</span></div>' +
+      '</div></div>';
+    document.getElementById('conteudoVisualizacao').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
+  }
+  function editarLab(btn) {
+    try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+    document.getElementById('lab_id').value = item.id || '';
+    document.getElementById('lab_address_id').value = item.address_id || '';
+    document.getElementById('lab_name').value = item.name || '';
+    var cnpj = item.cnpj || '';
+    document.getElementById('lab_cnpj').value = cnpj.length === 14 ? formatCNPJ(cnpj) : cnpj;
+    document.getElementById('lab_email').value = item.email || '';
+    document.getElementById('lab_phone').value = item.phone || '';
+    document.getElementById('lab_is_active').checked = item.is_active !== 0 && item.is_active !== false;
+    document.getElementById('lab_street').value = item.street || '';
+    document.getElementById('lab_number').value = item.number || '';
+    document.getElementById('lab_complement').value = item.complement || '';
+    document.getElementById('lab_district').value = item.district || '';
+    document.getElementById('lab_city').value = item.city || '';
+    document.getElementById('lab_state').value = item.state || '';
+    document.getElementById('lab_zip_code').value = (function(z) { if (!z) return ''; var d = String(z).replace(/\D/g, ''); return d.length === 8 ? d.slice(0,5) + '-' + d.slice(5) : z; })(item.zip_code);
+    document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar laboratório';
+    document.getElementById('lab_cnpj').classList.remove('is-invalid');
+    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+    limparErroCepLab();
+    new bootstrap.Modal(document.getElementById('modalEditar')).show();
+  }
+  var exclusaoId = null;
+  function abrirModalExclusao(id, nome) {
+    exclusaoId = id;
+    document.getElementById('exclusaoNome').textContent = nome || ('#' + id);
+    new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+  }
+  document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
+    if (!exclusaoId) return;
+    var id = exclusaoId;
+    exclusaoId = null;
+    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
+    fetch('/admin/laboratorios/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) location.reload(); else window.neofarmaToast(d.message, 'danger');
+    }).catch(function() { window.neofarmaToast('Erro ao excluir.', 'danger'); });
+  });
+  document.getElementById('btnSalvarLab').addEventListener('click', function() {
+    var id = document.getElementById('lab_id').value;
+    var name = document.getElementById('lab_name').value.trim();
+    if (!name) { window.neofarmaToast('Nome é obrigatório.', 'danger'); return; }
+    var cnpjVal = document.getElementById('lab_cnpj').value;
+    var cnpjDigits = stripCNPJ(cnpjVal);
+    if (cnpjDigits.length > 0 && cnpjDigits.length !== 14) { window.neofarmaToast('CNPJ deve ter 14 dígitos.', 'danger'); return; }
+    if (cnpjDigits.length === 14 && !validarCNPJ(cnpjDigits)) {
+      var inp = document.getElementById('lab_cnpj');
+      var fb = document.getElementById('lab_cnpj_feedback');
+      inp.classList.add('is-invalid');
+      fb.textContent = 'CNPJ inválido.';
+      fb.style.display = 'block';
+      inp.focus();
+      return;
+    }
+    document.getElementById('lab_cnpj').classList.remove('is-invalid');
+    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+    var body = {
+      name: name,
+      cnpj: cnpjDigits.length === 14 ? cnpjDigits : null,
+      email: document.getElementById('lab_email').value.trim() || null,
+      phone: document.getElementById('lab_phone').value.trim() || null,
+      is_active: document.getElementById('lab_is_active').checked,
+      address_id: document.getElementById('lab_address_id').value || null,
+      street: document.getElementById('lab_street').value.trim() || null,
+      number: document.getElementById('lab_number').value.trim() || null,
+      complement: document.getElementById('lab_complement').value.trim() || null,
+      district: document.getElementById('lab_district').value.trim() || null,
+      city: document.getElementById('lab_city').value.trim() || null,
+      state: document.getElementById('lab_state').value.trim() || null,
+      zip_code: document.getElementById('lab_zip_code').value.trim() || null
+    };
+    if (id) body.id = parseInt(id, 10);
+    var btn = document.getElementById('btnSalvarLab');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+    fetch('/admin/laboratorios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+        if (d.ok) { bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide(); location.reload(); }
+        else window.neofarmaToast(d.message, 'danger');
+      })
+      .catch(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar'; window.neofarmaToast('Erro ao salvar.', 'danger'); });
+  });
+</script>

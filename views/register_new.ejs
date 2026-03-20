@@ -1,0 +1,225 @@
+<%- include(typeof useAdminLayout !== 'undefined' && useAdminLayout ? 'admin/partials/header' : 'partials/header') %>
+<% if (typeof useAdminLayout === 'undefined' || !useAdminLayout) { %><main class="main main-container"><% } %>
+<style>
+  .form-novo-cliente .section-title { color: var(--heading-color); font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .form-novo-cliente .form-label { font-weight: 500; color: var(--default-color); margin-bottom: 0.35rem; font-size: 0.9rem; }
+  .form-novo-cliente .form-control, .form-novo-cliente .form-select { border-radius: 8px; border-color: color-mix(in srgb, var(--default-color), transparent 80%); }
+  .form-novo-cliente .form-control:focus, .form-novo-cliente .form-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+  .form-novo-cliente .msg-erro { color: #dc3545; font-size: 0.8rem; margin-top: 2px; display: none; }
+  .form-novo-cliente .btn-submit { background-color: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); }
+  .form-novo-cliente .btn-submit:hover { background-color: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+  .form-novo-cliente .card-wrap { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid color-mix(in srgb, var(--default-color), transparent 92%); }
+  .form-novo-cliente .card-head { background: linear-gradient(135deg, var(--accent-color) 0%, color-mix(in srgb, var(--accent-color), #fff 15%) 100%); color: #fff; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+  .form-novo-cliente .card-head h2 { margin: 0; font-size: 1.35rem; font-weight: 600; }
+  .form-novo-cliente .card-head .btn-outline-light { border-radius: 8px; }
+  .form-novo-cliente .card-body { padding: 1.75rem 1.5rem; }
+  .form-novo-cliente .row.g-3 { --bs-gutter-y: 0.85rem; }
+</style>
+  <div class="container py-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-xl-10">
+        
+        <div class="form-novo-cliente card-wrap">
+          <div class="card-head">
+            <h2><i class="bi bi-person-plus-fill me-2"></i>Novo Cliente</h2>
+            <a href="/admin/clientes" class="btn btn-outline-light btn-sm">
+              <i class="bi bi-list-ul me-1"></i> Ver Lista
+            </a>
+          </div>
+          
+          <div class="card-body">
+            <form id="formCadastro" novalidate method="post" action="/admin/clientes/novo">
+              
+              <div class="section-title"><i class="bi bi-person-vcard me-2"></i>Dados pessoais</div>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label for="nome" class="form-label">Nome completo *</label>
+                  <input type="text" class="form-control" id="nome" name="nome" placeholder="Ex: Maria da Silva" minlength="3" oninput="limparErro('nome')">
+                  <small class="msg-erro" id="erro-nome">Nome é obrigatório (mín. 3 caracteres).</small>
+                </div>
+                <div class="col-md-6">
+                  <label for="email" class="form-label">E-mail *</label>
+                  <input type="email" class="form-control" id="email" name="email" placeholder="Ex: maria@email.com" oninput="limparErro('email')">
+                  <small class="msg-erro" id="erro-email">E-mail obrigatório e válido.</small>
+                </div>
+                <div class="col-md-6">
+                  <label for="telefone" class="form-label">Telefone *</label>
+                  <input type="tel" class="form-control" id="telefone" name="telefone" placeholder="(00) 00000-0000" maxlength="16" oninput="aplicarMascaraTelefone(this); limparErro('telefone')">
+                  <small class="msg-erro" id="erro-telefone">Telefone é obrigatório.</small>
+                </div>
+                <div class="col-md-4">
+                  <label for="cpf" class="form-label">CPF</label>
+                  <input type="text" class="form-control" id="cpf" name="cpf" placeholder="000.000.000-00" maxlength="14" oninput="aplicarMascaraCpf(this)">
+                  <small class="msg-erro" id="erro-cpf"></small>
+                </div>
+                <div class="col-md-4">
+                  <label for="birth_date" class="form-label">Data de nascimento</label>
+                  <input type="date" class="form-control" id="birth_date" name="birth_date">
+                </div>
+                <div class="col-md-4">
+                  <label for="pais" class="form-label">País</label>
+                  <select class="form-select" id="pais" name="pais">
+                    <option value="Brasil" selected>Brasil</option>
+                    <option value="Portugal">Portugal</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="senha" class="form-label">Senha de acesso *</label>
+                  <input type="password" class="form-control" id="senha" name="senha" placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password" oninput="limparErro('senha')">
+                  <small class="msg-erro" id="erro-senha">Senha obrigatória (mín. 6 caracteres).</small>
+                </div>
+                <div class="col-md-6">
+                  <label for="confirmar_senha" class="form-label">Confirmar senha *</label>
+                  <input type="password" class="form-control" id="confirmar_senha" name="confirmar_senha" placeholder="Repita a senha" minlength="6" autocomplete="new-password" oninput="limparErro('confirmar_senha')">
+                  <small class="msg-erro" id="erro-confirmar_senha">As senhas não coincidem.</small>
+                </div>
+              </div>
+
+              <div class="section-title mt-4"><i class="bi bi-geo-alt me-2"></i>Endereço</div>
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <label for="cep" class="form-label">CEP *</label>
+                  <input type="text" class="form-control" id="cep" name="cep" placeholder="00000-000" maxlength="9" oninput="aplicarMascaraCep(this); buscarCep(this.value, 'cadastro'); limparErro('cep')">
+                  <small class="msg-erro" id="erro-cep">CEP obrigatório (8 dígitos).</small>
+                </div>
+                <div class="col-md-9">
+                  <label for="rua" class="form-label">Rua / Logradouro</label>
+                  <input type="text" class="form-control" id="rua" name="rua" readonly placeholder="Preenchido pelo CEP">
+                </div>
+                <div class="col-md-2">
+                  <label for="numero" class="form-label">Número *</label>
+                  <input type="text" class="form-control" id="numero" name="numero" placeholder="Nº" oninput="limparErro('numero')">
+                  <small class="msg-erro" id="erro-numero">Obrigatório.</small>
+                </div>
+                <div class="col-md-4">
+                  <label for="complement" class="form-label">Complemento</label>
+                  <input type="text" class="form-control" id="complement" name="complement" placeholder="Apto, bloco, etc.">
+                </div>
+                <div class="col-md-6">
+                  <label for="bairro" class="form-label">Bairro</label>
+                  <input type="text" class="form-control" id="bairro" name="bairro" readonly>
+                </div>
+                <div class="col-md-5">
+                  <label for="cidade" class="form-label">Cidade</label>
+                  <input type="text" class="form-control" id="cidade" name="cidade" readonly>
+                </div>
+                <div class="col-md-2">
+                  <label for="estado" class="form-label">UF</label>
+                  <input type="text" class="form-control" id="estado" name="estado" readonly placeholder="UF">
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap justify-content-end gap-2 mt-4 pt-3 border-top border-secondary border-opacity-25">
+                <button type="button" class="btn btn-outline-secondary px-4" onclick="limparFormulario()">Limpar</button>
+                <button type="submit" class="btn btn-submit px-4" id="btnCadastrar">
+                  <i class="bi bi-check-lg me-1"></i> Cadastrar cliente
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+<% if (typeof useAdminLayout === 'undefined' || !useAdminLayout) { %></main><% } %>
+
+<div class="modal fade" id="modalSucessoCadastro" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header modal-header-success">
+        <h5 class="modal-title"><i class="bi bi-check-circle-fill me-2"></i>Sucesso!</h5>
+      </div>
+      <div class="modal-body text-center py-4">
+        <h4>Cliente cadastrado!</h4>
+        <p class="text-muted">O registro foi salvo com sucesso no sistema.</p>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-success px-4" onclick="irParaLista()">Ver Lista</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="limparFormulario()">Novo Cadastro</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (typeof useAdminLayout !== 'undefined' && useAdminLayout) { %>
+  <script src="/assets/js/script.js"></script>
+<% } %>
+<script>
+function aplicarMascaraCpf(input) {
+  if (!input) return;
+  var v = input.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  if (v.length <= 3) { input.value = v; return; }
+  if (v.length <= 6) { input.value = v.slice(0,3) + '.' + v.slice(3); return; }
+  if (v.length <= 9) { input.value = v.slice(0,3) + '.' + v.slice(3,6) + '.' + v.slice(6); return; }
+  input.value = v.slice(0,3) + '.' + v.slice(3,6) + '.' + v.slice(6,9) + '-' + v.slice(9);
+}
+(function() {
+  var form = document.getElementById('formCadastro');
+  if (!form) return;
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var nome = document.getElementById('nome').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var telefone = document.getElementById('telefone').value.trim();
+    var cep = document.getElementById('cep').value.trim();
+    var numero = document.getElementById('numero').value.trim();
+    if (!nome || nome.length < 2) { window.neofarmaToast('Nome é obrigatório (mín. 2 caracteres).', 'danger'); return; }
+    if (!email || email.indexOf('@') === -1) { window.neofarmaToast('E-mail inválido.', 'danger'); return; }
+    if (!telefone) { window.neofarmaToast('Telefone é obrigatório.', 'danger'); return; }
+    var senha = document.getElementById('senha').value;
+    var confirmarSenha = document.getElementById('confirmar_senha').value;
+    if (!senha || senha.length < 6) { window.neofarmaToast('Senha é obrigatória (mínimo 6 caracteres).', 'danger'); return; }
+    if (senha !== confirmarSenha) { window.neofarmaToast('As senhas não coincidem.', 'danger'); return; }
+    if (!cep) { window.neofarmaToast('CEP é obrigatório.', 'danger'); return; }
+    if (!numero) { window.neofarmaToast('Número do endereço é obrigatório.', 'danger'); return; }
+    var btn = document.getElementById('btnCadastrar');
+    btn.disabled = true;
+    var cpfRaw = (document.getElementById('cpf').value || '').replace(/\D/g, '');
+    fetch('/admin/clientes/novo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: nome,
+        email: email,
+        telefone: telefone,
+        document: cpfRaw.length === 11 ? cpfRaw : null,
+        birth_date: (document.getElementById('birth_date').value || '').trim() || null,
+        pais: document.getElementById('pais').value,
+        senha: senha,
+        confirmar_senha: confirmarSenha,
+        cep: cep,
+        rua: document.getElementById('rua').value,
+        numero: numero,
+        complement: (document.getElementById('complement').value || '').trim() || null,
+        bairro: document.getElementById('bairro').value,
+        cidade: document.getElementById('cidade').value,
+        estado: document.getElementById('estado').value
+      })
+    })
+    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+    .then(function(result) {
+      btn.disabled = false;
+      if (result.ok && result.data.ok) {
+        var modal = new bootstrap.Modal(document.getElementById('modalSucessoCadastro'));
+        modal.show();
+        if (typeof limparFormulario === 'function') limparFormulario();
+      } else {
+        window.neofarmaToast(result.data.message || 'Erro ao cadastrar.', 'danger');
+      }
+    })
+    .catch(function() { btn.disabled = false; window.neofarmaToast('Erro de conexão.', 'danger'); });
+  });
+})();
+function irParaLista() { window.location.href = '/admin/clientes'; }
+function limparFormulario() {
+  var f = document.getElementById('formCadastro');
+  if (f) f.reset();
+  var ids = ['rua', 'bairro', 'cidade', 'estado'];
+  ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+}
+</script>
+<%- include(typeof useAdminLayout !== 'undefined' && useAdminLayout ? 'admin/partials/footer' : 'partials/footer') %>

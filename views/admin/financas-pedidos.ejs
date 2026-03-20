@@ -1,0 +1,462 @@
+<%- include('partials/header') %>
+
+<div class="container">
+  <%
+    function toLocaleString(v) {
+      const n = Number(v || 0);
+      return n.toFixed(2).replace('.', ',');
+    }
+  %>
+
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Finanças - Pedidos</h2>
+      <p class="text-muted mb-0">Gerencie pagamentos pendentes: marque pago/falhou com segurança.</p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <form
+        id="finFilterForm"
+        method="GET"
+        action="/admin/financas/pedidos"
+        class="d-flex flex-wrap gap-2 align-items-center"
+      >
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input
+            type="text"
+            class="form-control"
+            name="search"
+            placeholder="Buscar por Pedido (ID) ou Cliente..."
+            id="finSearch"
+            value="<%= filters.search || '' %>"
+            onkeydown="if (event.key === 'Enter') document.getElementById('finFilterForm').submit();"
+          >
+          <div class="small text-muted mt-1">Ex.: 123 ou "João"</div>
+        </div>
+
+        <input type="hidden" name="pageSize" value="<%= filters.pageSize || 25 %>">
+
+        <select class="form-select form-select-sm" name="payment_status" onchange="document.getElementById('finFilterForm').submit();">
+          <option value="ALL" <%= (!filters.payment_status || filters.payment_status === 'ALL') ? 'selected' : '' %>>Todos</option>
+          <option value="PENDING" <%= filters.payment_status === 'PENDING' ? 'selected' : '' %>>Pendentes</option>
+          <option value="PAID" <%= filters.payment_status === 'PAID' ? 'selected' : '' %>>Pagos</option>
+          <option value="FAILED" <%= filters.payment_status === 'FAILED' ? 'selected' : '' %>>Falhou</option>
+        </select>
+
+        <input type="date" class="form-control form-control-sm" name="from" value="<%= filters.from || '' %>">
+        <input type="date" class="form-control form-control-sm" name="to" value="<%= filters.to || '' %>">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-lg-12">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <div>
+              <div class="text-muted small">Pedidos / Transações</div>
+              <div style="font-weight: 700;">Controle financeiro</div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="btnOpenFinanceOrdersModal"
+              data-bs-toggle="modal"
+              data-bs-target="#modalFinanceOrders"
+            >
+              Tela cheia
+            </button>
+          </div>
+
+          <div class="table-responsive mt-3">
+            <table class="table table-hover table-custom align-middle" id="financeOrdersTable">
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Cliente</th>
+                  <th>Método</th>
+                  <th>Status</th>
+                  <th class="text-end">Valor</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (orders && orders.length) { %>
+                  <% orders.forEach(function(o) { %>
+                    <tr>
+                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '' %></div></td>
+                      <td>
+                        <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
+                        <div class="text-muted small text-break"><%= o.email || '' %></div>
+                      </td>
+                      <td><span class="badge bg-light text-dark border"><%= o.payment_method %></span></td>
+                      <td>
+                        <% 
+                          const pay = String(o.payment_status || '');
+                          const badge = pay === 'PAID' ? 'success' : (pay === 'FAILED' ? 'danger' : 'warning');
+                        %>
+                        <span class="badge bg-<%= badge %>"><%= pay || '-' %></span>
+                        <div class="text-muted small mt-1"><%= o.order_status || '' %></div>
+                      </td>
+                      <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
+                      <td class="text-end">
+                        <% if (String(o.payment_status || '') === 'PENDING') { %>
+                          <div class="d-flex justify-content-end gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="<%= o.id %>" type="button">Marcar pago</button>
+                            <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="<%= o.id %>" type="button">Marcar falhou</button>
+                          </div>
+                        <% } else { %>
+                          <span class="text-muted small">Ação indisponível</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr><td colspan="6" class="text-muted">Nenhum pedido encontrado.</td></tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+
+          <% if (pagination && pagination.totalPages > 1) { %>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <small class="text-muted">Página <%= pagination.page %> de <%= pagination.totalPages %> (total: <%= pagination.total %>)</small>
+              <nav>
+                <ul class="pagination pagination-sm mb-0">
+                  <%
+                    const startPage = Math.max(1, (pagination.page || 1) - 2);
+                    const endPage = Math.min(pagination.totalPages, (pagination.page || 1) + 2);
+                  %>
+                  <% if (startPage > 1) { %>
+                    <li class="page-item">
+                      <a class="page-link" href="?payment_status=<%= encodeURIComponent(filters.payment_status || 'ALL') %>&from=<%= encodeURIComponent(filters.from || '') %>&to=<%= encodeURIComponent(filters.to || '') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= filters.pageSize || 25 %>&page=1">1</a>
+                    </li>
+                  <% } %>
+                  <% for (let p = startPage; p <= endPage; p++) { %>
+                    <li class="page-item <%= p === pagination.page ? 'active' : '' %>">
+                      <a class="page-link" href="?payment_status=<%= encodeURIComponent(filters.payment_status || 'ALL') %>&from=<%= encodeURIComponent(filters.from || '') %>&to=<%= encodeURIComponent(filters.to || '') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= filters.pageSize || 25 %>&page=<%= p %>"><%= p %></a>
+                    </li>
+                  <% } %>
+                  <% if (endPage < pagination.totalPages) { %>
+                    <li class="page-item">
+                      <a class="page-link" href="?payment_status=<%= encodeURIComponent(filters.payment_status || 'ALL') %>&from=<%= encodeURIComponent(filters.from || '') %>&to=<%= encodeURIComponent(filters.to || '') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= filters.pageSize || 25 %>&page=<%= pagination.totalPages %>"><%= pagination.totalPages %></a>
+                    </li>
+                  <% } %>
+                </ul>
+              </nav>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: tabela em tela cheia (reduz rolagem horizontal) -->
+  <div class="modal fade" id="modalFinanceOrders" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Pedidos / Transações - Tela cheia</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle" id="financeOrdersTableModal">
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Cliente</th>
+                  <th>Método</th>
+                  <th>Status</th>
+                  <th class="text-end">Valor</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (orders && orders.length) { %>
+                  <% orders.forEach(function(o) { %>
+                    <tr>
+                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '' %></div></td>
+                      <td>
+                        <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
+                        <div class="text-muted small text-break"><%= o.email || '' %></div>
+                      </td>
+                      <td><span class="badge bg-light text-dark border"><%= o.payment_method %></span></td>
+                      <td>
+                        <% 
+                          const pay = String(o.payment_status || '');
+                          const badge = pay === 'PAID' ? 'success' : (pay === 'FAILED' ? 'danger' : 'warning');
+                        %>
+                        <span class="badge bg-<%= badge %>"><%= pay || '-' %></span>
+                        <div class="text-muted small mt-1"><%= o.order_status || '' %></div>
+                      </td>
+                      <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
+                      <td class="text-end">
+                        <% if (String(o.payment_status || '') === 'PENDING') { %>
+                          <div class="d-flex justify-content-end gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="<%= o.id %>" type="button">Marcar pago</button>
+                            <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="<%= o.id %>" type="button">Marcar falhou</button>
+                          </div>
+                        <% } else { %>
+                          <span class="text-muted small">Ação indisponível</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr><td colspan="6" class="text-muted">Nenhum pedido encontrado.</td></tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+
+          <% if (pagination && pagination.totalPages > 1) { %>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <small class="text-muted" id="financeOrdersPaginationSummaryModal">Página <%= pagination.page %> de <%= pagination.totalPages %> (total: <%= pagination.total %>)</small>
+              <nav>
+                <ul class="pagination pagination-sm mb-0" id="financeOrdersPaginationModal">
+                  <%
+                    const startPage = Math.max(1, (pagination.page || 1) - 2);
+                    const endPage = Math.min(pagination.totalPages, (pagination.page || 1) + 2);
+                  %>
+                  <% if (startPage > 1) { %>
+                    <li class="page-item">
+                      <a class="page-link" href="#" data-page="1">1</a>
+                    </li>
+                  <% } %>
+                  <% for (let p = startPage; p <= endPage; p++) { %>
+                    <li class="page-item <%= p === pagination.page ? 'active' : '' %>">
+                      <a class="page-link" href="#" data-page="<%= p %>"><%= p %></a>
+                    </li>
+                  <% } %>
+                  <% if (endPage < pagination.totalPages) { %>
+                    <li class="page-item">
+                      <a class="page-link" href="#" data-page="<%= pagination.totalPages %>"><%= pagination.totalPages %></a>
+                    </li>
+                  <% } %>
+                </ul>
+              </nav>
+            </div>
+          <% } %>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    var mainTable = document.getElementById('financeOrdersTable');
+    var modalTable = document.getElementById('financeOrdersTableModal');
+    if (!mainTable && !modalTable) return;
+
+    function formatMoney(v) {
+      var n = Number(v || 0);
+      return n.toFixed(2).replace('.', ',');
+    }
+
+    function getPaymentBadgeClass(paymentStatus) {
+      var pay = String(paymentStatus || '');
+      if (pay === 'PAID') return 'success';
+      if (pay === 'FAILED') return 'danger';
+      return 'warning';
+    }
+
+    // Delegação de eventos para funcionar também após paginação via AJAX no modal
+    document.addEventListener('click', function (e) {
+      var paidBtn = e.target.closest && e.target.closest('.btn-mark-paid');
+      var failedBtn = e.target.closest && e.target.closest('.btn-mark-failed');
+      var btn = paidBtn || failedBtn;
+      if (!btn) return;
+
+      var tableRoot = btn.closest && btn.closest('#financeOrdersTable, #financeOrdersTableModal');
+      if (!tableRoot) return;
+
+      var orderId = btn.getAttribute('data-order-id');
+      if (!orderId) return;
+
+      var paymentStatus = paidBtn ? 'PAID' : 'FAILED';
+      e.preventDefault();
+
+      (async function () {
+        var ok = await window.neofarmaConfirm({
+          title: 'Atualizar pagamento',
+          message: paymentStatus === 'PAID'
+            ? 'Marcar este pedido como pago? Isso muda o status e libera a confirmação para testes.'
+            : 'Marcar este pedido como falhou?'
+        });
+        if (!ok) return;
+
+        btn.disabled = true;
+        fetch('/admin/financas/orders/' + encodeURIComponent(orderId) + '/mark-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ payment_status: paymentStatus })
+        })
+          .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
+          .then(function (result) {
+            btn.disabled = false;
+            if (result.data && result.data.ok) {
+              window.location.reload();
+            } else {
+              if (window.neofarmaToast) window.neofarmaToast(result.data && result.data.message ? result.data.message : 'Falha ao atualizar.', 'danger');
+            }
+          })
+          .catch(function () {
+            btn.disabled = false;
+            if (window.neofarmaToast) window.neofarmaToast('Erro de conexão.', 'danger');
+          });
+      })();
+    });
+
+    // Paginação SEM reload dentro do modal
+    var modalPagination = document.getElementById('financeOrdersPaginationModal');
+    var modalPaginationSummary = document.getElementById('financeOrdersPaginationSummaryModal');
+    var modalTbody = modalTable ? modalTable.querySelector('tbody') : null;
+    if (modalPagination && modalTbody && modalPaginationSummary && modalTable) {
+      var modalFilters = {
+        payment_status: '<%= filters.payment_status || 'ALL' %>',
+        from: '<%= filters.from || '' %>',
+        to: '<%= filters.to || '' %>',
+        search: '<%= filters.search || '' %>',
+        pageSize: <%= filters.pageSize || 25 %>,
+      };
+
+      function buildOrdersUrl(page) {
+        var params = new URLSearchParams();
+        params.set('payment_status', modalFilters.payment_status || 'ALL');
+        if (modalFilters.from) params.set('from', modalFilters.from);
+        if (modalFilters.to) params.set('to', modalFilters.to);
+        if (modalFilters.search) params.set('search', modalFilters.search);
+        params.set('page', String(page));
+        params.set('pageSize', String(modalFilters.pageSize));
+        return '/admin/financas/orders?' + params.toString();
+      }
+
+      function renderOrdersRows(orders) {
+        modalTbody.innerHTML = '';
+        if (!orders || !orders.length) {
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="6" class="text-muted">Nenhum pedido encontrado.</td>';
+          modalTbody.appendChild(tr);
+          return;
+        }
+
+        orders.forEach(function (o) {
+          var tr = document.createElement('tr');
+
+          var createdStr = o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '';
+          var pay = String(o.payment_status || '');
+          var badgeClass = getPaymentBadgeClass(pay);
+
+          var actionsHtml = '';
+          if (pay === 'PENDING') {
+            actionsHtml = '\
+              <div class="d-flex justify-content-end gap-2 flex-wrap">\
+                <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="' + String(o.id) + '" type="button">Marcar pago</button>\
+                <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="' + String(o.id) + '" type="button">Marcar falhou</button>\
+              </div>';
+          } else {
+            actionsHtml = '<span class="text-muted small">Ação indisponível</span>';
+          }
+
+          tr.innerHTML = '\
+            <td class="fw-bold">#' + String(o.id) + '<div class="text-muted small">' + createdStr + '</div></td>\
+            <td>\
+              <div class="fw-bold">' + (o.full_name ? String(o.full_name) : 'Cliente') + '</div>\
+              <div class="text-muted small text-break">' + (o.email ? String(o.email) : '') + '</div>\
+            </td>\
+            <td><span class="badge bg-light text-dark border">' + String(o.payment_method || '') + '</span></td>\
+            <td>\
+              <span class="badge bg-' + badgeClass + '">' + (pay || '-') + '</span>\
+              <div class="text-muted small mt-1">' + (o.order_status || '') + '</div>\
+            </td>\
+            <td class="text-end fw-semibold">R$ ' + formatMoney(o.total) + '</td>\
+            <td class="text-end">' + actionsHtml + '</td>';
+
+          modalTbody.appendChild(tr);
+        });
+      }
+
+      function renderPagination(pagination) {
+        if (!pagination) return;
+        var totalPages = Number(pagination.totalPages || 1);
+        var page = Number(pagination.page || 1);
+        var total = Number(pagination.total || 0);
+
+        modalPaginationSummary.textContent = 'Página ' + page + ' de ' + totalPages + ' (total: ' + total + ')';
+
+        var startPage = Math.max(1, page - 2);
+        var endPage = Math.min(totalPages, page + 2);
+
+        modalPagination.innerHTML = '';
+
+        function addPageItem(p, active) {
+          var li = document.createElement('li');
+          li.className = 'page-item' + (active ? ' active' : '');
+          var a = document.createElement('a');
+          a.className = 'page-link';
+          a.href = '#';
+          a.dataset.page = String(p);
+          a.textContent = String(p);
+          li.appendChild(a);
+          modalPagination.appendChild(li);
+        }
+
+        if (startPage > 1) addPageItem(1, page === 1);
+        for (var x = startPage; x <= endPage; x += 1) addPageItem(x, x === page);
+        if (endPage < totalPages) addPageItem(totalPages, page === totalPages);
+      }
+
+      var currentModalPage = <%= pagination && pagination.page ? pagination.page : 1 %>;
+
+      async function refreshModalPage(page) {
+        try {
+          var res = await fetch(buildOrdersUrl(page), { headers: { 'Accept': 'application/json' } });
+          var data = await res.json();
+          if (!data || !data.ok) {
+            if (window.neofarmaToast) window.neofarmaToast(data && data.message ? data.message : 'Falha ao carregar dados.', 'danger');
+            return;
+          }
+          renderOrdersRows(data.orders);
+          renderPagination(data.pagination);
+          currentModalPage = data.pagination && data.pagination.page ? data.pagination.page : page;
+        } catch (e) {
+          if (window.neofarmaToast) window.neofarmaToast('Erro de conexão.', 'danger');
+        }
+      }
+
+      modalPagination.addEventListener('click', function (e) {
+        var a = e.target && e.target.closest && e.target.closest('a[data-page]');
+        if (!a) return;
+        e.preventDefault();
+        var page = parseInt(a.dataset.page, 10);
+        if (!page || page === currentModalPage) return;
+        refreshModalPage(page);
+      });
+    }
+
+    // UX: fallback no clique (caso Bootstrap ainda não esteja pronto)
+    var openBtn = document.getElementById('btnOpenFinanceOrdersModal');
+    var modalEl = document.getElementById('modalFinanceOrders');
+    if (openBtn && modalEl) {
+      openBtn.addEventListener('click', function () {
+        var bs = window.bootstrap;
+        if (bs && bs.Modal) {
+          var modal = bs.Modal.getOrCreateInstance(modalEl, { keyboard: true });
+          modal.show();
+        }
+      });
+    }
+  })();
+</script>
+
+<%- include('partials/footer') %>
+

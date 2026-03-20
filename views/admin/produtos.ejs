@@ -1,0 +1,767 @@
+<%- include('partials/header') %>
+<div class="container">
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Produtos</h2>
+      <p class="text-muted mb-0">Cadastre e edite produtos do catálogo.</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control" id="buscaInput" placeholder="Buscar..." onkeyup="filtrarTabela()">
+      </div>
+      <button type="button" class="btn btn-success d-flex align-items-center" onclick="abrirModalProd()" data-bs-toggle="modal" data-bs-target="#modalEditar">
+        <i class="bi bi-plus-lg me-2"></i> Novo
+      </button>
+    </div>
+  </div>
+  <div class="d-flex gap-2 mb-3">
+    <a href="/admin/produtos" class="btn btn-sm <%= (riskFilter || 'ALL') === 'ALL' ? 'btn-dark' : 'btn-outline-dark' %>">Todos</a>
+    <a href="/admin/produtos?batchRisk=EXPIRING" class="btn btn-sm <%= (riskFilter || 'ALL') === 'EXPIRING' ? 'btn-warning' : 'btn-outline-warning' %>">Próx. vencimento</a>
+    <a href="/admin/produtos?batchRisk=EXPIRED" class="btn btn-sm <%= (riskFilter || 'ALL') === 'EXPIRED' ? 'btn-danger' : 'btn-outline-danger' %>">Vencidos</a>
+  </div>
+
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle" id="tabelaProd">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nome</th>
+            <th>SKU</th>
+            <th>Laboratório</th>
+            <th>Preço</th>
+            <th>Status</th>
+            <th>Lotes (risco)</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (list && list.length) { list.forEach(function(item) { %>
+            <tr>
+              <td><%= item.id %></td>
+              <td class="fw-bold"><%= item.name %></td>
+              <td><%= item.sku || '-' %></td>
+              <td><%= item.lab_name || '-' %></td>
+              <td>R$ <%= Number(item.unit_price).toFixed(2).replace('.', ',') %></td>
+              <td><span class="badge bg-<%= item.status === 'ACTIVE' ? 'success' : (item.status === 'INACTIVE' ? 'secondary' : 'danger') %>"><%= item.status %></span></td>
+              <td>
+                <% if ((item.expired_batches || 0) > 0) { %>
+                  <span class="badge bg-danger me-1">Vencidos: <%= item.expired_batches %></span>
+                <% } %>
+                <% if ((item.expiring_batches || 0) > 0) { %>
+                  <span class="badge bg-warning text-dark">30 dias: <%= item.expiring_batches %></span>
+                <% } %>
+                <% if ((item.expired_batches || 0) === 0 && (item.expiring_batches || 0) === 0) { %>
+                  <span class="badge bg-success">Sem risco</span>
+                <% } %>
+              </td>
+              <td class="text-end">
+                <button type="button" class="btn-action btn-stock" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="abrirModalLotes(this)" title="Lotes"><i class="bi bi-archive"></i></button>
+                <button type="button" class="btn-action btn-view" onclick="verProd(<%= item.id %>)" title="Ver"><i class="bi bi-eye"></i></button>
+                <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarProd(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
+          <% }); } %>
+        </tbody>
+      </table>
+    </div>
+    <div id="mensagemVazia" class="text-center py-5" style="display: <%= (list && list.length) ? 'none' : 'block' %>;">
+      <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
+      <p class="text-muted mt-2">Nenhum produto cadastrado.</p>
+      <button type="button" class="btn btn-outline-success btn-sm mt-2" onclick="abrirModalProd()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeiro produto</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-body { padding: 0; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+  .cadastro-view { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+  .cadastro-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
+  .cadastro-view-section { margin-bottom: 1.25rem; }
+  .cadastro-view-section:last-child { margin-bottom: 0; }
+  .cadastro-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
+  .cadastro-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
+  .cadastro-view-row:last-child { border-bottom: none; }
+  .cadastro-view-label { font-size: 0.85rem; color: #6c757d; min-width: 130px; flex-shrink: 0; }
+  .cadastro-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
+  .cadastro-edit { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-edit-section { margin-bottom: 1.5rem; }
+  .cadastro-edit-section:last-of-type { margin-bottom: 0; }
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .cadastro-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; margin-bottom: 0.25rem; }
+  .cadastro-edit .form-control, .cadastro-edit .form-select, .cadastro-edit textarea { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
+  .cadastro-edit .form-control:focus, .cadastro-edit .form-select:focus, .cadastro-edit textarea:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+  .modal-cadastro .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
+  .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+  .modal-header-danger { background: #dc3545; color: #fff; }
+  .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+</style>
+
+<!-- Modal Ver -->
+<div class="modal fade modal-cadastro" id="modalVisualizar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i>Dados do produto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="conteudoVisualizacao"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novo/Editar -->
+<div class="modal fade modal-cadastro" id="modalEditar" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEditarTitle"><i class="bi bi-pencil-square me-2"></i>Novo produto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prod_id">
+        <div class="cadastro-edit">
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Dados do produto</div>
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label for="prod_name" class="form-label">Nome *</label>
+                <input type="text" class="form-control" id="prod_name" required placeholder="Nome do produto">
+              </div>
+              <div class="col-md-4">
+                <label for="prod_sku" class="form-label">SKU</label>
+                <input type="text" class="form-control" id="prod_sku" placeholder="SKU">
+              </div>
+              <div class="col-md-6">
+                <label for="prod_lab_id" class="form-label">Laboratório</label>
+                <select class="form-select" id="prod_lab_id">
+                  <option value="">-- Selecione --</option>
+                  <% if (typeof labs !== 'undefined' && labs) { labs.forEach(function(l) { %>
+                    <option value="<%= l.id %>"><%= l.name %></option>
+                  <% }); } %>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="prod_supplier_id" class="form-label">Fornecedor principal</label>
+                <select class="form-select" id="prod_supplier_id">
+                  <option value="">-- Selecione --</option>
+                  <% if (typeof suppliers !== 'undefined' && suppliers) { suppliers.forEach(function(s) { %>
+                    <option value="<%= s.id %>"><%= s.corporate_name %></option>
+                  <% }); } %>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="prod_category_id" class="form-label">Categoria *</label>
+                <select class="form-select" id="prod_category_id" required>
+                  <option value="">-- Selecione --</option>
+                  <% if (typeof categories !== 'undefined' && categories) { categories.forEach(function(c) { %>
+                    <option value="<%= c.id %>"><%= c.name %></option>
+                  <% }); } %>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="prod_unit_price" class="form-label">Preço unitário *</label>
+                <input type="text" class="form-control" id="prod_unit_price" placeholder="0,00" required>
+              </div>
+              <div class="col-md-4">
+                <label for="prod_promotional_price" class="form-label">Preço promocional</label>
+                <input type="text" class="form-control" id="prod_promotional_price" placeholder="0,00">
+              </div>
+              <div class="col-md-4">
+                <label for="prod_status" class="form-label">Status</label>
+                <select class="form-select" id="prod_status">
+                  <option value="ACTIVE">Ativo</option>
+                  <option value="INACTIVE">Inativo</option>
+                  <option value="DISCONTINUED">Descontinuado</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="prod_prescription">
+                  <label class="form-check-label" for="prod_prescription">Exige receita médica</label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="prod_ean13" class="form-label">EAN-13</label>
+                <input type="text" class="form-control" id="prod_ean13" maxlength="20" placeholder="EAN-13">
+              </div>
+              <div class="col-12">
+                <label for="prod_description" class="form-label">Descrição</label>
+                <textarea class="form-control" id="prod_description" rows="2" placeholder="Descrição"></textarea>
+              </div>
+              <div class="col-12">
+                <label for="prod_composition" class="form-label">Composição</label>
+                <textarea class="form-control" id="prod_composition" rows="2" placeholder="Composição"></textarea>
+              </div>
+              <div class="col-12">
+                <label for="prod_usage_info" class="form-label">Modo de uso</label>
+                <textarea class="form-control" id="prod_usage_info" rows="2" placeholder="Ex.: Tomar 1 cápsula ao dia após as refeições."></textarea>
+              </div>
+              <div class="col-12 pt-2 border-top" id="prodImagensSection" style="display: none;">
+                <div class="cadastro-edit-section-title mb-2">Imagens da vitrine</div>
+                <p class="text-muted small mb-2">Adicione por upload ou informe URL/caminho. A ordem será usada na vitrine.</p>
+                <div id="prodImageFeedback" class="small mb-2" style="display:none;"></div>
+                <div class="d-flex gap-2 mb-2">
+                  <input type="file" class="form-control" id="prod_image_file" accept="image/png,image/jpeg,image/webp,image/gif">
+                  <button type="button" class="btn btn-outline-primary btn-sm flex-shrink-0" id="btnUploadProdImage"><i class="bi bi-upload"></i> Enviar arquivo</button>
+                </div>
+                <div class="d-flex gap-2 mb-2">
+                  <input type="text" class="form-control" id="prod_image_url" placeholder="URL ou caminho da imagem">
+                  <button type="button" class="btn btn-outline-primary btn-sm flex-shrink-0" id="btnAddProdImage"><i class="bi bi-plus-lg"></i> Adicionar</button>
+                </div>
+                <div id="prodImagensList" class="d-flex flex-wrap gap-2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="btnSalvarProd"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Lotes -->
+<div class="modal fade modal-cadastro" id="modalLotes" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalLotesTitle"><i class="bi bi-archive me-2"></i>Lotes do produto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="cadastro-edit">
+          <p class="text-muted small mb-2">Gerencie o estoque por lote. Itens vencidos não entram na venda (FEFO na saída).</p>
+          <div id="prodBatchFeedback" class="small mb-2" style="display:none;"></div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-4">
+              <select id="batchFilterStatus" class="form-select form-select-sm">
+                <option value="ALL">Todos os lotes</option>
+                <option value="VALID">Válidos (&gt; 30 dias)</option>
+                <option value="EXPIRING">Próximos do vencimento (até 30 dias)</option>
+                <option value="EXPIRED">Vencidos</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <select id="batchSort" class="form-select form-select-sm">
+                <option value="expiry_asc">Validade (mais próxima primeiro)</option>
+                <option value="expiry_desc">Validade (mais distante primeiro)</option>
+                <option value="qty_desc">Quantidade (maior primeiro)</option>
+                <option value="qty_asc">Quantidade (menor primeiro)</option>
+              </select>
+            </div>
+            <div class="col-md-4 text-md-end">
+              <span id="batchRiskSummary" class="small text-muted"></span>
+            </div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-3">
+              <input type="text" class="form-control form-control-sm" id="batch_code" placeholder="Código do lote">
+            </div>
+            <div class="col-md-3">
+              <input type="date" class="form-control form-control-sm" id="batch_mfg_date" title="Fabricação">
+            </div>
+            <div class="col-md-3">
+              <input type="date" class="form-control form-control-sm" id="batch_expiry_date" title="Validade">
+            </div>
+            <div class="col-md-2">
+              <input type="number" min="0" class="form-control form-control-sm" id="batch_quantity" placeholder="Qtd">
+            </div>
+            <div class="col-md-1 d-grid">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddBatch" title="Adicionar lote"><i class="bi bi-plus-lg"></i></button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Lote</th>
+                  <th>Fabricação</th>
+                  <th>Validade</th>
+                  <th>Status</th>
+                  <th>Qtd</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="prodBatchList">
+                <tr><td colspan="6" class="text-muted small">Carregando lotes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Excluir -->
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header modal-header-danger">
+        <h5 class="modal-title"><i class="bi bi-trash-fill me-2"></i>Excluir produto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Tem certeza que deseja remover o produto <strong id="exclusaoNome"></strong>?<br>Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Sim, Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+<script>
+  function filtrarTabela() {
+    var q = (document.getElementById('buscaInput').value || '').toLowerCase();
+    document.querySelectorAll('#tabelaProd tbody tr').forEach(function(tr) {
+      tr.style.display = tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+    });
+  }
+  function abrirModalProd() {
+    document.getElementById('prod_id').value = '';
+    document.getElementById('prod_name').value = '';
+    document.getElementById('prod_sku').value = '';
+    document.getElementById('prod_lab_id').value = '';
+    document.getElementById('prod_supplier_id').value = '';
+    document.getElementById('prod_category_id').value = '';
+    document.getElementById('prod_unit_price').value = '';
+    document.getElementById('prod_promotional_price').value = '';
+    document.getElementById('prod_status').value = 'ACTIVE';
+    document.getElementById('prod_prescription').checked = false;
+    document.getElementById('prod_ean13').value = '';
+    document.getElementById('prod_description').value = '';
+    document.getElementById('prod_composition').value = '';
+    document.getElementById('prod_usage_info').value = '';
+    document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Novo produto';
+    document.getElementById('prodImagensSection').style.display = 'none';
+    document.getElementById('prod_image_file').value = '';
+    document.getElementById('prod_image_url').value = '';
+    document.getElementById('prodImagensList').innerHTML = '';
+    document.getElementById('prodBatchList').innerHTML = '';
+    document.getElementById('batch_code').value = '';
+    document.getElementById('batch_mfg_date').value = '';
+    document.getElementById('batch_expiry_date').value = '';
+    document.getElementById('batch_quantity').value = '';
+    document.getElementById('btnAddBatch').removeAttribute('data-edit-id');
+    document.getElementById('btnAddBatch').innerHTML = '<i class="bi bi-plus-lg"></i>';
+    setProdImageFeedback('', false);
+    setProdBatchFeedback('', false);
+  }
+  var lotesProdId = null;
+  function abrirModalLotes(btn) {
+    try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+    if (!item || !item.id) return;
+    lotesProdId = item.id;
+    document.getElementById('modalLotesTitle').innerHTML = '<i class="bi bi-archive me-2"></i>Lotes - ' + (item.name || ('Produto #' + item.id));
+    document.getElementById('batch_code').value = '';
+    document.getElementById('batch_mfg_date').value = '';
+    document.getElementById('batch_expiry_date').value = '';
+    document.getElementById('batch_quantity').value = '';
+    document.getElementById('btnAddBatch').removeAttribute('data-edit-id');
+    document.getElementById('btnAddBatch').innerHTML = '<i class="bi bi-plus-lg"></i>';
+    setProdBatchFeedback('', false);
+    carregarProdLotes(item.id);
+    new bootstrap.Modal(document.getElementById('modalLotes')).show();
+  }
+  function verProd(id) {
+    var tr = [].find.call(document.querySelectorAll('#tabelaProd tbody tr'), function(r) { return parseInt(r.cells[0].textContent, 10) === id; });
+    if (!tr) return;
+    var nome = tr.cells[1].textContent;
+    var sku = tr.cells[2].textContent;
+    var lab = tr.cells[3].textContent;
+    var preco = tr.cells[4].textContent;
+    var status = tr.cells[5].textContent;
+    var inicial = nome ? nome.charAt(0).toUpperCase() : '?';
+    var html = '<div class="cadastro-view">' +
+      '<div class="cadastro-view-avatar">' + inicial + '</div>' +
+      '<div class="cadastro-view-nome">' + nome + '</div>' +
+      '<div class="cadastro-view-section">' +
+        '<div class="cadastro-view-section-title">Dados</div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">SKU</span><span class="cadastro-view-value">' + (sku === '-' ? '-' : sku) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Laboratório</span><span class="cadastro-view-value">' + (lab === '-' ? '-' : lab) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Preço</span><span class="cadastro-view-value">' + preco + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Status</span><span class="cadastro-view-value">' + status + '</span></div>' +
+      '</div></div>';
+    document.getElementById('conteudoVisualizacao').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
+  }
+  function editarProd(btn) {
+    try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+    document.getElementById('prod_id').value = item.id;
+    document.getElementById('prod_name').value = item.name || '';
+    document.getElementById('prod_sku').value = item.sku || '';
+    document.getElementById('prod_lab_id').value = item.lab_id || '';
+    document.getElementById('prod_supplier_id').value = item.main_supplier_id || '';
+    document.getElementById('prod_category_id').value = item.category_id || '';
+    document.getElementById('prod_unit_price').value = item.unit_price != null ? String(item.unit_price).replace('.', ',') : '';
+    document.getElementById('prod_promotional_price').value = item.promotional_price != null ? String(item.promotional_price).replace('.', ',') : '';
+    document.getElementById('prod_status').value = item.status || 'ACTIVE';
+    document.getElementById('prod_prescription').checked = !!item.prescription_required;
+    document.getElementById('prod_ean13').value = item.ean13 || '';
+    document.getElementById('prod_description').value = item.description || '';
+    document.getElementById('prod_composition').value = item.composition || '';
+    document.getElementById('prod_usage_info').value = item.usage_info || '';
+    document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar produto';
+    document.getElementById('prodImagensSection').style.display = 'block';
+    document.getElementById('prod_image_file').value = '';
+    document.getElementById('prod_image_url').value = '';
+    setProdImageFeedback('', false);
+    carregarProdImagens(item.id);
+    new bootstrap.Modal(document.getElementById('modalEditar')).show();
+  }
+  function carregarProdImagens(prodId) {
+    var listEl = document.getElementById('prodImagensList');
+    listEl.innerHTML = '<span class="text-muted small">Carregando...</span>';
+    fetch('/admin/produtos/' + prodId + '/imagens', { headers: { 'Accept': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        listEl.innerHTML = '';
+        if (res.ok && res.data && res.data.length) {
+          res.data.forEach(function(img) {
+            var card = document.createElement('div');
+            card.className = 'border rounded p-2 d-flex align-items-center gap-2 bg-light';
+            card.style.maxWidth = '200px';
+            var thumb = document.createElement('img');
+            var fullSrc = img.image_url.startsWith('http') || img.image_url.startsWith('/') ? img.image_url : '/' + img.image_url.replace(/^\//, '');
+            var thumbSrc = fullSrc;
+            if (/^\/uploads\/products\/.+\.webp$/i.test(fullSrc) && !/-thumb\.webp$/i.test(fullSrc)) {
+              thumbSrc = fullSrc.replace(/\.webp$/i, '-thumb.webp');
+            }
+            thumb.src = thumbSrc;
+            thumb.alt = 'Imagem';
+            thumb.style.width = '48px'; thumb.style.height = '48px'; thumb.style.objectFit = 'cover'; thumb.style.borderRadius = '4px';
+            thumb.onerror = function() {
+              if (this.src !== fullSrc) {
+                this.src = fullSrc;
+                return;
+              }
+              this.style.display = 'none';
+            };
+            var url = document.createElement('span');
+            url.className = 'small text-truncate flex-grow-1'; url.title = img.image_url; url.textContent = img.image_url;
+            var btnDel = document.createElement('button');
+            btnDel.type = 'button'; btnDel.className = 'btn btn-outline-danger btn-sm'; btnDel.innerHTML = '<i class="bi bi-trash"></i>';
+            btnDel.onclick = function() { excluirProdImagem(img.id, prodId); };
+            card.appendChild(thumb); card.appendChild(url); card.appendChild(btnDel);
+            listEl.appendChild(card);
+          });
+        } else {
+          listEl.innerHTML = '<span class="text-muted small">Nenhuma imagem. Adicione acima.</span>';
+        }
+      })
+      .catch(function() { listEl.innerHTML = '<span class="text-danger small">Erro ao carregar imagens.</span>'; });
+  }
+  function setProdImageFeedback(message, isError) {
+    var el = document.getElementById('prodImageFeedback');
+    if (!message) {
+      el.style.display = 'none';
+      el.textContent = '';
+      el.className = 'small mb-2';
+      return;
+    }
+    el.style.display = 'block';
+    el.textContent = message;
+    el.className = 'small mb-2 ' + (isError ? 'text-danger' : 'text-success');
+  }
+  function excluirProdImagem(imageId, prodId) {
+    window.neofarmaConfirm({
+      title: 'Remover imagem',
+      message: 'Remover esta imagem?'
+    }).then(function(ok) {
+      if (!ok) return;
+      setProdImageFeedback('', false);
+      fetch('/admin/produtos/imagens/' + imageId, { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.ok) {
+            carregarProdImagens(prodId);
+            setProdImageFeedback('Imagem removida com sucesso.', false);
+          } else {
+            setProdImageFeedback(d.message || 'Erro ao remover imagem.', true);
+          }
+        })
+        .catch(function() { setProdImageFeedback('Erro ao remover imagem.', true); });
+    });
+  }
+  function setProdBatchFeedback(message, isError) {
+    var el = document.getElementById('prodBatchFeedback');
+    if (!message) {
+      el.style.display = 'none';
+      el.textContent = '';
+      el.className = 'small mb-2';
+      return;
+    }
+    el.style.display = 'block';
+    el.textContent = message;
+    el.className = 'small mb-2 ' + (isError ? 'text-danger' : 'text-success');
+  }
+  function formatDateBr(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('pt-BR');
+  }
+  function batchStatus(expiryDate) {
+    if (!expiryDate) return { label: '-', cls: 'secondary' };
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var exp = new Date(expiryDate); exp.setHours(0, 0, 0, 0);
+    var diffDays = Math.floor((exp - today) / 86400000);
+    if (diffDays < 0) return { label: 'Vencido', cls: 'danger' };
+    if (diffDays <= 30) return { label: 'Próx. vencimento', cls: 'warning text-dark' };
+    return { label: 'Válido', cls: 'success' };
+  }
+  function summarizeRisk(batches) {
+    var expired = 0, expiring = 0, valid = 0;
+    (batches || []).forEach(function(b) {
+      if (b.validity_status === 'EXPIRED') expired++;
+      else if (b.validity_status === 'EXPIRING') expiring++;
+      else valid++;
+    });
+    return 'Válidos: ' + valid + ' | Próx. vencimento: ' + expiring + ' | Vencidos: ' + expired;
+  }
+  function carregarProdLotes(prodId) {
+    var tbody = document.getElementById('prodBatchList');
+    var status = document.getElementById('batchFilterStatus').value;
+    var sort = document.getElementById('batchSort').value;
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted small">Carregando lotes...</td></tr>';
+    fetch('/admin/produtos/' + prodId + '/lotes?status=' + encodeURIComponent(status) + '&sort=' + encodeURIComponent(sort), { headers: { 'Accept': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        tbody.innerHTML = '';
+        if (!res.ok || !res.batches || !res.batches.length) {
+          document.getElementById('batchRiskSummary').textContent = '';
+          tbody.innerHTML = '<tr><td colspan="6" class="text-muted small">Nenhum lote cadastrado.</td></tr>';
+          return;
+        }
+        document.getElementById('batchRiskSummary').textContent = summarizeRisk(res.batches);
+        res.batches.forEach(function(b) {
+          var s = batchStatus(b.expiry_date);
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + (b.batch_code || '-') + '</td>' +
+            '<td>' + formatDateBr(b.mfg_date) + '</td>' +
+            '<td>' + formatDateBr(b.expiry_date) + '</td>' +
+            '<td><span class="badge bg-' + s.cls + '">' + s.label + '</span></td>' +
+            '<td>' + Number(b.quantity || 0) + '</td>' +
+            '<td class="text-end">' +
+              '<button type="button" class="btn btn-outline-secondary btn-sm me-1" title="Editar"><i class="bi bi-pencil"></i></button>' +
+              '<button type="button" class="btn btn-outline-danger btn-sm" title="Excluir"><i class="bi bi-trash"></i></button>' +
+            '</td>';
+          var btnEdit = tr.querySelector('.btn-outline-secondary');
+          var btnDel = tr.querySelector('.btn-outline-danger');
+          btnEdit.onclick = function() {
+            document.getElementById('batch_code').value = b.batch_code || '';
+            document.getElementById('batch_mfg_date').value = b.mfg_date ? String(b.mfg_date).slice(0, 10) : '';
+            document.getElementById('batch_expiry_date').value = b.expiry_date ? String(b.expiry_date).slice(0, 10) : '';
+            document.getElementById('batch_quantity').value = Number(b.quantity || 0);
+            document.getElementById('btnAddBatch').setAttribute('data-edit-id', b.id);
+            document.getElementById('btnAddBatch').innerHTML = '<i class="bi bi-check2"></i>';
+            setProdBatchFeedback('Editando lote ' + (b.batch_code || ('#' + b.id)) + '.', false);
+          };
+          btnDel.onclick = function() {
+            window.neofarmaConfirm({
+              title: 'Excluir lote',
+              message: 'Excluir lote ' + (b.batch_code || ('#' + b.id)) + '?'
+            }).then(function(ok) {
+              if (!ok) return;
+              fetch('/admin/produtos/lotes/' + b.id, { method: 'DELETE' })
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                  if (d.ok) {
+                    setProdBatchFeedback('Lote removido.', false);
+                    carregarProdLotes(prodId);
+                  } else {
+                    setProdBatchFeedback(d.message || 'Erro ao excluir lote.', true);
+                  }
+                })
+                .catch(function() { setProdBatchFeedback('Erro ao excluir lote.', true); });
+            });
+          };
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(function() {
+        document.getElementById('batchRiskSummary').textContent = '';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-danger small">Erro ao carregar lotes.</td></tr>';
+      });
+  }
+  document.getElementById('batchFilterStatus').addEventListener('change', function() {
+    var prodId = lotesProdId;
+    if (prodId) carregarProdLotes(prodId);
+  });
+  document.getElementById('batchSort').addEventListener('change', function() {
+    var prodId = lotesProdId;
+    if (prodId) carregarProdLotes(prodId);
+  });
+  document.getElementById('btnAddBatch').addEventListener('click', function() {
+    var prodId = lotesProdId;
+    if (!prodId) { setProdBatchFeedback('Salve o produto antes de gerenciar lotes.', true); return; }
+    var batch_code = document.getElementById('batch_code').value.trim();
+    var mfg_date = document.getElementById('batch_mfg_date').value || null;
+    var expiry_date = document.getElementById('batch_expiry_date').value;
+    var quantity = parseInt(document.getElementById('batch_quantity').value || '0', 10);
+    if (!batch_code || !expiry_date) { setProdBatchFeedback('Informe código do lote e validade.', true); return; }
+    if (isNaN(quantity) || quantity < 0) { setProdBatchFeedback('Quantidade inválida.', true); return; }
+
+    var editId = this.getAttribute('data-edit-id');
+    var url = editId ? ('/admin/produtos/lotes/' + editId) : ('/admin/produtos/' + prodId + '/lotes');
+    var method = editId ? 'PUT' : 'POST';
+    setProdBatchFeedback(editId ? 'Atualizando lote...' : 'Adicionando lote...', false);
+    fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ batch_code: batch_code, mfg_date: mfg_date, expiry_date: expiry_date, quantity: quantity })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          document.getElementById('batch_code').value = '';
+          document.getElementById('batch_mfg_date').value = '';
+          document.getElementById('batch_expiry_date').value = '';
+          document.getElementById('batch_quantity').value = '';
+          document.getElementById('btnAddBatch').removeAttribute('data-edit-id');
+          document.getElementById('btnAddBatch').innerHTML = '<i class="bi bi-plus-lg"></i>';
+          setProdBatchFeedback(editId ? 'Lote atualizado com sucesso.' : 'Lote adicionado com sucesso.', false);
+          carregarProdLotes(prodId);
+        } else {
+          setProdBatchFeedback(d.message || 'Erro ao salvar lote.', true);
+        }
+      })
+      .catch(function() { setProdBatchFeedback('Erro ao salvar lote.', true); });
+  });
+  document.getElementById('btnAddProdImage').addEventListener('click', function() {
+    var prodId = document.getElementById('prod_id').value;
+    if (!prodId) { setProdImageFeedback('Salve o produto antes de adicionar imagens.', true); return; }
+    var url = document.getElementById('prod_image_url').value.trim();
+    if (!url) { setProdImageFeedback('Informe a URL ou caminho da imagem.', true); return; }
+    setProdImageFeedback('', false);
+    fetch('/admin/produtos/' + prodId + '/imagens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: url })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          document.getElementById('prod_image_url').value = '';
+          carregarProdImagens(prodId);
+          setProdImageFeedback('Imagem adicionada com sucesso.', false);
+        } else {
+          setProdImageFeedback(d.message || 'Erro ao adicionar imagem.', true);
+        }
+      })
+      .catch(function() { setProdImageFeedback('Erro ao adicionar imagem.', true); });
+  });
+  document.getElementById('btnUploadProdImage').addEventListener('click', function() {
+    var prodId = document.getElementById('prod_id').value;
+    if (!prodId) { setProdImageFeedback('Salve o produto antes de enviar imagens.', true); return; }
+    var input = document.getElementById('prod_image_file');
+    if (!input.files || !input.files.length) { setProdImageFeedback('Selecione um arquivo de imagem.', true); return; }
+    setProdImageFeedback('Enviando imagem...', false);
+    var formData = new FormData();
+    formData.append('image', input.files[0]);
+    fetch('/admin/produtos/' + prodId + '/imagens/upload', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: formData
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          input.value = '';
+          carregarProdImagens(prodId);
+          setProdImageFeedback('Upload concluído com sucesso.', false);
+        } else {
+          setProdImageFeedback(d.message || 'Erro ao enviar imagem.', true);
+        }
+      })
+      .catch(function() { setProdImageFeedback('Erro ao enviar imagem.', true); });
+  });
+  var exclusaoId = null;
+  function abrirModalExclusao(id, nome) {
+    exclusaoId = id;
+    document.getElementById('exclusaoNome').textContent = nome || ('#' + id);
+    new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+  }
+  document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
+    if (!exclusaoId) return;
+    var id = exclusaoId;
+    exclusaoId = null;
+    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
+    fetch('/admin/produtos/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) location.reload(); else window.neofarmaToast(d.message, 'danger');
+    }).catch(function() { window.neofarmaToast('Erro ao excluir.', 'danger'); });
+  });
+  function numBr(v) { if (!v) return null; var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  document.getElementById('btnSalvarProd').addEventListener('click', function() {
+    var id = document.getElementById('prod_id').value;
+    var name = document.getElementById('prod_name').value.trim();
+    var categoryId = document.getElementById('prod_category_id').value;
+    if (!name) { window.neofarmaToast('Nome do produto é obrigatório.', 'danger'); return; }
+    if (!categoryId) { window.neofarmaToast('Categoria é obrigatória.', 'danger'); return; }
+    var body = {
+      name: name,
+      sku: document.getElementById('prod_sku').value.trim() || null,
+      lab_id: document.getElementById('prod_lab_id').value || null,
+      main_supplier_id: document.getElementById('prod_supplier_id').value || null,
+      category_id: categoryId,
+      unit_price: numBr(document.getElementById('prod_unit_price').value) || 0,
+      promotional_price: numBr(document.getElementById('prod_promotional_price').value),
+      status: document.getElementById('prod_status').value,
+      prescription_required: document.getElementById('prod_prescription').checked,
+      ean13: document.getElementById('prod_ean13').value.trim() || null,
+      description: document.getElementById('prod_description').value.trim() || null,
+      composition: document.getElementById('prod_composition').value.trim() || null,
+      usage_info: document.getElementById('prod_usage_info').value.trim() || null
+    };
+    if (id) body.id = id;
+    var btn = document.getElementById('btnSalvarProd');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+    fetch('/admin/produtos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function(r) {
+        return r.text().then(function(txt) {
+          var data = {};
+          try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+          if (!r.ok) {
+            var err = new Error((data && data.message) || 'Erro ao salvar produto.');
+            err.payload = data;
+            err.status = r.status;
+            throw err;
+          }
+          return data;
+        });
+      })
+      .then(function(d) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+        if (d.ok) { bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide(); location.reload(); }
+        else window.neofarmaToast(d.message || 'Não foi possível salvar.', 'danger');
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+        window.neofarmaToast((err && err.message) || 'Erro ao salvar.', 'danger');
+      });
+  });
+</script>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= locals.title || 'Admin - NeoFarma' %></title>
+  <link href="/assets/img/favicon.png" rel="icon">
+  <link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="/assets/css/main.css" rel="stylesheet">
+  <link href="/assets/css/cadastro-custom.css" rel="stylesheet">
+  <style>
+    .admin-sidebar { min-height: 100vh; background: var(--accent-color); color: var(--contrast-color); }
+    .admin-sidebar a { color: rgba(255,255,255,0.9); text-decoration: none; padding: 0.5rem 1rem; display: block; border-radius: 0.25rem; transition: 0.3s; }
+    .admin-sidebar a:hover, .admin-sidebar a.active { color: #fff; background: rgba(255,255,255,0.15); }
+    .admin-content { padding: 1.5rem; }
+    .admin-content .btn-primary { background-color: var(--accent-color); border-color: var(--accent-color); }
+    .admin-content .btn-primary:hover { background-color: color-mix(in srgb, var(--accent-color), black 15%); border-color: color-mix(in srgb, var(--accent-color), black 15%); }
+    .admin-content .btn-outline-primary { color: var(--accent-color); border-color: var(--accent-color); }
+    .admin-content .btn-outline-primary:hover { background-color: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); }
+    .admin-content .card { border: 1px solid color-mix(in srgb, var(--default-color), transparent 90%); transition: 0.3s; }
+    .admin-content .card:hover { border-color: var(--accent-color); box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.08); }
+    .admin-content .card:hover .text-accent { color: var(--accent-color) !important; }
+    .admin-content h1 { color: var(--heading-color); font-family: var(--heading-font); }
+    .admin-content .text-accent { color: var(--accent-color) !important; }
+
+    /* Harmonização de cores no admin (evita tons Bootstrap destoantes) */
+    .admin-content .btn-success {
+      background-color: color-mix(in srgb, var(--accent-color), #1f7a3f 35%);
+      border-color: color-mix(in srgb, var(--accent-color), #1f7a3f 35%);
+      color: #fff;
+    }
+    .admin-content .btn-success:hover {
+      background-color: color-mix(in srgb, var(--accent-color), #1f7a3f 50%);
+      border-color: color-mix(in srgb, var(--accent-color), #1f7a3f 50%);
+    }
+    .admin-content .btn-danger {
+      background-color: color-mix(in srgb, var(--accent-color), #a3343f 45%);
+      border-color: color-mix(in srgb, var(--accent-color), #a3343f 45%);
+      color: #fff;
+    }
+    .admin-content .btn-danger:hover {
+      background-color: color-mix(in srgb, var(--accent-color), #a3343f 60%);
+      border-color: color-mix(in srgb, var(--accent-color), #a3343f 60%);
+    }
+    .admin-content .btn-warning {
+      background-color: color-mix(in srgb, var(--accent-color), #c68a11 55%);
+      border-color: color-mix(in srgb, var(--accent-color), #c68a11 55%);
+      color: #fff;
+    }
+    .admin-content .btn-warning:hover {
+      background-color: color-mix(in srgb, var(--accent-color), #c68a11 70%);
+      border-color: color-mix(in srgb, var(--accent-color), #c68a11 70%);
+    }
+
+    .admin-content .badge.bg-success {
+      background-color: color-mix(in srgb, var(--accent-color), #1f7a3f 35%) !important;
+    }
+    .admin-content .badge.bg-danger {
+      background-color: color-mix(in srgb, var(--accent-color), #a3343f 45%) !important;
+    }
+    .admin-content .badge.bg-warning {
+      background-color: color-mix(in srgb, var(--accent-color), #c68a11 55%) !important;
+      color: #fff !important;
+    }
+    .admin-content .badge.bg-primary {
+      background-color: var(--accent-color) !important;
+    }
+    .admin-content .card.border-primary {
+      border-color: color-mix(in srgb, var(--accent-color), transparent 40%) !important;
+    }
+  </style>
+</head>
+<body class="<%= locals.bodyClass || '' %>">
+
+  <!-- Global toast (substitui alert() por mensagem mais profissional) -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+    <div id="neofarmaToast" class="toast align-items-center border-0 text-bg-success" role="status" aria-live="polite" aria-atomic="true" aria-label="Mensagem" data-bs-delay="4000">
+      <div class="d-flex align-items-center">
+        <div id="neofarmaToastIcon" class="p-2 me-2 d-flex align-items-center justify-content-center">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <div id="neofarmaToastBody" class="toast-body"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmação global (substitui confirm() por UX mais profissional) -->
+  <div class="modal fade" id="neofarmaConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="neofarmaConfirmTitle">Confirmação</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0 text-muted" id="neofarmaConfirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="neofarmaConfirmCancelBtn">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="neofarmaConfirmConfirmBtn">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.neofarmaToast = window.neofarmaToast || function (message, type) {
+      try {
+        var toastEl = document.getElementById('neofarmaToast');
+        if (!toastEl) return;
+        var bodyEl = document.getElementById('neofarmaToastBody');
+        var iconEl = document.getElementById('neofarmaToastIcon');
+
+        if (bodyEl) bodyEl.textContent = (message == null ? '' : String(message));
+
+        toastEl.classList.remove('text-bg-success', 'text-bg-danger', 'text-bg-warning', 'text-bg-info', 'text-bg-primary');
+
+        var iconClass = 'bi bi-check2-circle';
+        if (type === 'danger') { toastEl.classList.add('text-bg-danger'); iconClass = 'bi bi-exclamation-octagon'; }
+        else if (type === 'success') { toastEl.classList.add('text-bg-success'); iconClass = 'bi bi-check2-circle'; }
+        else if (type === 'warning') { toastEl.classList.add('text-bg-warning'); iconClass = 'bi bi-exclamation-triangle'; }
+        else { toastEl.classList.add('text-bg-primary'); iconClass = 'bi bi-info-circle'; }
+
+        if (iconEl) iconEl.innerHTML = '<i class="' + iconClass + '"></i>';
+
+        if (window.bootstrap && window.bootstrap.Toast) {
+          window.bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        } else {
+          toastEl.classList.add('show');
+          setTimeout(function () { toastEl.classList.remove('show'); }, 4000);
+        }
+      } catch (e) {
+        // silencioso
+      }
+    };
+
+    window.neofarmaConfirm = window.neofarmaConfirm || function (opts) {
+      opts = opts || {};
+      return new Promise(function (resolve) {
+        try {
+          var modalEl = document.getElementById('neofarmaConfirmModal');
+          if (!modalEl) return resolve(false);
+
+          var titleEl = document.getElementById('neofarmaConfirmTitle');
+          var msgEl = document.getElementById('neofarmaConfirmMessage');
+          var confirmBtn = document.getElementById('neofarmaConfirmConfirmBtn');
+          var resolved = false;
+
+          if (titleEl) titleEl.textContent = opts.title ? String(opts.title) : 'Confirmação';
+          if (msgEl) msgEl.textContent = opts.message ? String(opts.message) : '';
+          if (confirmBtn) confirmBtn.textContent = opts.confirmText ? String(opts.confirmText) : 'Confirmar';
+
+          var modalInstance = null;
+          if (window.bootstrap && window.bootstrap.Modal) {
+            modalInstance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+          }
+
+          function finalize(value) {
+            if (resolved) return;
+            resolved = true;
+            resolve(!!value);
+          }
+
+          if (confirmBtn) {
+            confirmBtn.onclick = function () {
+              if (modalInstance) modalInstance.hide();
+              finalize(true);
+            };
+          }
+
+          modalEl.addEventListener('hidden.bs.modal', function () {
+            finalize(false);
+          }, { once: true });
+
+          if (modalInstance) modalInstance.show();
+          else finalize(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    };
+  </script>
+  <div class="d-flex">
+    <nav class="admin-sidebar flex-shrink-0" style="width: 220px;">
+      <div class="p-3 border-bottom border-secondary">
+        <a href="/" class="d-flex align-items-center">
+          <i class="bi bi-house me-2"></i> Voltar ao site
+        </a>
+      </div>
+      <div class="p-2">
+        <div class="small text-uppercase text-muted px-2 mb-2">Painel Admin</div>
+        <a href="/admin" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'dashboard' ? 'active' : '' %>">
+          <i class="bi bi-speedometer2 me-2"></i> Dashboard
+        </a>
+        <a href="/admin/produtos" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'produtos' ? 'active' : '' %>">
+          <i class="bi bi-box-seam me-2"></i> Produtos
+        </a>
+        <a href="/admin/lotes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'lotes' ? 'active' : '' %>">
+          <i class="bi bi-archive me-2"></i> Lotes
+        </a>
+        <a href="/admin/laboratorios" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'laboratorios' ? 'active' : '' %>">
+          <i class="bi bi-bank me-2"></i> Laboratórios
+        </a>
+        <a href="/admin/fornecedores" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'fornecedores' ? 'active' : '' %>">
+          <i class="bi bi-truck me-2"></i> Fornecedores
+        </a>
+        <a href="/admin/categorias" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'categorias' ? 'active' : '' %>">
+          <i class="bi bi-tags me-2"></i> Categorias
+        </a>
+        <a href="/admin/financas" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'financas' ? 'active' : '' %>">
+          <i class="bi bi-cash-stack me-2"></i> Finanças
+        </a>
+        <a href="/admin/clientes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'clientes' ? 'active' : '' %> mt-2">
+          <i class="bi bi-people me-2"></i> Clientes
+        </a>
+      </div>
+    </nav>
+    <main class="admin-content flex-grow-1">

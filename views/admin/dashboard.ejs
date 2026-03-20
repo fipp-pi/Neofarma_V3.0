@@ -1,0 +1,84 @@
+<%- include('partials/header') %>
+<h1 class="mb-4">Painel Administrativo</h1>
+<p class="text-muted">Bem-vindo ao painel. Use o menu ao lado para cadastrar produtos, laboratórios, fornecedores e categorias.</p>
+<div class="row g-3 mt-2">
+  <div class="col-md-4">
+    <a href="/admin/produtos" class="card text-decoration-none text-dark h-100">
+      <div class="card-body">
+        <i class="bi bi-box-seam display-6 text-accent"></i>
+        <h5 class="card-title mt-2">Produtos</h5>
+        <p class="card-text small text-muted">Cadastrar e editar produtos</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/laboratorios" class="card text-decoration-none text-dark h-100">
+      <div class="card-body">
+        <i class="bi bi-bank display-6 text-accent"></i>
+        <h5 class="card-title mt-2">Laboratórios</h5>
+        <p class="card-text small text-muted">Cadastrar laboratórios</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/fornecedores" class="card text-decoration-none text-dark h-100">
+      <div class="card-body">
+        <i class="bi bi-truck display-6 text-accent"></i>
+        <h5 class="card-title mt-2">Fornecedores</h5>
+        <p class="card-text small text-muted">Cadastrar fornecedores</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/categorias" class="card text-decoration-none text-dark h-100">
+      <div class="card-body">
+        <i class="bi bi-tags display-6 text-accent"></i>
+        <h5 class="card-title mt-2">Categorias</h5>
+        <p class="card-text small text-muted">Cadastrar categorias de produtos</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/clientes" class="card text-decoration-none text-dark h-100">
+      <div class="card-body">
+        <i class="bi bi-people display-6 text-accent"></i>
+        <h5 class="card-title mt-2">Clientes</h5>
+        <p class="card-text small text-muted">Listar e gerenciar clientes</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/financas" class="card text-decoration-none text-dark h-100 border-primary">
+      <div class="card-body">
+        <i class="bi bi-cash-stack display-6 text-accent"></i>
+        <h5 class="card-title mt-2">Finanças</h5>
+        <p class="card-text small text-muted">Receitas, pedidos e relatórios</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/produtos?batchRisk=EXPIRED" class="card text-decoration-none text-dark h-100 border-danger">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <i class="bi bi-exclamation-triangle-fill display-6 text-danger"></i>
+          <span class="badge bg-danger"><%= (validityCounts && validityCounts.expired) || 0 %></span>
+        </div>
+        <h5 class="card-title mt-2">Lotes vencidos</h5>
+        <p class="card-text small text-muted mb-0">Clique para abrir produtos com lotes vencidos.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/produtos?batchRisk=EXPIRING" class="card text-decoration-none text-dark h-100 border-warning">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <i class="bi bi-clock-history display-6 text-warning"></i>
+          <span class="badge bg-warning text-dark"><%= (validityCounts && validityCounts.expiring) || 0 %></span>
+        </div>
+        <h5 class="card-title mt-2">Vencendo em 30 dias</h5>
+        <p class="card-text small text-muted mb-0">Clique para abrir produtos com risco próximo.</p>
+      </div>
+    </a>
+  </div>
+</div>
+<%- include('partials/footer') %>

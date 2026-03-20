@@ -1,0 +1,185 @@
+<%- include('partials/header') %>
+<div class="container">
+  <%
+    const currentSort = (filters && filters.sort) ? filters.sort : 'expiry_asc';
+    const currentStatus = (filters && filters.status) ? filters.status : 'ALL';
+    const currentSearch = (filters && filters.search) ? filters.search : '';
+    const currentPageSize = (pagination && pagination.pageSize) ? pagination.pageSize : 25;
+    function sortUrl(nextSort) {
+      return '/admin/lotes?status=' + encodeURIComponent(currentStatus) +
+        '&sort=' + encodeURIComponent(nextSort) +
+        '&search=' + encodeURIComponent(currentSearch) +
+        '&pageSize=' + encodeURIComponent(currentPageSize) +
+        '&page=1';
+    }
+    const nextExpirySort = currentSort === 'expiry_asc' ? 'expiry_desc' : 'expiry_asc';
+    const nextQtySort = currentSort === 'qty_desc' ? 'qty_asc' : 'qty_desc';
+    const nextProductSort = currentSort === 'product_asc' ? 'product_desc' : 'product_asc';
+    const nextDaysSort = currentSort === 'days_asc' ? 'days_desc' : 'days_asc';
+    const productArrow = currentSort === 'product_asc' ? 'bi-arrow-down' : (currentSort === 'product_desc' ? 'bi-arrow-up' : 'bi-arrow-down-up');
+    const expiryArrow = currentSort === 'expiry_asc' ? 'bi-arrow-down' : (currentSort === 'expiry_desc' ? 'bi-arrow-up' : 'bi-arrow-down-up');
+    const daysArrow = currentSort === 'days_asc' ? 'bi-arrow-down' : (currentSort === 'days_desc' ? 'bi-arrow-up' : 'bi-arrow-down-up');
+    const qtyArrow = currentSort === 'qty_asc' ? 'bi-arrow-up' : (currentSort === 'qty_desc' ? 'bi-arrow-down' : 'bi-arrow-down-up');
+  %>
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Lotes (visão global)</h2>
+      <p class="text-muted mb-0">Monitore validade, estoque e execute ações em massa.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-primary btn-sm" href="/admin/lotes/export.csv?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>">
+        <i class="bi bi-download me-1"></i> Exportar CSV
+      </a>
+      <button class="btn btn-outline-danger btn-sm" id="btnDeleteMany">
+        <i class="bi bi-trash me-1"></i> Excluir selecionados
+      </button>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <span class="badge bg-success">Válidos: <%= summary.valid %></span>
+    <span class="badge bg-warning text-dark">Próx. vencimento: <%= summary.expiring %></span>
+    <span class="badge bg-danger">Vencidos: <%= summary.expired %></span>
+  </div>
+
+  <form class="row g-2 mb-3" method="get" action="/admin/lotes">
+    <div class="col-md-4">
+      <input class="form-control" name="search" value="<%= filters.search || '' %>" placeholder="Buscar por produto ou lote">
+    </div>
+    <div class="col-md-3">
+      <select class="form-select" name="status">
+        <option value="ALL" <%= (filters.status || 'ALL') === 'ALL' ? 'selected' : '' %>>Todos</option>
+        <option value="VALID" <%= filters.status === 'VALID' ? 'selected' : '' %>>Válidos</option>
+        <option value="EXPIRING" <%= filters.status === 'EXPIRING' ? 'selected' : '' %>>Próx. vencimento</option>
+        <option value="EXPIRED" <%= filters.status === 'EXPIRED' ? 'selected' : '' %>>Vencidos</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select class="form-select" name="sort">
+        <option value="product_asc" <%= filters.sort === 'product_asc' ? 'selected' : '' %>>Produto A-Z</option>
+        <option value="product_desc" <%= filters.sort === 'product_desc' ? 'selected' : '' %>>Produto Z-A</option>
+        <option value="expiry_asc" <%= (filters.sort || 'expiry_asc') === 'expiry_asc' ? 'selected' : '' %>>Validade asc</option>
+        <option value="expiry_desc" <%= filters.sort === 'expiry_desc' ? 'selected' : '' %>>Validade desc</option>
+        <option value="days_asc" <%= filters.sort === 'days_asc' ? 'selected' : '' %>>Dias (menor primeiro)</option>
+        <option value="days_desc" <%= filters.sort === 'days_desc' ? 'selected' : '' %>>Dias (maior primeiro)</option>
+        <option value="qty_desc" <%= filters.sort === 'qty_desc' ? 'selected' : '' %>>Quantidade desc</option>
+        <option value="qty_asc" <%= filters.sort === 'qty_asc' ? 'selected' : '' %>>Quantidade asc</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary">Filtrar</button>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" name="pageSize">
+        <option value="10" <%= pagination && pagination.pageSize === 10 ? 'selected' : '' %>>10 / pág.</option>
+        <option value="25" <%= pagination && pagination.pageSize === 25 ? 'selected' : '' %>>25 / pág.</option>
+        <option value="50" <%= pagination && pagination.pageSize === 50 ? 'selected' : '' %>>50 / pág.</option>
+        <option value="100" <%= pagination && pagination.pageSize === 100 ? 'selected' : '' %>>100 / pág.</option>
+      </select>
+    </div>
+  </form>
+
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="checkAll"></th>
+            <th>
+              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextProductSort) %>" title="Ordenar por produto">
+                Produto <i class="bi <%= productArrow %>"></i>
+              </a>
+            </th>
+            <th>SKU</th>
+            <th>Lote</th>
+            <th>Fabricação</th>
+            <th>
+              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextExpirySort) %>" title="Ordenar por validade">
+                Validade <i class="bi <%= expiryArrow %>"></i>
+              </a>
+            </th>
+            <th>Status</th>
+            <th>
+              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextDaysSort) %>" title="Ordenar por dias para vencer">
+                Dias <i class="bi <%= daysArrow %>"></i>
+              </a>
+            </th>
+            <th>
+              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextQtySort) %>" title="Ordenar por quantidade">
+                Qtd <i class="bi <%= qtyArrow %>"></i>
+              </a>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (rows && rows.length) { rows.forEach(function(r) { %>
+            <tr>
+              <td><input type="checkbox" class="row-check" value="<%= r.id %>"></td>
+              <td><a href="/admin/produtos"><%= r.product_name %></a></td>
+              <td><%= r.sku || '-' %></td>
+              <td><%= r.batch_code %></td>
+              <td><%= r.mfg_date ? new Date(r.mfg_date).toLocaleDateString('pt-BR') : '-' %></td>
+              <td><%= r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('pt-BR') : '-' %></td>
+              <td>
+                <% if (r.validity_status === 'EXPIRED') { %><span class="badge bg-danger">Vencido</span><% } %>
+                <% if (r.validity_status === 'EXPIRING') { %><span class="badge bg-warning text-dark">Próx. vencimento</span><% } %>
+                <% if (r.validity_status === 'VALID') { %><span class="badge bg-success">Válido</span><% } %>
+              </td>
+              <td><%= r.days_to_expiry %></td>
+              <td><%= r.quantity %></td>
+            </tr>
+          <% }); } else { %>
+            <tr><td colspan="9" class="text-muted">Nenhum lote encontrado.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <% if (pagination) { %>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <small class="text-muted">
+        Exibindo página <%= pagination.page %> de <%= pagination.totalPages %> — total: <%= pagination.total %> lote(s)
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item <%= pagination.page <= 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="/admin/lotes?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= pagination.pageSize %>&page=<%= Math.max(1, pagination.page - 1) %>">Anterior</a>
+          </li>
+          <% for (let p = Math.max(1, pagination.page - 2); p <= Math.min(pagination.totalPages, pagination.page + 2); p++) { %>
+            <li class="page-item <%= p === pagination.page ? 'active' : '' %>">
+              <a class="page-link" href="/admin/lotes?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= pagination.pageSize %>&page=<%= p %>"><%= p %></a>
+            </li>
+          <% } %>
+          <li class="page-item <%= pagination.page >= pagination.totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="/admin/lotes?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= pagination.pageSize %>&page=<%= Math.min(pagination.totalPages, pagination.page + 1) %>">Próxima</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>
+<script>
+  document.getElementById('checkAll')?.addEventListener('change', function () {
+    document.querySelectorAll('.row-check').forEach((c) => { c.checked = this.checked; });
+  });
+  document.getElementById('btnDeleteMany')?.addEventListener('click', async function () {
+    const ids = Array.from(document.querySelectorAll('.row-check:checked')).map((c) => Number(c.value));
+    if (!ids.length) return window.neofarmaToast('Selecione ao menos um lote.', 'danger');
+    const ok = await window.neofarmaConfirm({
+      title: 'Excluir lotes',
+      message: 'Excluir os lotes selecionados?'
+    });
+    if (!ok) return;
+    const resp = await fetch('/admin/lotes/delete-many', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    const data = await resp.json();
+    if (!data.ok) return window.neofarmaToast(data.message || 'Falha na exclusão em massa.', 'danger');
+    window.location.reload();
+  });
+</script>

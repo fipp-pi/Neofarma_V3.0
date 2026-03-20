@@ -1,0 +1,90 @@
+<%- include('partials/header') %>
+
+<div class="container">
+  <%
+    function toLocaleString(v) {
+      const n = Number(v || 0);
+      return n.toFixed(2).replace('.', ',');
+    }
+  %>
+
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Finanças - Recibos</h2>
+      <p class="text-muted mb-0">Últimas operações pagas (Pix/Boleto).</p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <form
+        id="finReceiptsFilterForm"
+        method="GET"
+        action="/admin/financas/recibos"
+        class="d-flex flex-wrap gap-2 align-items-center"
+      >
+        <input type="date" class="form-control form-control-sm" name="from" value="<%= filters && filters.from ? filters.from : '' %>">
+        <input type="date" class="form-control form-control-sm" name="to" value="<%= filters && filters.to ? filters.to : '' %>">
+
+        <select class="form-select form-select-sm" name="limit" onchange="document.getElementById('finReceiptsFilterForm').submit();">
+          <option value="20" <%= (!filters || !filters.limit || Number(filters.limit) === 20) ? 'selected' : '' %>>20</option>
+          <option value="50" <%= (filters && Number(filters.limit) === 50) ? 'selected' : '' %>>50</option>
+          <option value="100" <%= (filters && Number(filters.limit) === 100) ? 'selected' : '' %>>100</option>
+        </select>
+
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-lg-12">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted small">Tabela de recibos recentes</div>
+            <div style="font-weight: 700;">Pagos</div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle">
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Cliente</th>
+                  <th>Método</th>
+                  <th class="text-end">Valor</th>
+                  <th>Detalhes (simulados)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (recentReceipts && recentReceipts.length) { %>
+                  <% recentReceipts.forEach(function(r) { %>
+                    <tr>
+                      <td class="fw-bold">#<%= r.order_id %><div class="text-muted small"><%= r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '' %></div></td>
+                      <td><%= r.full_name || '-' %></td>
+                      <td><span class="badge bg-light text-dark border"><%= r.payment_method %></span></td>
+                      <td class="text-end fw-semibold">R$ <%= toLocaleString(r.total) %></td>
+                      <td class="small text-muted">
+                        <% if (r.payment_method === 'PIX') { %>
+                          <code class="text-break"><%= (r.pix_copy_paste || '').slice(0, 40) %>...</code>
+                        <% } else if (r.payment_method === 'BOLETO') { %>
+                          <code class="text-break"><%= (r.boleto_barcode || '').slice(0, 25) %>...</code>
+                        <% } else { %>
+                          Cartão
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr><td colspan="5" class="text-muted">Sem recibos recentes.</td></tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+

@@ -1,0 +1,16 @@
+<%- include('partials/header') %>
+
+<main class="main">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-8 text-center">
+        <h1 class="mb-3"><%= locals.pageTitle ? pageTitle : (locals.title ? title : 'NeoFarma') %></h1>
+        <% if (locals.pageSubtitle) { %>
+          <p class="text-muted"><%= pageSubtitle %></p>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('partials/footer') %>

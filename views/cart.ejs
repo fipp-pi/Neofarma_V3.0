@@ -1,0 +1,168 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Carrinho</h1>
+      <nav class="breadcrumbs">
+        <ol><li><a href="/">Início</a></li><li class="current">Carrinho</li></ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <% if (!cart.items.length) { %>
+        <div class="alert alert-info">Seu carrinho está vazio. <a href="/produtos">Ver produtos</a></div>
+      <% } else { %>
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead><tr><th>Produto</th><th>Preço</th><th>Qtd</th><th>Total</th><th></th></tr></thead>
+                <tbody id="cartBody">
+                  <% cart.items.forEach((i) => { %>
+                    <tr data-id="<%= i.product_id %>">
+                      <td>
+                        <div class="d-flex align-items-center gap-2">
+                          <img src="<%= i.image_url %>" alt="<%= i.name %>" style="width:54px;height:54px;object-fit:cover;">
+                          <div>
+                            <a href="/produtos/<%= i.product_id %>"><strong><%= i.name %></strong></a><br>
+                            <small class="text-muted"><%= i.lab_name %> | estoque: <%= i.stock_available %></small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>R$ <%= i.unit_price.toFixed(2).replace('.', ',') %></td>
+                      <td><input class="form-control form-control-sm qty-input" style="width:90px" type="number" min="1" value="<%= i.quantity %>"></td>
+                      <td>R$ <%= i.line_total.toFixed(2).replace('.', ',') %></td>
+                      <td><button class="btn btn-sm btn-outline-danger btn-remove">Remover</button></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <button id="btnClearCart" class="btn btn-outline-danger btn-sm">Limpar carrinho</button>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="border rounded p-3">
+              <h5>Resumo</h5>
+              <div class="d-flex justify-content-between"><span>Subtotal</span><strong id="subtotalTxt">R$ <%= cart.subtotal.toFixed(2).replace('.', ',') %></strong></div>
+              <hr>
+              <div class="mb-2">
+                <label class="form-label">CEP para frete</label>
+                <% if (defaultShippingCep) { %>
+                  <div class="small text-muted mb-2">
+                    CEP principal do cadastro: <strong><%= defaultShippingCep %></strong>
+                  </div>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="manualCepToggleCart">
+                    <label class="form-check-label" for="manualCepToggleCart">Usar outro CEP manualmente</label>
+                  </div>
+                <% } %>
+                <div class="d-flex gap-2">
+                  <input
+                    id="shippingCep"
+                    class="form-control"
+                    value="<%= (cart.shipping && cart.shipping.cep) || defaultShippingCep || '' %>"
+                    placeholder="00000-000"
+                    <%= (!cart.shipping && defaultShippingCep) ? 'disabled' : '' %>
+                  >
+                  <button id="btnQuote" class="btn btn-outline-primary">Calcular</button>
+                </div>
+                <div id="shippingOptions" class="mt-2 small"></div>
+              </div>
+              <div class="d-flex justify-content-between"><span>Frete</span><strong id="shippingTxt">R$ <%= (cart.shipping ? Number(cart.shipping.price) : 0).toFixed(2).replace('.', ',') %></strong></div>
+              <hr>
+              <div class="d-flex justify-content-between"><span>Total</span><strong id="totalTxt">R$ <%= cart.total.toFixed(2).replace('.', ',') %></strong></div>
+              <a href="/checkout" class="btn btn-primary w-100 mt-3">Ir para checkout</a>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </section>
+</main>
+<script>
+  async function refreshCart() {
+    const resp = await fetch('/api/cart');
+    const data = await resp.json();
+    if (!data.ok) return;
+    window.location.reload();
+  }
+
+  document.querySelectorAll('.qty-input').forEach((input) => {
+    input.addEventListener('change', async () => {
+      const tr = input.closest('tr');
+      const productId = Number(tr.dataset.id);
+      await fetch(`/api/cart/items/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: Number(input.value || 1) })
+      });
+      refreshCart();
+    });
+  });
+
+  document.querySelectorAll('.btn-remove').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const tr = btn.closest('tr');
+      const productId = Number(tr.dataset.id);
+      await fetch(`/api/cart/items/${productId}`, { method: 'DELETE' });
+      refreshCart();
+    });
+  });
+
+  const btnClear = document.getElementById('btnClearCart');
+  if (btnClear) {
+    btnClear.addEventListener('click', async () => {
+      await fetch('/api/cart', { method: 'DELETE' });
+      refreshCart();
+    });
+  }
+
+  const btnQuote = document.getElementById('btnQuote');
+  const manualCepToggleCart = document.getElementById('manualCepToggleCart');
+  const shippingCepInput = document.getElementById('shippingCep');
+  if (manualCepToggleCart && shippingCepInput) {
+    manualCepToggleCart.addEventListener('change', function() {
+      if (this.checked) {
+        shippingCepInput.disabled = false;
+        shippingCepInput.value = '';
+        shippingCepInput.focus();
+      } else {
+        shippingCepInput.value = '<%= (cart.shipping && cart.shipping.cep) || defaultShippingCep || '' %>';
+        shippingCepInput.disabled = <%= (!cart.shipping && defaultShippingCep) ? 'true' : 'false' %>;
+      }
+    });
+  }
+  if (btnQuote) {
+    btnQuote.addEventListener('click', async () => {
+      const cep = shippingCepInput.value.trim();
+      const optionsEl = document.getElementById('shippingOptions');
+      const resp = await fetch('/api/shipping/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cep })
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        optionsEl.textContent = data.message || 'Não foi possível calcular.';
+        return;
+      }
+      optionsEl.innerHTML = data.quote.services.map((s) => {
+        return `<label class="d-block"><input type="radio" name="shipOpt" value="${s.code}"> ${s.label} - R$ ${s.price.toFixed(2).replace('.', ',')} (${s.deadlineDays} dias)</label>`;
+      }).join('');
+      optionsEl.querySelectorAll('input[name="shipOpt"]').forEach((radio) => {
+        radio.addEventListener('change', async () => {
+          await fetch('/api/shipping/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cep, service_code: radio.value })
+          });
+          refreshCart();
+        });
+      });
+    });
+  }
+</script>
+<%- include('partials/footer') %>

@@ -1,0 +1,4 @@
+Email: admin@neofarma.com
+Senha: Admin@123
+
+node scripts/seed_massivo_financeiro.js

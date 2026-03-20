@@ -1,0 +1,121 @@
+<%- include('partials/header') %>
+
+<div class="container">
+  <%
+    function toLocaleString(v) {
+      const n = Number(v || 0);
+      return n.toFixed(2).replace('.', ',');
+    }
+  %>
+
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Finanças - Relatórios</h2>
+      <p class="text-muted mb-0">Receita por método, por dia e produtos mais vendidos.</p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <form
+        id="finReportsFilterForm"
+        method="GET"
+        action="/admin/financas/relatorios"
+        class="d-flex flex-wrap gap-2 align-items-center"
+      >
+        <input type="date" class="form-control form-control-sm" name="from" value="<%= filters && filters.from ? filters.from : '' %>">
+        <input type="date" class="form-control form-control-sm" name="to" value="<%= filters && filters.to ? filters.to : '' %>">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Receita por método</div>
+          <div class="d-flex justify-content-between"><span>PIX</span><strong>R$ <%= revenueByMethod && revenueByMethod.PIX ? toLocaleString(revenueByMethod.PIX) : '0,00' %></strong></div>
+          <div class="d-flex justify-content-between mt-1"><span>BOLETO</span><strong>R$ <%= revenueByMethod && revenueByMethod.BOLETO ? toLocaleString(revenueByMethod.BOLETO) : '0,00' %></strong></div>
+          <div class="d-flex justify-content-between mt-1"><span>CARTÃO</span><strong>R$ <%= revenueByMethod && revenueByMethod.CREDIT_CARD ? toLocaleString(revenueByMethod.CREDIT_CARD) : '0,00' %></strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Receita por dia (pagos)</div>
+          <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle">
+              <thead>
+                <tr>
+                  <th>Dia</th>
+                  <th>Pedidos</th>
+                  <th class="text-end">Receita</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (revenueByDay && revenueByDay.length) { %>
+                  <% revenueByDay.forEach(function(r) { %>
+                    <tr>
+                      <td><%= r.day || '-' %></td>
+                      <td><%= r.orders_count || 0 %></td>
+                      <td class="text-end">R$ <%= toLocaleString(r.revenue) %></td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr><td colspan="3" class="text-muted">Sem dados</td></tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-lg-12">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <div class="text-muted small">Mais vendidos (pagos)</div>
+              <div style="font-weight: 700;">Top 10 produtos</div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th class="text-end">Receita</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (mostSold && mostSold.length) { %>
+                  <% mostSold.forEach(function(p) { %>
+                    <tr>
+                      <td>
+                        <div class="fw-bold"><%= p.product_name || '-' %></div>
+                        <div class="text-muted small"><%= p.sku || '' %></div>
+                      </td>
+                      <td><%= p.qty_sold || 0 %></td>
+                      <td class="text-end">R$ <%= toLocaleString(p.revenue) %></td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr><td colspan="3" class="text-muted">Sem dados</td></tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+

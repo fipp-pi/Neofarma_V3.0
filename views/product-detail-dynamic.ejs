@@ -1,0 +1,176 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0"><%= product.name %></h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li><a href="/produtos">Produtos</a></li>
+          <li class="current"><%= product.name %></li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <img id="mainProductImage" src="<%= mainImage %>" alt="<%= product.name %>" class="img-fluid rounded border" style="width:100%; aspect-ratio:1/1; object-fit:cover;">
+          <% if (gallery && gallery.length > 1) { %>
+            <div class="d-flex gap-2 mt-2 flex-wrap">
+              <% gallery.forEach(function(img) { %>
+                <img src="<%= img.thumb_url || img.image_url %>" data-full="<%= img.image_url %>" alt="Miniatura" class="rounded border product-thumb" style="width:72px; height:72px; object-fit:cover; cursor:pointer;">
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+        <div class="col-lg-6">
+          <h2 class="mb-2"><%= product.name %></h2>
+          <p class="text-muted mb-2">SKU: <%= product.sku || '-' %> | Laboratório: <%= product.lab_name || '-' %></p>
+          <% if (product.has_promo) { %>
+            <p class="mb-1"><small class="text-muted text-decoration-line-through">R$ <%= product.price_display %></small></p>
+            <h3 class="text-success mb-3">R$ <%= product.promo_display %></h3>
+          <% } else { %>
+            <h3 class="mb-3">R$ <%= product.price_display %></h3>
+          <% } %>
+          <% if (product.prescription_required) { %>
+            <span class="badge bg-warning text-dark mb-3">Exige receita médica</span>
+          <% } %>
+          <p class="mb-3">
+            <% if (product.can_buy) { %>
+              <span class="badge bg-success">Em estoque: <%= product.available_stock %> un.</span>
+            <% } else { %>
+              <span class="badge bg-danger">Indisponível</span>
+            <% } %>
+          </p>
+          <div class="d-flex gap-2 mb-4">
+            <input id="qtyInput" type="number" min="1" max="<%= product.available_stock || 1 %>" value="1" class="form-control" style="max-width:120px;" <%= product.can_buy ? '' : 'disabled' %>>
+            <button id="btnAddCart" class="btn btn-primary" <%= product.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
+            <a href="/cart" class="btn btn-outline-secondary">Ir para carrinho</a>
+          </div>
+          <div class="mb-4 p-3 border rounded">
+            <h6 class="mb-2">Calcular frete</h6>
+            <% if (defaultShippingCep) { %>
+              <div class="small text-muted mb-2">
+                CEP principal do cadastro: <strong id="defaultCepLabel"><%= defaultShippingCep %></strong>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="manualCepToggle">
+                <label class="form-check-label" for="manualCepToggle">Usar outro CEP manualmente</label>
+              </div>
+            <% } %>
+            <div class="d-flex gap-2">
+              <input
+                id="shippingCep"
+                class="form-control"
+                placeholder="Digite o CEP"
+                value="<%= defaultShippingCep || '' %>"
+                <%= defaultShippingCep ? 'disabled' : '' %>
+              >
+              <button id="btnShippingQuote" class="btn btn-outline-primary">Calcular</button>
+            </div>
+            <div id="shippingResult" class="small text-muted mt-2"></div>
+          </div>
+
+          <div class="mb-3">
+            <h5>Descrição</h5>
+            <p class="text-muted"><%= product.description || 'Sem descrição cadastrada.' %></p>
+          </div>
+          <div class="mb-3">
+            <h5>Composição</h5>
+            <p class="text-muted"><%= product.composition || 'Não informada.' %></p>
+          </div>
+          <div class="mb-3">
+            <h5>Modo de uso</h5>
+            <p class="text-muted"><%= product.usage_info || 'Não informado.' %></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section pt-0">
+    <div class="container">
+      <h3 class="mb-3">Produtos relacionados</h3>
+      <div class="row g-3">
+        <% related.forEach(function(p) { %>
+          <div class="col-6 col-md-3">
+            <a href="/produtos/<%= p.id %>" class="text-decoration-none text-dark">
+              <div class="card h-100 border-0 shadow-sm">
+                <img src="<%= p.thumb_url %>" class="card-img-top" alt="<%= p.name %>" style="aspect-ratio:1/1; object-fit:cover;">
+                <div class="card-body">
+                  <h6 class="card-title mb-1"><%= p.name %></h6>
+                  <small class="text-muted d-block mb-2"><%= p.lab_name || 'NeoFarma' %></small>
+                  <strong><%= p.has_promo ? 'R$ ' + p.promo_display : 'R$ ' + p.price_display %></strong>
+                </div>
+              </div>
+            </a>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  document.querySelectorAll('.product-thumb').forEach(function(el) {
+    el.addEventListener('click', function() {
+      document.getElementById('mainProductImage').src = this.getAttribute('data-full') || this.src;
+    });
+  });
+
+  const btnAddCart = document.getElementById('btnAddCart');
+  if (btnAddCart) {
+    btnAddCart.addEventListener('click', async function() {
+      const quantity = Number(document.getElementById('qtyInput').value || 1);
+      const resp = await fetch('/api/cart/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: <%= product.id %>, quantity })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        window.dispatchEvent(new Event('cart:changed'));
+        btnAddCart.textContent = 'Adicionado!';
+        setTimeout(() => { btnAddCart.textContent = 'Adicionar ao Carrinho'; }, 1200);
+      } else {
+        window.neofarmaToast(data.message || 'Não foi possível adicionar.', 'danger');
+      }
+    });
+  }
+
+  const btnShippingQuote = document.getElementById('btnShippingQuote');
+  const manualToggle = document.getElementById('manualCepToggle');
+  const shippingCepInput = document.getElementById('shippingCep');
+  if (manualToggle && shippingCepInput) {
+    manualToggle.addEventListener('change', function() {
+      if (this.checked) {
+        shippingCepInput.disabled = false;
+        shippingCepInput.value = '';
+        shippingCepInput.focus();
+      } else {
+        shippingCepInput.value = '<%= defaultShippingCep || '' %>';
+        shippingCepInput.disabled = true;
+      }
+    });
+  }
+  if (btnShippingQuote) {
+    btnShippingQuote.addEventListener('click', async function() {
+      const cep = (shippingCepInput.value || '').trim();
+      const result = document.getElementById('shippingResult');
+      const resp = await fetch('/api/shipping/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cep })
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        result.textContent = data.message || 'Erro ao calcular frete.';
+        return;
+      }
+      result.innerHTML = data.quote.services.map((s) => `${s.label}: R$ ${s.price.toFixed(2).replace('.', ',')} (${s.deadlineDays} dias)`).join('<br>');
+    });
+  }
+</script>
+<%- include('partials/footer') %>

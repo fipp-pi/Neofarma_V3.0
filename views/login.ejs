@@ -1,0 +1,96 @@
+<%- include('partials/header') %>
+
+<main class="main">
+
+  <!-- Page Title -->
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Login</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li class="current">Login</li>
+        </ol>
+      </nav>
+    </div>
+  </div><!-- End Page Title -->
+
+  <!-- Login Section -->
+  <section id="login" class="login section">
+
+    <div class="container" data-aos="fade-up" data-aos-delay="100">
+
+      <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+          <div class="auth-container" data-aos="fade-in" data-aos-delay="200">
+
+            <!-- Login Form -->
+            <div class="auth-form login-form active">
+              <div class="form-header">
+                <h3>Bem-vindo de Volta</h3>
+                <p>Entrar na sua conta</p>
+              </div>
+
+              <form class="auth-form-content" id="loginForm">
+                <div class="input-group mb-3">
+                  <span class="input-icon">
+                    <i class="bi bi-envelope"></i>
+                  </span>
+                  <input type="email" class="form-control" placeholder="Email" required autocomplete="email" id="email">
+                </div>
+
+                <div class="input-group mb-3">
+                  <span class="input-icon">
+                    <i class="bi bi-lock"></i>
+                  </span>
+                  <input type="password" class="form-control" placeholder="Senha" required autocomplete="current-password" id="senha">
+                  <span class="password-toggle">
+                    <i class="bi bi-eye"></i>
+                  </span>
+                </div>
+
+                <div class="form-options mb-4">
+                  <div class="remember-me">
+                    <input type="checkbox" id="rememberLogin">
+                    <label for="rememberLogin">Lembrar</label>
+                  </div>
+                  <a href="/forgot-password-copy" class="forgot-password">Esqueceu a senha?</a>
+                </div>
+                <div id="login-error" class="alert alert-danger d-none" style="font-size: 14px; padding: 10px;" onsubmit="validarLogin(event)">
+                  <i class="bi bi-exclamation-circle"></i> Email ou senha inválidos.
+                </div>
+                <button type="submit" class="auth-btn primary-btn mb-3">
+                  Entrar
+                  <i class="bi bi-arrow-right"></i>
+                </button>
+                <div class="divider">
+                  <span>ou</span>
+                </div>
+                <a href="https://www.google.com/intl/pt-BR/account/about/"
+                    class="auth-btn social-btn"
+                    target="_blank">
+                    <i class="bi bi-google"></i>
+                    Continuar com Google
+                  </a>
+
+                <div class="switch-form">
+                  <span>Não possui uma conta?</span>
+                  <button type="button" class="switch-btn" onclick="window.location.href='/register'">
+                    Criar conta
+                  </button>
+                </div>
+
+              </form>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </section><!-- /Login Section -->
+
+</main>
+
+<%- include('partials/footer') %>
