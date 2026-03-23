@@ -5,6 +5,7 @@ const authController = require('../controllers/authController');
 const accountController = require('../controllers/accountController');
 const catalogController = require('../controllers/catalogController');
 const commerceController = require('../controllers/commerceController');
+const serviceAppointmentAdminController = require('../controllers/serviceAppointmentAdminController');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // Rotas específicas primeiro (têm prioridade sobre o loop de páginas abaixo)
@@ -16,6 +17,7 @@ router.put('/account/address/:id', requireAuth, accountController.putAddress);
 router.delete('/account/address/:id', requireAuth, accountController.deleteAddress);
 router.post('/account/address/:id/default', requireAuth, accountController.setAddressDefault);
 router.post('/account/orders/:id/cancel', requireAuth, accountController.postCancelOrder);
+router.get('/account/agendamentos', requireAuth, serviceAppointmentAdminController.renderCustomerBookingPage);
 router.get('/logout', authController.getLogout);
 router.get('/', catalogController.home);
 router.get('/cart', commerceController.renderCart);

@@ -21,6 +21,22 @@ function toDateOrNull(v) {
   return null;
 }
 
+function buildPeriodWhere(alias, options = {}) {
+  const days = options.days != null ? Number(options.days) : 30;
+  const from = options.from ? toDateOrNull(options.from) : null;
+  const to = options.to ? toDateOrNull(options.to) : null;
+  const whereParts = [];
+  const params = [];
+  if (from && to) {
+    whereParts.push(`${alias}.created_at >= ? AND ${alias}.created_at <= DATE_ADD(?, INTERVAL 1 DAY)`);
+    params.push(from, to);
+  } else if (days && Number.isFinite(days)) {
+    whereParts.push(`${alias}.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)`);
+    params.push(days);
+  }
+  return { where: whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '', params };
+}
+
 /**
  * Totais do dashboard: receita paga, contagens por payment_status e pedidos cancelados.
  *
@@ -28,24 +44,10 @@ function toDateOrNull(v) {
  * @returns {Promise<{ revenue_paid: number, pending_count: number, failed_count: number, cancelled_count: number, total_orders: number }>}
  */
 async function getFinanceSummary(options = {}) {
-  const days = options.days != null ? Number(options.days) : 30;
-  const from = options.from ? toDateOrNull(options.from) : null;
-  const to = options.to ? toDateOrNull(options.to) : null;
+  const orderPeriod = buildPeriodWhere('o', options);
+  const servicePeriod = buildPeriodWhere('sa', options);
 
-  // Preferimos FROM/TO quando fornecido (mais controlável no UI).
-  const whereParts = [];
-  const params = [];
-  if (from && to) {
-    whereParts.push('o.created_at >= ? AND o.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
-    params.push(from, to);
-  } else if (days && Number.isFinite(days)) {
-    whereParts.push('o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
-    params.push(days);
-  }
-
-  const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
-
-  const [rows] = await pool.execute(
+  const [orderRows] = await pool.execute(
     `SELECT
       SUM(CASE WHEN o.payment_status = 'PAID' THEN o.total ELSE 0 END) AS revenue_paid,
       SUM(CASE WHEN o.payment_status = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
@@ -53,18 +55,36 @@ async function getFinanceSummary(options = {}) {
       SUM(CASE WHEN o.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count,
       COUNT(*) AS total_orders
     FROM orders o
-    ${where}`,
-    params
+    ${orderPeriod.where}`,
+    orderPeriod.params
   );
 
-  const row = rows && Array.isArray(rows) && rows[0] ? rows[0] : {};
-  const revenuePaid = Number(row && row.revenue_paid ? row.revenue_paid : 0);
+  const [serviceRows] = await pool.execute(
+    `SELECT
+      SUM(CASE WHEN sa.payment_status = 'PAID' THEN sa.total_amount ELSE 0 END) AS revenue_paid_services,
+      SUM(CASE WHEN sa.payment_status = 'PENDING' THEN 1 ELSE 0 END) AS pending_services,
+      SUM(CASE WHEN sa.payment_status = 'FAILED' THEN 1 ELSE 0 END) AS failed_services,
+      SUM(CASE WHEN sa.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_services,
+      COUNT(*) AS total_services
+    FROM service_appointments sa
+    ${servicePeriod.where}`,
+    servicePeriod.params
+  );
+
+  const row = orderRows && Array.isArray(orderRows) && orderRows[0] ? orderRows[0] : {};
+  const sRow = serviceRows && Array.isArray(serviceRows) && serviceRows[0] ? serviceRows[0] : {};
+  const revenueOrders = Number(row && row.revenue_paid ? row.revenue_paid : 0);
+  const revenueServices = Number(sRow && sRow.revenue_paid_services ? sRow.revenue_paid_services : 0);
   return {
-    revenue_paid: revenuePaid,
-    pending_count: Number(row && row.pending_count ? row.pending_count : 0),
-    failed_count: Number(row && row.failed_count ? row.failed_count : 0),
-    cancelled_count: Number(row && row.cancelled_count ? row.cancelled_count : 0),
+    revenue_paid: revenueOrders + revenueServices,
+    revenue_paid_orders: revenueOrders,
+    revenue_paid_services: revenueServices,
+    pending_count: Number(row && row.pending_count ? row.pending_count : 0) + Number(sRow && sRow.pending_services ? sRow.pending_services : 0),
+    failed_count: Number(row && row.failed_count ? row.failed_count : 0) + Number(sRow && sRow.failed_services ? sRow.failed_services : 0),
+    cancelled_count: Number(row && row.cancelled_count ? row.cancelled_count : 0) + Number(sRow && sRow.cancelled_services ? sRow.cancelled_services : 0),
     total_orders: Number(row && row.total_orders ? row.total_orders : 0),
+    total_services: Number(sRow && sRow.total_services ? sRow.total_services : 0),
+    total_transactions: Number(row && row.total_orders ? row.total_orders : 0) + Number(sRow && sRow.total_services ? sRow.total_services : 0),
   };
 }
 
@@ -75,36 +95,37 @@ async function getFinanceSummary(options = {}) {
  * @returns {Promise<{ PIX: number, BOLETO: number, CREDIT_CARD: number }>}
  */
 async function getRevenueByPaymentMethod(options = {}) {
-  const from = options.from ? toDateOrNull(options.from) : null;
-  const to = options.to ? toDateOrNull(options.to) : null;
-  const days = options.days != null ? Number(options.days) : 30;
+  const orderPeriod = buildPeriodWhere('o', options);
+  const servicePeriod = buildPeriodWhere('sa', options);
 
-  const whereParts = [];
-  const params = [];
-  if (from && to) {
-    whereParts.push('o.created_at >= ? AND o.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
-    params.push(from, to);
-  } else {
-    whereParts.push('o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
-    params.push(days);
-  }
-
-  const where = `WHERE ${whereParts.join(' AND ')}`;
-
-  const [rows] = await pool.execute(
+  const [orderRows] = await pool.execute(
     `SELECT
       o.payment_method,
       SUM(o.total) AS revenue
      FROM orders o
-     ${where}
+     ${orderPeriod.where}
      AND o.payment_status = 'PAID'
      GROUP BY o.payment_method`,
-    params
+    orderPeriod.params
   );
 
-  const out = { PIX: 0, BOLETO: 0, CREDIT_CARD: 0 };
-  (rows || []).forEach((r) => {
-    out[r.payment_method] = Number(r.revenue || 0);
+  const [serviceRows] = await pool.execute(
+    `SELECT
+      sa.payment_method,
+      SUM(sa.total_amount) AS revenue
+     FROM service_appointments sa
+     ${servicePeriod.where}
+     AND sa.payment_status = 'PAID'
+     GROUP BY sa.payment_method`,
+    servicePeriod.params
+  );
+
+  const out = { PIX: 0, BOLETO: 0, CREDIT_CARD: 0, DEBIT_CARD: 0, CASH: 0 };
+  (orderRows || []).forEach((r) => {
+    out[r.payment_method] = Number(out[r.payment_method] || 0) + Number(r.revenue || 0);
+  });
+  (serviceRows || []).forEach((r) => {
+    out[r.payment_method] = Number(out[r.payment_method] || 0) + Number(r.revenue || 0);
   });
   return out;
 }
@@ -234,36 +255,30 @@ async function getMostSoldProducts(options = {}) {
  * @param {{ from?: string, to?: string, days?: number, limitDays?: number }} [options]
  */
 async function getRevenueByDay(options = {}) {
-  const from = options.from ? toDateOrNull(options.from) : null;
-  const to = options.to ? toDateOrNull(options.to) : null;
-  const days = options.days != null ? Number(options.days) : 30;
   const limitDays = Math.min(90, Math.max(7, parseInt(options.limitDays, 10) || 14));
-
-  const whereParts = [];
-  const params = [];
-  whereParts.push("o.payment_status = 'PAID'");
-
-  if (from && to) {
-    whereParts.push('o.created_at >= ? AND o.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
-    params.push(from, to);
-  } else {
-    whereParts.push('o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
-    params.push(days);
-  }
-
-  const where = `WHERE ${whereParts.join(' AND ')}`;
+  const orderPeriod = buildPeriodWhere('o', options);
+  const servicePeriod = buildPeriodWhere('sa', options);
 
   const [rows] = await pool.execute(
     `SELECT
-      DATE(o.created_at) AS day,
-      SUM(o.total) AS revenue,
+      day,
+      SUM(revenue) AS revenue,
       COUNT(*) AS orders_count
-     FROM orders o
-     ${where}
-     GROUP BY DATE(o.created_at)
+     FROM (
+      SELECT DATE(o.created_at) AS day, o.total AS revenue
+      FROM orders o
+      ${orderPeriod.where}
+      AND o.payment_status = 'PAID'
+      UNION ALL
+      SELECT DATE(sa.created_at) AS day, sa.total_amount AS revenue
+      FROM service_appointments sa
+      ${servicePeriod.where}
+      AND sa.payment_status = 'PAID'
+     ) t
+     GROUP BY day
      ORDER BY day DESC
      LIMIT ${limitDays}`,
-    params
+    [...orderPeriod.params, ...servicePeriod.params]
   );
 
   return rows || [];
@@ -276,42 +291,50 @@ async function getRevenueByDay(options = {}) {
  */
 async function listRecentReceipts(options = {}) {
   const limit = Math.min(100, Math.max(5, parseInt(options.limit, 10) || 20));
-  const from = options.from ? toDateOrNull(options.from) : null;
-  const to = options.to ? toDateOrNull(options.to) : null;
-  const days = options.days != null ? Number(options.days) : 30;
-
-  const whereParts = [];
-  const params = [];
-  whereParts.push("o.payment_status = 'PAID'");
-  if (from && to) {
-    whereParts.push('o.created_at >= ? AND o.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
-    params.push(from, to);
-  } else {
-    whereParts.push('o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
-    params.push(days);
-  }
-
-  const where = `WHERE ${whereParts.join(' AND ')}`;
+  const orderPeriod = buildPeriodWhere('o', options);
+  const servicePeriod = buildPeriodWhere('sa', options);
 
   const [rows] = await pool.execute(
-    `SELECT
-      o.id AS order_id,
-      o.created_at,
-      u.full_name,
-      u.email,
-      o.payment_method,
-      o.total,
-      p.status AS payment_record_status,
-      p.pix_copy_paste,
-      p.boleto_barcode
-     FROM orders o
-     INNER JOIN customers c ON c.id = o.customer_id
-     INNER JOIN users u ON u.id = c.user_id
-     LEFT JOIN payments p ON p.order_id = o.id
-     ${where}
-     ORDER BY o.created_at DESC, o.id DESC
+    `SELECT *
+     FROM (
+      SELECT
+        'ORDER' AS source_type,
+        o.id AS ref_id,
+        o.created_at,
+        u.full_name,
+        u.email,
+        o.payment_method,
+        o.total AS total,
+        NULL AS refund_amount,
+        p.status AS payment_record_status,
+        p.pix_copy_paste,
+        p.boleto_barcode
+      FROM orders o
+      INNER JOIN customers c ON c.id = o.customer_id
+      INNER JOIN users u ON u.id = c.user_id
+      LEFT JOIN payments p ON p.order_id = o.id
+      ${orderPeriod.where}
+      AND o.payment_status IN ('PAID', 'REFUNDED_PARTIAL')
+      UNION ALL
+      SELECT
+        'SERVICE' AS source_type,
+        sa.id AS ref_id,
+        sa.created_at,
+        sa.customer_name AS full_name,
+        sa.customer_email AS email,
+        sa.payment_method,
+        sa.total_amount AS total,
+        sa.refund_amount,
+        sa.payment_status AS payment_record_status,
+        NULL AS pix_copy_paste,
+        NULL AS boleto_barcode
+      FROM service_appointments sa
+      ${servicePeriod.where}
+      AND sa.payment_status IN ('PAID', 'REFUNDED_PARTIAL')
+     ) r
+     ORDER BY r.created_at DESC, r.ref_id DESC
      LIMIT ${limit}`,
-    params
+    [...orderPeriod.params, ...servicePeriod.params]
   );
 
   return rows || [];

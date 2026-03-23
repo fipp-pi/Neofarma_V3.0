@@ -1,0 +1,1147 @@
+<%- include('partials/header') %>
+<div class="container-fluid">
+  <div class="list-header mb-3">
+    <div>
+      <h2 class="neo-heading">Agendar Serviços</h2>
+      <p class="text-muted mb-0">Reserva temporária (10 min), pagamento, execução profissional e conclusão clínica.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalService" onclick="novoServico()">
+        <i class="bi bi-plus-lg me-1"></i> Novo Serviço
+      </button>
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalProfessional" onclick="novoProfissional()">
+        <i class="bi bi-person-plus me-1"></i> Novo Profissional
+      </button>
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalHoliday">
+        <i class="bi bi-calendar-x me-1"></i> Feriados
+      </button>
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalReserve" onclick="novoAgendamento()">
+        <i class="bi bi-calendar-plus me-1"></i> Novo Agendamento
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Total</div><div class="h4 mb-0"><%= summary.total %></div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Reservados</div><div class="h4 mb-0"><%= summary.reserved %></div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Confirmados</div><div class="h4 mb-0"><%= summary.confirmed %></div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Em atendimento</div><div class="h4 mb-0"><%= summary.inProgress %></div></div></div>
+    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Concluídos</div><div class="h4 mb-0"><%= summary.completed %></div></div></div>
+  </div>
+
+  <div class="table-container mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Serviços cadastrados</h5>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-custom align-middle">
+        <thead>
+          <tr><th>Serviço</th><th>Preço</th><th>Duração</th><th>Domicílio</th><th>Receita</th><th>Status</th><th class="text-end">Ações</th></tr>
+        </thead>
+        <tbody>
+          <% (services || []).forEach(function(s) { %>
+            <tr>
+              <td><%= s.name %></td>
+              <td>R$ <%= toMoney(s.price) %></td>
+              <td><%= s.duration_minutes %> min</td>
+              <td><span class="badge <%= s.home_available ? 'bg-success' : 'bg-secondary' %>"><%= s.home_available ? 'Sim' : 'Não' %></span></td>
+              <td><span class="badge <%= s.requires_prescription ? 'bg-warning' : 'bg-primary' %>"><%= s.requires_prescription ? 'Obrigatória' : 'Não' %></span></td>
+              <td><span class="badge <%= s.is_active ? 'bg-success' : 'bg-secondary' %>"><%= s.is_active ? 'Ativo' : 'Inativo' %></span></td>
+              <td class="text-end">
+                <div class="actions-compact">
+                <button class="btn btn-sm btn-outline-primary btn-icon-square" title="Ver" aria-label="Ver" onclick='verServico(<%- JSON.stringify(s) %>)'><i class="bi bi-eye"></i></button>
+                <button class="btn btn-sm btn-primary btn-icon-square" title="Editar" aria-label="Editar" onclick='editarServico(<%- JSON.stringify(s) %>)'><i class="bi bi-pencil-square"></i></button>
+                <button class="btn btn-sm btn-outline-danger btn-icon-square" title="Excluir" aria-label="Excluir" onclick='excluirServico(<%= s.id %>)'><i class="bi bi-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!services || !services.length) { %>
+            <tr><td colspan="7" class="text-muted">Nenhum serviço cadastrado.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="table-container mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Profissionais cadastrados</h5>
+      <div class="d-flex gap-2">
+        <input class="form-control form-control-sm" id="pro_search" placeholder="Buscar por nome, cargo, conselho, e-mail ou telefone" style="min-width: 320px;">
+        <select class="form-select form-select-sm" id="pro_page_size" style="width: 100px;">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-custom align-middle" id="table_professionals">
+        <thead>
+          <tr><th>Nome</th><th>Cargo</th><th>Registro</th><th>Contato</th><th>Status</th><th class="text-end">Ações</th></tr>
+        </thead>
+        <tbody id="pro_tbody">
+          <% (professionals || []).forEach(function(p) { %>
+            <tr data-search="<%= [p.full_name, p.role_name, p.council_type, p.council_uf, p.council_number, p.email, p.phone].filter(Boolean).join(' ').toLowerCase() %>">
+              <td><%= p.full_name %></td>
+              <td><%= p.role_name %></td>
+              <td><%= p.council_type %>/<%= p.council_uf %> <%= p.council_number %></td>
+              <td>
+                <div><%= p.email || '-' %></div>
+                <div class="small text-muted"><%= p.phone || '-' %></div>
+              </td>
+              <td><span class="badge <%= p.is_active ? 'bg-success' : 'bg-secondary' %>"><%= p.is_active ? 'Ativo' : 'Inativo' %></span></td>
+              <td class="text-end">
+                <div class="actions-compact">
+                <button class="btn btn-sm btn-outline-primary btn-icon-square" title="Ver" aria-label="Ver" onclick='verProfissional(<%- JSON.stringify(p) %>)'><i class="bi bi-eye"></i></button>
+                <button class="btn btn-sm btn-primary btn-icon-square" title="Editar" aria-label="Editar" onclick='editarProfissional(<%- JSON.stringify(p) %>)'><i class="bi bi-pencil-square"></i></button>
+                <button class="btn btn-sm btn-outline-danger btn-icon-square" title="Excluir" aria-label="Excluir" onclick='excluirProfissional(<%= p.id %>)'><i class="bi bi-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!professionals || !professionals.length) { %>
+            <tr><td colspan="6" class="text-muted">Nenhum profissional cadastrado.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <div class="small text-muted" id="pro_pagination_info">0 profissional(is)</div>
+      <div class="btn-group btn-group-sm" id="pro_pagination_controls"></div>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Agenda e atendimento</h5>
+      <div class="d-flex gap-2">
+        <input class="form-control form-control-sm" id="apt_search" placeholder="Buscar por cliente, serviço, profissional, status ou pagamento" style="min-width: 340px;">
+        <select class="form-select form-select-sm" id="apt_page_size" style="width: 100px;">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+        <div class="btn-group btn-group-sm">
+          <a class="btn <%= statusFilter === 'ALL' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos">Todos</a>
+          <a class="btn <%= statusFilter === 'RESERVED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=RESERVED">Reservados</a>
+          <a class="btn <%= statusFilter === 'CONFIRMED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=CONFIRMED">Confirmados</a>
+          <a class="btn <%= statusFilter === 'IN_PROGRESS' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=IN_PROGRESS">Em atendimento</a>
+        </div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-custom align-middle" id="table_appointments">
+        <thead>
+          <tr>
+            <th>#</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Modalidade</th><th>Horário</th><th>Pagamento</th><th>Status</th><th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="apt_tbody">
+          <% (appointments || []).forEach(function(a) { %>
+            <tr data-search="<%= [a.id, a.customer_name, a.customer_email, a.service_name, a.professional_name, a.professional_role, a.modality, a.payment_method, a.payment_status, a.status].filter(Boolean).join(' ').toLowerCase() %>">
+              <td><%= a.id %></td>
+              <td>
+                <div><strong><%= a.customer_name %></strong></div>
+                <div class="small text-muted"><%= a.customer_email || '-' %></div>
+              </td>
+              <td><%= a.service_name %></td>
+              <td>
+                <div><%= a.professional_name || '-' %></div>
+                <div class="small text-muted"><%= a.professional_role || '' %></div>
+              </td>
+              <td><%= a.modality === 'HOME' ? 'Domicílio' : 'Na farmácia' %></td>
+              <td><%= new Date(a.scheduled_start).toLocaleString('pt-BR') %></td>
+              <td>
+                <div class="small">R$ <%= toMoney(a.total_amount) %></div>
+                <div class="small text-muted"><%= a.payment_method || '-' %></div>
+                <span class="badge <%= a.payment_status === 'PAID' ? 'bg-success' : (a.payment_status === 'FAILED' ? 'bg-danger' : 'bg-warning') %>"><%= a.payment_status %></span>
+                <% if (a.payment_status === 'REFUNDED_PARTIAL' && Number(a.refund_amount || 0) > 0) { %>
+                  <div class="mt-1"><span class="badge bg-info text-dark">Estorno R$ <%= toMoney(a.refund_amount) %></span></div>
+                <% } %>
+              </td>
+              <td><span class="badge bg-primary"><%= a.status %></span></td>
+              <td class="text-end">
+                <div class="actions-compact">
+                <button class="btn btn-sm btn-outline-primary btn-icon-square" title="Ver" aria-label="Ver" onclick='verAgendamento(<%- JSON.stringify(a) %>)'><i class="bi bi-eye"></i></button>
+                <button class="btn btn-sm btn-primary btn-icon-square" title="Editar" aria-label="Editar" onclick='editarAgendamento(<%- JSON.stringify(a) %>)'><i class="bi bi-pencil-square"></i></button>
+                <button class="btn btn-sm btn-outline-danger btn-icon-square" title="Excluir" aria-label="Excluir" onclick='excluirAgendamento(<%= a.id %>)'><i class="bi bi-trash"></i></button>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle btn-icon-square" data-bs-toggle="dropdown" type="button" title="Mais opções" aria-label="Mais opções">
+                    <i class="bi bi-three-dots"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <% if (a.status === 'RESERVED' || a.status === 'PAYMENT_FAILED') { %>
+                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/pagamento',{approved:true})"><i class="bi bi-check-circle me-2"></i>Confirmar pagamento</button></li>
+                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/pagamento',{approved:false})"><i class="bi bi-x-circle me-2"></i>Recusar pagamento</button></li>
+                      <li><hr class="dropdown-divider"></li>
+                    <% } %>
+                    <% if (a.status === 'CONFIRMED') { %>
+                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/iniciar')"><i class="bi bi-play-circle me-2"></i>Iniciar atendimento</button></li>
+                    <% } %>
+                    <% if (a.status === 'IN_PROGRESS' || a.status === 'CONFIRMED') { %>
+                      <li><button class="dropdown-item" onclick='abrirConcluir(<%- JSON.stringify(a) %>)'><i class="bi bi-check2-square me-2"></i>Concluir</button></li>
+                      <li><button class="dropdown-item" onclick='abrirIncompleto(<%- JSON.stringify(a) %>)'><i class="bi bi-exclamation-square me-2"></i>Não finalizado</button></li>
+                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/ausente')"><i class="bi bi-person-x me-2"></i>Ausente</button></li>
+                    <% } %>
+                    <% if ((a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS' || a.status === 'COMPLETED') && a.payment_status !== 'PAID') { %>
+                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'CASH')"><i class="bi bi-cash-coin me-2"></i>Recebido em dinheiro</button></li>
+                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'PIX')"><i class="bi bi-qr-code-scan me-2"></i>Recebido em PIX</button></li>
+                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'CREDIT_CARD')"><i class="bi bi-credit-card-2-front me-2"></i>Recebido no cartão crédito</button></li>
+                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'DEBIT_CARD')"><i class="bi bi-credit-card me-2"></i>Recebido no cartão débito</button></li>
+                    <% } %>
+                  </ul>
+                </div>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!appointments || !appointments.length) { %>
+            <tr><td colspan="9" class="text-muted">Nenhum agendamento encontrado.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <div class="small text-muted" id="apt_pagination_info">0 agendamento(s)</div>
+      <div class="btn-group btn-group-sm" id="apt_pagination_controls"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalService" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Novo serviço</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="svc_id">
+        <div class="mb-2"><label class="form-label">Nome</label><input class="form-control" id="svc_name"></div>
+        <div class="mb-2">
+          <label class="form-label">Grupo do serviço</label>
+          <select class="form-select" id="svc_group">
+            <option value="VACINACAO">Vacinação</option>
+            <option value="PROCEDIMENTO">Procedimento</option>
+            <option value="TESTE_RAPIDO">Teste rápido</option>
+            <option value="ACOMPANHAMENTO">Acompanhamento</option>
+            <option value="ORIENTACAO">Orientação</option>
+            <option value="OUTRO" selected>Outro</option>
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col"><label class="form-label">Preço</label><input class="form-control" id="svc_price" type="number" step="0.01"></div>
+          <div class="col"><label class="form-label">Duração (min)</label><input class="form-control" id="svc_duration" type="number" value="30"></div>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col"><label class="form-label">Idade mínima</label><input class="form-control" id="svc_min_age" type="number" min="0" max="120" placeholder="Opcional"></div>
+          <div class="col"><label class="form-label">Idade máxima</label><input class="form-control" id="svc_max_age" type="number" min="0" max="120" placeholder="Opcional"></div>
+          <div class="col"><label class="form-label">Observação pós-atendimento (min)</label><input class="form-control" id="svc_obs_minutes" type="number" min="0" max="240" value="0"></div>
+        </div>
+        <div class="form-check mt-2"><input class="form-check-input" id="svc_store" type="checkbox" checked><label class="form-check-label" for="svc_store">Disponível na farmácia</label></div>
+        <div class="form-check mt-2"><input class="form-check-input" id="svc_home" type="checkbox" checked><label class="form-check-label" for="svc_home">Disponível em domicílio</label></div>
+        <div class="form-check"><input class="form-check-input" id="svc_rx" type="checkbox"><label class="form-check-label" for="svc_rx">Exige receita</label></div>
+        <div class="mt-2"><label class="form-label">Instruções de preparo</label><textarea class="form-control" id="svc_prep" rows="2" placeholder="Orientações prévias ao cliente"></textarea></div>
+        <div class="mt-2"><label class="form-label">Contraindicações</label><textarea class="form-control" id="svc_contra" rows="2" placeholder="Restrições importantes"></textarea></div>
+        <div class="mt-2"><label class="form-label">Insumos necessários</label><textarea class="form-control" id="svc_supplies" rows="2" placeholder="Ex.: seringa, gaze, EPI"></textarea></div>
+        <div class="mt-2"><label class="form-label">Observações internas</label><textarea class="form-control" id="svc_notes" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" onclick="salvarServico()">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalHoliday" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Feriados bloqueados</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-5"><input class="form-control" id="hol_date" type="date"></div>
+          <div class="col-7"><input class="form-control" id="hol_name" placeholder="Nome do feriado"></div>
+        </div>
+        <div class="d-grid mb-3"><button type="button" class="btn btn-primary" onclick="salvarFeriado()">Adicionar feriado</button></div>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead><tr><th>Data</th><th>Nome</th><th class="text-end">Ação</th></tr></thead>
+            <tbody>
+              <% (holidays || []).forEach(function(h){ %>
+                <tr>
+                  <td><%= String(h.holiday_date).slice(0, 10) %></td>
+                  <td><%= h.name %></td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removerFeriado(<%= h.id %>)">Remover</button></td>
+                </tr>
+              <% }) %>
+              <% if (!holidays || !holidays.length) { %>
+                <tr><td colspan="3" class="text-muted">Nenhum feriado cadastrado.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalProfessional" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Novo profissional</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="pro_id">
+        <div class="mb-2"><label class="form-label">Nome</label><input class="form-control" id="pro_name"></div>
+        <div class="mb-2">
+          <label class="form-label">Cargo</label>
+          <select class="form-select" id="pro_role">
+            <option value="FARMACEUTICO">Farmacêutico</option>
+            <option value="ENFERMEIRO">Enfermeiro</option>
+          </select>
+        </div>
+        <div class="mb-2"><label class="form-label">E-mail</label><input class="form-control" id="pro_email"></div>
+        <div class="mb-2"><label class="form-label">Telefone</label><input class="form-control" id="pro_phone"></div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label">Conselho</label>
+            <input class="form-control" id="pro_council_type" readonly value="CRF">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">UF</label>
+            <input class="form-control text-uppercase" id="pro_council_uf" maxlength="2" placeholder="SP">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Registro</label>
+            <input class="form-control text-uppercase" id="pro_council_number" placeholder="Ex.: 12345 ou 12345-F">
+          </div>
+        </div>
+        <div class="small text-muted mt-1">Farmacêutico usa CRF e Enfermeiro usa COREN.</div>
+        <label class="form-label mt-2">Disponibilidade semanal</label>
+        <div class="small text-muted mb-2">Formato HH:MM. Deixe em branco para não incluir o dia.</div>
+        <% const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']; %>
+        <% for (let d = 0; d < 7; d++) { %>
+          <div class="row g-1 mb-1">
+            <div class="col-3 small pt-1"><%= days[d] %></div>
+            <div class="col"><input class="form-control form-control-sm" id="pro_<%= d %>_start" placeholder="08:00"></div>
+            <div class="col"><input class="form-control form-control-sm" id="pro_<%= d %>_end" placeholder="18:00"></div>
+          </div>
+        <% } %>
+      </div>
+      <div id="pro_feedback" class="small px-3 pb-1" style="display:none;"></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnSalvarProfissional" onclick="salvarProfissional()">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalReserve" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Novo agendamento</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="res_id">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">Serviço</label>
+            <select class="form-select" id="res_service_id">
+              <% (services || []).filter(function(s){ return s.is_active; }).forEach(function(s){ %>
+                <option value="<%= s.id %>"><%= s.name %> - R$ <%= toMoney(s.price) %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Modalidade</label>
+            <select class="form-select" id="res_modality">
+              <option value="IN_STORE">Na farmácia</option>
+              <option value="HOME">Em domicílio</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Forma de pagamento</label>
+            <select class="form-select" id="res_payment_method">
+              <option value="CASH">Dinheiro (presencial)</option>
+              <option value="PIX">PIX</option>
+              <option value="CREDIT_CARD">Cartão de crédito</option>
+              <option value="DEBIT_CARD">Cartão de débito</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Profissional</label>
+            <select class="form-select" id="res_professional_id">
+              <% (professionals || []).filter(function(p){ return p.is_active; }).forEach(function(p){ %>
+                <option value="<%= p.id %>"><%= p.full_name %> - <%= p.role_name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control" id="res_customer_name"></div>
+          <div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" id="res_customer_email"></div>
+          <div class="col-md-6"><label class="form-label">Telefone</label><input class="form-control" id="res_customer_phone" placeholder="(11) 99999-9999"></div>
+          <div class="col-md-6"><label class="form-label">Data/Hora</label><input class="form-control" id="res_scheduled_start" type="datetime-local"></div>
+          <div class="col-md-3" id="home_zip_wrap" style="display:none;"><label class="form-label">CEP</label><input class="form-control" id="res_zip_code" placeholder="00000-000"></div>
+          <div class="col-md-6" id="home_street_wrap" style="display:none;"><label class="form-label">Rua</label><input class="form-control" id="res_street"></div>
+          <div class="col-md-3" id="home_number_wrap" style="display:none;"><label class="form-label">Número</label><input class="form-control" id="res_number"></div>
+          <div class="col-md-4" id="home_complement_wrap" style="display:none;"><label class="form-label">Complemento</label><input class="form-control" id="res_complement"></div>
+          <div class="col-md-4" id="home_district_wrap" style="display:none;"><label class="form-label">Bairro</label><input class="form-control" id="res_district"></div>
+          <div class="col-md-3" id="home_city_wrap" style="display:none;"><label class="form-label">Cidade</label><input class="form-control" id="res_city"></div>
+          <div class="col-md-1" id="home_state_wrap" style="display:none;"><label class="form-label">UF</label><input class="form-control" id="res_state" maxlength="2"></div>
+        </div>
+      </div>
+      <div id="reserve_feedback" class="small px-3 pb-1" style="display:none;"></div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnReservarAgendamento" onclick="salvarAgendamento()">Reservar e gerar pagamento</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalConcluir" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Concluir atendimento</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="finish_id">
+        <div class="mb-2"><label class="form-label">Registro clínico *</label><textarea class="form-control" id="finish_clinical" rows="3"></textarea></div>
+        <div id="finish_vaccine_wrap">
+          <div class="mb-2"><label class="form-label">Lote da vacina *</label><input class="form-control" id="finish_batch"></div>
+          <div class="row g-2">
+            <div class="col"><label class="form-label">Validade *</label><input class="form-control" type="date" id="finish_batch_exp"></div>
+            <div class="col"><label class="form-label">Local aplicado</label><input class="form-control" id="finish_site" placeholder="Braço esquerdo"></div>
+          </div>
+        </div>
+        <div class="mt-2"><label class="form-label">Observações</label><textarea class="form-control" id="finish_obs" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-success" onclick="concluir()">Concluir</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalIncompleto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Marcar como não finalizado</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="incomplete_id">
+        <input type="hidden" id="incomplete_payment_status">
+        <label class="form-label">Motivo *</label>
+        <textarea class="form-control" id="incomplete_reason" rows="3" placeholder="Ex.: Paciente apresentou febre e não pôde ser vacinado hoje."></textarea>
+        <div class="mt-2">
+          <label class="form-label">Percentual de estorno (se já pago)</label>
+          <input type="number" class="form-control" id="incomplete_refund_percent" min="0" max="100" step="1" value="50">
+          <div class="small text-muted">Aplicado apenas quando o pagamento já estiver como pago.</div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-warning" onclick="salvarIncompleto()">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalViewInfo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="viewInfoTitle">Detalhes</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="viewInfoBody"></div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function safeToast(message, type) {
+    if (typeof window.neofarmaToast === 'function') {
+      window.neofarmaToast(message, type);
+      return;
+    }
+    var host = document.getElementById('local_toast_fallback');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'local_toast_fallback';
+      host.style.position = 'fixed';
+      host.style.right = '16px';
+      host.style.bottom = '16px';
+      host.style.zIndex = '2000';
+      host.style.display = 'flex';
+      host.style.flexDirection = 'column';
+      host.style.gap = '8px';
+      document.body.appendChild(host);
+    }
+    var level = String(type || 'info').toLowerCase();
+    var cssClass = 'alert-info';
+    if (level === 'success') cssClass = 'alert-success';
+    if (level === 'danger' || level === 'error') cssClass = 'alert-danger';
+    if (level === 'warning') cssClass = 'alert-warning';
+    var item = document.createElement('div');
+    item.className = 'alert ' + cssClass;
+    item.style.margin = '0';
+    item.style.minWidth = '260px';
+    item.style.maxWidth = '420px';
+    item.textContent = String(message || '');
+    host.appendChild(item);
+    setTimeout(function () {
+      if (item && item.parentNode) item.parentNode.removeChild(item);
+    }, 3500);
+  }
+
+  function setReserveFeedback(message, isError) {
+    var el = document.getElementById('reserve_feedback');
+    if (!el) return;
+    if (!message) {
+      el.style.display = 'none';
+      el.textContent = '';
+      return;
+    }
+    el.className = 'small px-3 pb-1 ' + (isError ? 'text-danger' : 'text-success');
+    el.textContent = String(message);
+    el.style.display = 'block';
+  }
+
+  function updateHomeAddressVisibility() {
+    var modalityEl = document.getElementById('res_modality');
+    var home = modalityEl && modalityEl.value === 'HOME';
+    document.getElementById('home_zip_wrap').style.display = home ? '' : 'none';
+    document.getElementById('home_street_wrap').style.display = home ? '' : 'none';
+    document.getElementById('home_number_wrap').style.display = home ? '' : 'none';
+    document.getElementById('home_complement_wrap').style.display = home ? '' : 'none';
+    document.getElementById('home_district_wrap').style.display = home ? '' : 'none';
+    document.getElementById('home_city_wrap').style.display = home ? '' : 'none';
+    document.getElementById('home_state_wrap').style.display = home ? '' : 'none';
+  }
+
+  document.getElementById('res_modality').addEventListener('change', updateHomeAddressVisibility);
+  document.getElementById('modalReserve').addEventListener('shown.bs.modal', updateHomeAddressVisibility);
+  updateHomeAddressVisibility();
+  function updateCouncilByRole() {
+    var role = (document.getElementById('pro_role').value || '').toUpperCase();
+    var typeEl = document.getElementById('pro_council_type');
+    if (!typeEl) return;
+    typeEl.value = role === 'ENFERMEIRO' ? 'COREN' : 'CRF';
+  }
+  var proRoleEl = document.getElementById('pro_role');
+  if (proRoleEl) proRoleEl.addEventListener('change', updateCouncilByRole);
+  updateCouncilByRole();
+  document.getElementById('modalService').addEventListener('show.bs.modal', function () {
+    if (!document.getElementById('svc_id').value) {
+      document.querySelector('#modalService .modal-title').textContent = 'Novo serviço';
+    }
+  });
+  document.getElementById('modalProfessional').addEventListener('show.bs.modal', function () {
+    if (!document.getElementById('pro_id').value) {
+      document.querySelector('#modalProfessional .modal-title').textContent = 'Novo profissional';
+    }
+  });
+  document.getElementById('modalReserve').addEventListener('show.bs.modal', function () {
+    if (!document.getElementById('res_id').value) {
+      document.querySelector('#modalReserve .modal-title').textContent = 'Novo agendamento';
+      document.getElementById('btnReservarAgendamento').textContent = 'Reservar e gerar pagamento';
+    }
+  });
+
+  function onlyDigits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  function formatCep(v) {
+    const d = onlyDigits(v).slice(0, 8);
+    if (d.length <= 5) return d;
+    return d.slice(0, 5) + '-' + d.slice(5);
+  }
+
+  function formatPhoneBr(v) {
+    const d = onlyDigits(v).slice(0, 11);
+    if (d.length <= 2) return d ? '(' + d : '';
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  }
+
+  const resPhoneEl = document.getElementById('res_customer_phone');
+  if (resPhoneEl) {
+    resPhoneEl.addEventListener('input', function () {
+      this.value = formatPhoneBr(this.value);
+    });
+  }
+
+  const zipEl = document.getElementById('res_zip_code');
+  if (zipEl) {
+    zipEl.addEventListener('input', function () {
+      this.value = formatCep(this.value);
+    });
+    zipEl.addEventListener('blur', async function () {
+      const cep = onlyDigits(this.value);
+      if (cep.length !== 8) return;
+      try {
+        const resp = await fetch('https://viacep.com.br/ws/' + cep + '/json/');
+        const data = await resp.json();
+        if (!data || data.erro) {
+          safeToast('CEP não encontrado.', 'warning');
+          return;
+        }
+        document.getElementById('res_street').value = data.logradouro || '';
+        document.getElementById('res_district').value = data.bairro || '';
+        document.getElementById('res_city').value = data.localidade || '';
+        document.getElementById('res_state').value = data.uf || '';
+      } catch (e) {
+        safeToast('Falha ao consultar CEP.', 'warning');
+      }
+    });
+  }
+
+  async function postAct(url, body, opts) {
+    opts = opts || {};
+    const method = opts.method || 'POST';
+    const resp = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : JSON.stringify(body || {}) });
+    const text = await resp.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch (e) { data = {}; }
+    if (data.ok) {
+      safeToast(data.message || 'Operação realizada.', 'success');
+      if (opts.reload !== false) setTimeout(function(){ location.reload(); }, opts.reloadDelayMs || 600);
+    }
+    else safeToast(data.message || 'Erro na operação.', 'danger');
+    return data;
+  }
+
+  function abrirConcluir(appointment) {
+    var id = appointment && appointment.id ? appointment.id : appointment;
+    var isVaccination = appointment && String(appointment.service_group || '').toUpperCase() === 'VACINACAO';
+    document.getElementById('finish_id').value = id;
+    document.getElementById('finish_clinical').value = '';
+    document.getElementById('finish_batch').value = '';
+    document.getElementById('finish_batch_exp').value = '';
+    document.getElementById('finish_site').value = '';
+    document.getElementById('finish_obs').value = '';
+    document.getElementById('finish_vaccine_wrap').style.display = isVaccination ? '' : 'none';
+    new bootstrap.Modal(document.getElementById('modalConcluir')).show();
+  }
+
+  async function concluir() {
+    const id = document.getElementById('finish_id').value;
+    await postAct('/admin/agendamentos-servicos/' + id + '/concluir', {
+      clinical_record: document.getElementById('finish_clinical').value,
+      vaccine_batch_code: document.getElementById('finish_batch').value,
+      vaccine_expiry_date: document.getElementById('finish_batch_exp').value,
+      application_site: document.getElementById('finish_site').value,
+      observations: document.getElementById('finish_obs').value
+    });
+  }
+
+  function abrirIncompleto(item) {
+    var id = item && item.id ? item.id : item;
+    var paymentStatus = item && item.payment_status ? String(item.payment_status).toUpperCase() : '';
+    document.getElementById('incomplete_id').value = id;
+    document.getElementById('incomplete_payment_status').value = paymentStatus;
+    document.getElementById('incomplete_reason').value = '';
+    document.getElementById('incomplete_refund_percent').value = '50';
+    new bootstrap.Modal(document.getElementById('modalIncompleto')).show();
+  }
+
+  async function salvarIncompleto() {
+    const id = document.getElementById('incomplete_id').value;
+    const reason = document.getElementById('incomplete_reason').value.trim();
+    if (!reason) return safeToast('Informe o motivo.', 'danger');
+    const status = String(document.getElementById('incomplete_payment_status').value || '').toUpperCase();
+    const refundPercent = Number(document.getElementById('incomplete_refund_percent').value || 50);
+    const body = { reason: reason };
+    if (status === 'PAID') body.refund_percent = refundPercent;
+    await postAct('/admin/agendamentos-servicos/' + id + '/nao-finalizado', body);
+  }
+
+  async function salvarServico() {
+    var id = document.getElementById('svc_id').value;
+    await postAct('/admin/agendamentos-servicos/servicos', {
+      id: id ? Number(id) : null,
+      name: document.getElementById('svc_name').value,
+      price: document.getElementById('svc_price').value,
+      duration_minutes: document.getElementById('svc_duration').value,
+      service_group: document.getElementById('svc_group').value,
+      in_store_available: document.getElementById('svc_store').checked,
+      home_available: document.getElementById('svc_home').checked,
+      requires_prescription: document.getElementById('svc_rx').checked,
+      min_age_years: document.getElementById('svc_min_age').value,
+      max_age_years: document.getElementById('svc_max_age').value,
+      post_observation_minutes: document.getElementById('svc_obs_minutes').value,
+      prep_instructions: document.getElementById('svc_prep').value,
+      contraindications: document.getElementById('svc_contra').value,
+      required_supplies: document.getElementById('svc_supplies').value,
+      notes: document.getElementById('svc_notes').value,
+      is_active: true
+    });
+  }
+
+  async function salvarProfissional() {
+    const btn = document.getElementById('btnSalvarProfissional');
+    const fb = document.getElementById('pro_feedback');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
+    if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
+    try {
+      const availability = [];
+      for (let d = 0; d < 7; d++) {
+        const start = (document.getElementById('pro_' + d + '_start').value || '').trim();
+        const end = (document.getElementById('pro_' + d + '_end').value || '').trim();
+        if (start && end) availability.push({ day_of_week: d, start_time: start, end_time: end });
+      }
+      const payload = {
+        id: document.getElementById('pro_id').value ? Number(document.getElementById('pro_id').value) : null,
+        full_name: document.getElementById('pro_name').value,
+        role_name: document.getElementById('pro_role').value,
+        email: document.getElementById('pro_email').value,
+        phone: document.getElementById('pro_phone').value,
+        council_type: document.getElementById('pro_council_type').value,
+        council_uf: document.getElementById('pro_council_uf').value,
+        council_number: document.getElementById('pro_council_number').value
+      };
+      if (!payload.id || availability.length) payload.availability = availability;
+
+      const resp = await fetch('/admin/agendamentos-servicos/profissionais', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      let result = {};
+      const txt = await resp.text();
+      try { result = txt ? JSON.parse(txt) : {}; } catch (e) { result = {}; }
+
+      if (resp.ok && result && result.ok) {
+        const okMsg = result.message || 'Profissional cadastrado com sucesso.';
+        if (fb) {
+          fb.className = 'small px-3 pb-1 text-success';
+          fb.textContent = okMsg;
+          fb.style.display = 'block';
+        }
+      safeToast(okMsg, 'success');
+      } else {
+        const errMsg = (result && result.message) || ('Não foi possível salvar o profissional. (HTTP ' + resp.status + ')');
+        if (fb) {
+          fb.className = 'small px-3 pb-1 text-danger';
+          fb.textContent = errMsg;
+          fb.style.display = 'block';
+        }
+        safeToast(errMsg, 'danger');
+      }
+    } catch (err) {
+      var netMsg = 'Erro de comunicação ao salvar profissional.';
+      if (err && err.message) netMsg += ' (' + err.message + ')';
+      if (fb) {
+        fb.className = 'small px-3 pb-1 text-danger';
+        fb.textContent = netMsg;
+        fb.style.display = 'block';
+      }
+      safeToast(netMsg, 'danger');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+    }
+  }
+
+  async function reservar() {
+    const btn = document.getElementById('btnReservarAgendamento');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Reservando...'; }
+    setReserveFeedback('', false);
+    try {
+    const whenStr = document.getElementById('res_scheduled_start').value;
+    const when = whenStr ? new Date(whenStr) : null;
+    const minLead = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (!when || Number.isNaN(when.getTime())) {
+      safeToast('Informe uma data/hora válida.', 'danger');
+      return;
+    }
+    if (when < minLead) {
+      safeToast('Agendamento deve ser feito com no mínimo 1 dia de antecedência.', 'danger');
+      return;
+    }
+    if (when.getDay() === 0) {
+      safeToast('Não é possível agendar em domingo.', 'danger');
+      return;
+    }
+    var dateOnly = whenStr.slice(0, 10);
+    var holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0, 10); })) %>;
+    if (holidayDates.indexOf(dateOnly) >= 0) {
+      safeToast('Não é possível agendar em feriado cadastrado.', 'danger');
+      return;
+    }
+    const body = {
+      service_id: document.getElementById('res_service_id').value,
+      professional_id: document.getElementById('res_professional_id').value,
+      modality: document.getElementById('res_modality').value,
+      payment_method: document.getElementById('res_payment_method').value,
+      booking_channel: 'ADMIN',
+      customer_name: document.getElementById('res_customer_name').value,
+      customer_email: document.getElementById('res_customer_email').value,
+      customer_phone: onlyDigits(document.getElementById('res_customer_phone').value),
+      scheduled_start: whenStr,
+      zip_code: document.getElementById('res_zip_code').value,
+      street: document.getElementById('res_street').value,
+      number: document.getElementById('res_number').value,
+      complement: document.getElementById('res_complement').value,
+      district: document.getElementById('res_district').value,
+      city: document.getElementById('res_city').value,
+      state: document.getElementById('res_state').value
+    };
+    if (body.modality === 'HOME') {
+      const required = [body.zip_code, body.street, body.number, body.district, body.city, body.state];
+      if (required.some(function(v){ return !String(v || '').trim(); })) {
+        safeToast('Preencha endereço completo para atendimento em domicílio.', 'danger');
+        return;
+      }
+    }
+    const resp = await fetch('/admin/agendamentos-servicos/reservar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const txt = await resp.text();
+    let data = {};
+    try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+    if (!resp.ok && !data.message) data.message = 'Falha ao reservar (HTTP ' + resp.status + ').';
+    if (data.ok) {
+      var okMessage = data.payment_link
+        ? ('Reserva criada. Link de pagamento: ' + data.payment_link)
+        : (data.message || 'Agendamento confirmado.');
+      setReserveFeedback(okMessage, false);
+      safeToast(okMessage, 'success');
+      setTimeout(function(){ location.reload(); }, 1000);
+    } else {
+      setReserveFeedback(data.message || 'Erro ao reservar.', true);
+      safeToast(data.message || 'Erro ao reservar.', 'danger');
+    }
+    } catch (err) {
+      var failMessage = 'Erro de comunicação ao reservar: ' + (err && err.message ? err.message : 'falha desconhecida');
+      setReserveFeedback(failMessage, true);
+      safeToast(failMessage, 'danger');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = 'Reservar e gerar pagamento'; }
+    }
+  }
+
+  async function salvarAgendamento() {
+    var id = document.getElementById('res_id').value;
+    if (id) return editarAgendamentoSalvar(Number(id));
+    return reservar();
+  }
+
+  async function editarAgendamentoSalvar(id) {
+    const btn = document.getElementById('btnReservarAgendamento');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
+    setReserveFeedback('', false);
+    try {
+      const body = {
+        service_id: document.getElementById('res_service_id').value,
+        professional_id: document.getElementById('res_professional_id').value,
+        modality: document.getElementById('res_modality').value,
+        customer_name: document.getElementById('res_customer_name').value,
+        customer_email: document.getElementById('res_customer_email').value,
+        customer_phone: onlyDigits(document.getElementById('res_customer_phone').value),
+        scheduled_start: document.getElementById('res_scheduled_start').value,
+        zip_code: document.getElementById('res_zip_code').value,
+        street: document.getElementById('res_street').value,
+        number: document.getElementById('res_number').value,
+        complement: document.getElementById('res_complement').value,
+        district: document.getElementById('res_district').value,
+        city: document.getElementById('res_city').value,
+        state: document.getElementById('res_state').value
+      };
+      const data = await postAct('/admin/agendamentos-servicos/' + id, body, { method: 'PUT', reload: false });
+      if (data.ok) {
+        setReserveFeedback(data.message || 'Agendamento atualizado.', false);
+        setTimeout(function(){ location.reload(); }, 800);
+      } else {
+        setReserveFeedback(data.message || 'Erro ao atualizar agendamento.', true);
+      }
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar agendamento'; }
+    }
+  }
+
+  function preencherFormServico(s) {
+    document.getElementById('svc_id').value = s.id || '';
+    document.getElementById('svc_name').value = s.name || '';
+    document.getElementById('svc_group').value = s.service_group || 'OUTRO';
+    document.getElementById('svc_price').value = s.price || '';
+    document.getElementById('svc_duration').value = s.duration_minutes || 30;
+    document.getElementById('svc_min_age').value = s.min_age_years || '';
+    document.getElementById('svc_max_age').value = s.max_age_years || '';
+    document.getElementById('svc_obs_minutes').value = s.post_observation_minutes || 0;
+    document.getElementById('svc_store').checked = !!s.in_store_available;
+    document.getElementById('svc_home').checked = !!s.home_available;
+    document.getElementById('svc_rx').checked = !!s.requires_prescription;
+    document.getElementById('svc_prep').value = s.prep_instructions || '';
+    document.getElementById('svc_contra').value = s.contraindications || '';
+    document.getElementById('svc_supplies').value = s.required_supplies || '';
+    document.getElementById('svc_notes').value = s.notes || '';
+  }
+
+  function novoServico() {
+    preencherFormServico({});
+    document.getElementById('svc_id').value = '';
+    document.querySelector('#modalService .modal-title').textContent = 'Novo serviço';
+  }
+
+  function preencherFormProfissional(p) {
+    document.getElementById('pro_id').value = p.id || '';
+    document.getElementById('pro_name').value = p.full_name || '';
+    document.getElementById('pro_role').value = p.role_name || 'FARMACEUTICO';
+    updateCouncilByRole();
+    document.getElementById('pro_email').value = p.email || '';
+    document.getElementById('pro_phone').value = p.phone || '';
+    document.getElementById('pro_council_type').value = p.council_type || document.getElementById('pro_council_type').value;
+    document.getElementById('pro_council_uf').value = p.council_uf || '';
+    document.getElementById('pro_council_number').value = p.council_number || '';
+  }
+
+  function novoProfissional() {
+    preencherFormProfissional({});
+    document.getElementById('pro_id').value = '';
+    document.querySelector('#modalProfessional .modal-title').textContent = 'Novo profissional';
+    for (var d = 0; d < 7; d++) {
+      document.getElementById('pro_' + d + '_start').value = '';
+      document.getElementById('pro_' + d + '_end').value = '';
+    }
+  }
+
+  function verServico(s) {
+    document.getElementById('viewInfoTitle').textContent = 'Detalhes do serviço';
+    document.getElementById('viewInfoBody').innerHTML =
+      '<div><strong>' + (s.name || '-') + '</strong></div>' +
+      '<div class="small text-muted mt-2">Grupo: ' + (s.service_group || '-') + ' | Duração: ' + (s.duration_minutes || '-') + ' min | Preço: R$ ' + Number(s.price || 0).toFixed(2) + '</div>' +
+      '<hr><div><strong>Preparo:</strong><br>' + (s.prep_instructions || '-') + '</div>' +
+      '<div class="mt-2"><strong>Contraindicações:</strong><br>' + (s.contraindications || '-') + '</div>' +
+      '<div class="mt-2"><strong>Insumos:</strong><br>' + (s.required_supplies || '-') + '</div>';
+    new bootstrap.Modal(document.getElementById('modalViewInfo')).show();
+  }
+
+  function editarServico(s) {
+    preencherFormServico(s || {});
+    document.querySelector('#modalService .modal-title').textContent = 'Editar serviço';
+    new bootstrap.Modal(document.getElementById('modalService')).show();
+  }
+
+  async function excluirServico(id) {
+    const ok = (typeof window.neofarmaConfirm === 'function')
+      ? await window.neofarmaConfirm({ title: 'Excluir serviço', message: 'Deseja realmente excluir este serviço?' })
+      : true;
+    if (!ok) return;
+    await postAct('/admin/agendamentos-servicos/servicos/' + id, {}, { method: 'DELETE' });
+  }
+
+  function verProfissional(p) {
+    document.getElementById('viewInfoTitle').textContent = 'Detalhes do profissional';
+    document.getElementById('viewInfoBody').innerHTML =
+      '<div><strong>' + (p.full_name || '-') + '</strong></div>' +
+      '<div class="small text-muted mt-2">Cargo: ' + (p.role_name || '-') + '</div>' +
+      '<div class="mt-2"><strong>Registro:</strong> ' + (p.council_type || '-') + '/' + (p.council_uf || '-') + ' ' + (p.council_number || '-') + '</div>' +
+      '<div class="mt-2"><strong>E-mail:</strong> ' + (p.email || '-') + '</div>' +
+      '<div><strong>Telefone:</strong> ' + (p.phone || '-') + '</div>';
+    new bootstrap.Modal(document.getElementById('modalViewInfo')).show();
+  }
+
+  function editarProfissional(p) {
+    preencherFormProfissional(p || {});
+    document.querySelector('#modalProfessional .modal-title').textContent = 'Editar profissional';
+    new bootstrap.Modal(document.getElementById('modalProfessional')).show();
+  }
+
+  async function excluirProfissional(id) {
+    const ok = (typeof window.neofarmaConfirm === 'function')
+      ? await window.neofarmaConfirm({ title: 'Excluir profissional', message: 'Deseja realmente excluir este profissional?' })
+      : true;
+    if (!ok) return;
+    await postAct('/admin/agendamentos-servicos/profissionais/' + id, {}, { method: 'DELETE' });
+  }
+
+  function verAgendamento(a) {
+    document.getElementById('viewInfoTitle').textContent = 'Detalhes do agendamento #' + a.id;
+    var refundInfo = '';
+    if (String(a.payment_status || '').toUpperCase() === 'REFUNDED_PARTIAL' && Number(a.refund_amount || 0) > 0) {
+      refundInfo = '<div><strong>Estorno parcial:</strong> R$ ' + Number(a.refund_amount || 0).toFixed(2).replace('.', ',') + '</div>';
+    }
+    document.getElementById('viewInfoBody').innerHTML =
+      '<div><strong>Cliente:</strong> ' + (a.customer_name || '-') + '</div>' +
+      '<div><strong>Serviço:</strong> ' + (a.service_name || '-') + '</div>' +
+      '<div><strong>Profissional:</strong> ' + (a.professional_name || '-') + '</div>' +
+      '<div><strong>Horário:</strong> ' + new Date(a.scheduled_start).toLocaleString('pt-BR') + '</div>' +
+      '<div><strong>Status:</strong> ' + (a.status || '-') + ' | <strong>Pagamento:</strong> ' + (a.payment_status || '-') + '</div>' +
+      refundInfo;
+    new bootstrap.Modal(document.getElementById('modalViewInfo')).show();
+  }
+
+  function toDatetimeLocal(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    var pad = function(n){ return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function editarAgendamento(a) {
+    document.getElementById('res_id').value = a.id || '';
+    document.getElementById('res_service_id').value = a.service_id || '';
+    document.getElementById('res_professional_id').value = a.professional_id || '';
+    document.getElementById('res_modality').value = a.modality || 'IN_STORE';
+    document.getElementById('res_customer_name').value = a.customer_name || '';
+    document.getElementById('res_customer_email').value = a.customer_email || '';
+    document.getElementById('res_customer_phone').value = formatPhoneBr(a.customer_phone || '');
+    document.getElementById('res_scheduled_start').value = toDatetimeLocal(a.scheduled_start);
+    document.getElementById('res_zip_code').value = a.zip_code || '';
+    document.getElementById('res_street').value = '';
+    document.getElementById('res_number').value = '';
+    document.getElementById('res_complement').value = '';
+    document.getElementById('res_district').value = '';
+    document.getElementById('res_city').value = '';
+    document.getElementById('res_state').value = '';
+    updateHomeAddressVisibility();
+    document.querySelector('#modalReserve .modal-title').textContent = 'Editar agendamento';
+    document.getElementById('btnReservarAgendamento').textContent = 'Salvar agendamento';
+    new bootstrap.Modal(document.getElementById('modalReserve')).show();
+  }
+
+  function novoAgendamento() {
+    document.getElementById('res_id').value = '';
+    document.getElementById('res_customer_name').value = '';
+    document.getElementById('res_customer_email').value = '';
+    document.getElementById('res_customer_phone').value = '';
+    document.getElementById('res_scheduled_start').value = '';
+    document.getElementById('res_zip_code').value = '';
+    document.getElementById('res_street').value = '';
+    document.getElementById('res_number').value = '';
+    document.getElementById('res_complement').value = '';
+    document.getElementById('res_district').value = '';
+    document.getElementById('res_city').value = '';
+    document.getElementById('res_state').value = '';
+    document.querySelector('#modalReserve .modal-title').textContent = 'Novo agendamento';
+    document.getElementById('btnReservarAgendamento').textContent = 'Reservar e gerar pagamento';
+    updateHomeAddressVisibility();
+  }
+
+  async function excluirAgendamento(id) {
+    const ok = (typeof window.neofarmaConfirm === 'function')
+      ? await window.neofarmaConfirm({ title: 'Excluir agendamento', message: 'Deseja realmente excluir este agendamento?' })
+      : true;
+    if (!ok) return;
+    await postAct('/admin/agendamentos-servicos/' + id, {}, { method: 'DELETE' });
+  }
+
+  async function salvarFeriado() {
+    await postAct('/admin/agendamentos-servicos/feriados', {
+      holiday_date: document.getElementById('hol_date').value,
+      name: document.getElementById('hol_name').value
+    });
+  }
+
+  async function removerFeriado(id) {
+    const ok = (typeof window.neofarmaConfirm === 'function')
+      ? await window.neofarmaConfirm({ title: 'Remover feriado', message: 'Deseja remover este feriado?' })
+      : true;
+    if (!ok) return;
+    const resp = await fetch('/admin/agendamentos-servicos/feriados/' + id, { method: 'DELETE' });
+    const data = await resp.json();
+    if (data.ok) { safeToast(data.message || 'Feriado removido.', 'success'); setTimeout(function(){ location.reload(); }, 600); }
+    else safeToast(data.message || 'Erro ao remover feriado.', 'danger');
+  }
+
+  async function confirmarRecebimento(id, paymentMethod) {
+    await postAct('/admin/agendamentos-servicos/' + id + '/confirmar-pagamento', { payment_method: paymentMethod });
+  }
+
+  function bindProfessionalTableTools() {
+    var searchEl = document.getElementById('pro_search');
+    var pageSizeEl = document.getElementById('pro_page_size');
+    var tbody = document.getElementById('pro_tbody');
+    var infoEl = document.getElementById('pro_pagination_info');
+    var controlsEl = document.getElementById('pro_pagination_controls');
+    if (!searchEl || !pageSizeEl || !tbody || !infoEl || !controlsEl) return;
+
+    var currentPage = 1;
+    function render() {
+      var q = String(searchEl.value || '').trim().toLowerCase();
+      var pageSize = Math.max(1, Number(pageSizeEl.value || 10));
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+      var filtered = rows.filter(function(row) {
+        if (!row || row.cells.length <= 1) return false;
+        var hay = (row.getAttribute('data-search') || '').toLowerCase();
+        return !q || hay.indexOf(q) >= 0;
+      });
+      var total = filtered.length;
+      var pages = Math.max(1, Math.ceil(total / pageSize));
+      if (currentPage > pages) currentPage = pages;
+      var start = (currentPage - 1) * pageSize;
+      var end = start + pageSize;
+
+      rows.forEach(function(r){ r.style.display = 'none'; });
+      filtered.slice(start, end).forEach(function(r){ r.style.display = ''; });
+
+      infoEl.textContent = total + ' profissional(is) - página ' + currentPage + ' de ' + pages;
+      controlsEl.innerHTML = '';
+
+      function addBtn(label, page, disabled, active) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn ' + (active ? 'btn-primary' : 'btn-outline-primary');
+        btn.textContent = label;
+        btn.disabled = !!disabled;
+        btn.addEventListener('click', function(){ currentPage = page; render(); });
+        controlsEl.appendChild(btn);
+      }
+
+      addBtn('«', 1, currentPage === 1, false);
+      addBtn('‹', Math.max(1, currentPage - 1), currentPage === 1, false);
+      var from = Math.max(1, currentPage - 2);
+      var to = Math.min(pages, currentPage + 2);
+      for (var p = from; p <= to; p++) addBtn(String(p), p, false, p === currentPage);
+      addBtn('›', Math.min(pages, currentPage + 1), currentPage === pages, false);
+      addBtn('»', pages, currentPage === pages, false);
+    }
+
+    searchEl.addEventListener('input', function(){ currentPage = 1; render(); });
+    pageSizeEl.addEventListener('change', function(){ currentPage = 1; render(); });
+    render();
+  }
+  bindProfessionalTableTools();
+
+  function bindAppointmentTableTools() {
+    var searchEl = document.getElementById('apt_search');
+    var pageSizeEl = document.getElementById('apt_page_size');
+    var tbody = document.getElementById('apt_tbody');
+    var infoEl = document.getElementById('apt_pagination_info');
+    var controlsEl = document.getElementById('apt_pagination_controls');
+    if (!searchEl || !pageSizeEl || !tbody || !infoEl || !controlsEl) return;
+
+    var currentPage = 1;
+    function render() {
+      var q = String(searchEl.value || '').trim().toLowerCase();
+      var pageSize = Math.max(1, Number(pageSizeEl.value || 10));
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+      var filtered = rows.filter(function(row) {
+        if (!row || row.cells.length <= 1) return false;
+        var hay = (row.getAttribute('data-search') || '').toLowerCase();
+        return !q || hay.indexOf(q) >= 0;
+      });
+      var total = filtered.length;
+      var pages = Math.max(1, Math.ceil(total / pageSize));
+      if (currentPage > pages) currentPage = pages;
+      var start = (currentPage - 1) * pageSize;
+      var end = start + pageSize;
+
+      rows.forEach(function(r){ r.style.display = 'none'; });
+      filtered.slice(start, end).forEach(function(r){ r.style.display = ''; });
+
+      infoEl.textContent = total + ' agendamento(s) - página ' + currentPage + ' de ' + pages;
+      controlsEl.innerHTML = '';
+
+      function addBtn(label, page, disabled, active) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn ' + (active ? 'btn-primary' : 'btn-outline-primary');
+        btn.textContent = label;
+        btn.disabled = !!disabled;
+        btn.addEventListener('click', function(){ currentPage = page; render(); });
+        controlsEl.appendChild(btn);
+      }
+
+      addBtn('«', 1, currentPage === 1, false);
+      addBtn('‹', Math.max(1, currentPage - 1), currentPage === 1, false);
+      var from = Math.max(1, currentPage - 2);
+      var to = Math.min(pages, currentPage + 2);
+      for (var p = from; p <= to; p++) addBtn(String(p), p, false, p === currentPage);
+      addBtn('›', Math.min(pages, currentPage + 1), currentPage === pages, false);
+      addBtn('»', pages, currentPage === pages, false);
+    }
+
+    searchEl.addEventListener('input', function(){ currentPage = 1; render(); });
+    pageSizeEl.addEventListener('change', function(){ currentPage = 1; render(); });
+    render();
+  }
+  bindAppointmentTableTools();
+</script>
+<%- include('partials/footer') %>

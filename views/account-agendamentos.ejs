@@ -1,0 +1,125 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Meus Agendamentos</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li><a href="/account">Conta</a></li>
+          <li class="current">Agendamentos</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Novo agendamento online</h4>
+        <a href="/account" class="btn btn-outline-secondary btn-sm">Voltar à conta</a>
+      </div>
+      <div class="card p-3 mb-4">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Serviço</label>
+            <select class="form-select" id="bk_service_id">
+              <% (services || []).forEach(function(s){ %>
+                <option value="<%= s.id %>"><%= s.name %> - R$ <%= Number(s.price || 0).toFixed(2).replace('.', ',') %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Profissional</label>
+            <select class="form-select" id="bk_professional_id">
+              <% (professionals || []).forEach(function(p){ %>
+                <option value="<%= p.id %>"><%= p.full_name %> - <%= p.role_name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Modalidade</label>
+            <select class="form-select" id="bk_modality">
+              <option value="IN_STORE">Na farmácia</option>
+              <option value="HOME">Em domicílio</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Pagamento</label>
+            <select class="form-select" id="bk_payment_method">
+              <option value="PIX">PIX</option>
+              <option value="CREDIT_CARD">Cartão de crédito</option>
+              <option value="DEBIT_CARD">Cartão de débito</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Data/Hora</label>
+            <input id="bk_scheduled_start" type="datetime-local" class="form-control">
+          </div>
+          <div class="col-12">
+            <button type="button" class="btn btn-primary" id="btnCriarAgendamento">Solicitar agendamento</button>
+          </div>
+        </div>
+      </div>
+
+      <h5 class="mb-2">Minhas solicitações</h5>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead><tr><th>#</th><th>Serviço</th><th>Profissional</th><th>Quando</th><th>Pagamento</th><th>Status</th></tr></thead>
+          <tbody>
+            <% (bookings || []).forEach(function(b){ %>
+              <tr>
+                <td><%= b.id %></td>
+                <td><%= b.service_name %></td>
+                <td><%= b.professional_name || '-' %></td>
+                <td><%= new Date(b.scheduled_start).toLocaleString('pt-BR') %></td>
+                <td><%= b.payment_method %> / <%= b.payment_status %></td>
+                <td><span class="badge bg-primary"><%= b.status %></span></td>
+              </tr>
+            <% }) %>
+            <% if (!bookings || !bookings.length) { %>
+              <tr><td colspan="6" class="text-muted">Nenhum agendamento ainda.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  function toast(msg, type) {
+    if (typeof window.neofarmaToast === 'function') return window.neofarmaToast(msg, type);
+    console.log((type || 'info') + ': ' + msg);
+  }
+  document.getElementById('btnCriarAgendamento').addEventListener('click', async function () {
+    const when = document.getElementById('bk_scheduled_start').value;
+    const dt = when ? new Date(when) : null;
+    const minLead = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (!dt || Number.isNaN(dt.getTime()) || dt < minLead) {
+      return toast('Agende com no mínimo 1 dia de antecedência.', 'danger');
+    }
+    const holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0,10); })) %>;
+    if (dt.getDay() === 0 || holidayDates.indexOf(when.slice(0,10)) >= 0) {
+      return toast('Data indisponível para agendamento.', 'danger');
+    }
+    const resp = await fetch('/api/service-appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: document.getElementById('bk_service_id').value,
+        professional_id: document.getElementById('bk_professional_id').value,
+        modality: document.getElementById('bk_modality').value,
+        payment_method: document.getElementById('bk_payment_method').value,
+        scheduled_start: when
+      })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      toast(data.message || 'Agendamento solicitado.', 'success');
+      setTimeout(function(){ location.reload(); }, 800);
+    } else {
+      toast(data.message || 'Falha ao solicitar agendamento.', 'danger');
+    }
+  });
+</script>
+<%- include('partials/footer') %>

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const clientController = require('../controllers/clientController');
 const commerceController = require('../controllers/commerceController');
+const serviceAppointmentAdminController = require('../controllers/serviceAppointmentAdminController');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 router.get('/clientes', clientController.apiList);
@@ -21,5 +22,6 @@ router.post('/shipping/select', commerceController.apiSetShipping);
 
 router.post('/checkout/finalize', requireAuth, commerceController.finalizeCheckout);
 router.post('/checkout/payment-preview', requireAuth, commerceController.apiPaymentPreview);
+router.post('/service-appointments', requireAuth, serviceAppointmentAdminController.createCustomerBooking);
 
 module.exports = router;

@@ -11,7 +11,7 @@
   <div class="list-header">
     <div>
       <h2 class="neo-heading">Finanças - Recibos</h2>
-      <p class="text-muted mb-0">Últimas operações pagas (Pix/Boleto).</p>
+      <p class="text-muted mb-0">Últimas operações pagas (loja + serviços).</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -41,17 +41,18 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="text-muted small">Tabela de recibos recentes</div>
-            <div style="font-weight: 700;">Pagos</div>
+            <div style="font-weight: 700;">Pagos e estornos parciais</div>
           </div>
 
           <div class="table-responsive">
             <table class="table table-hover table-custom align-middle">
               <thead>
                 <tr>
-                  <th>Pedido</th>
+                  <th>Referência</th>
                   <th>Cliente</th>
                   <th>Método</th>
                   <th class="text-end">Valor</th>
+                  <th>Status</th>
                   <th>Detalhes (simulados)</th>
                 </tr>
               </thead>
@@ -59,12 +60,24 @@
                 <% if (recentReceipts && recentReceipts.length) { %>
                   <% recentReceipts.forEach(function(r) { %>
                     <tr>
-                      <td class="fw-bold">#<%= r.order_id %><div class="text-muted small"><%= r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '' %></div></td>
+                      <td class="fw-bold"><%= r.source_type === 'SERVICE' ? 'AG' : 'PED' %>-#<%= r.ref_id %><div class="text-muted small"><%= r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '' %></div></td>
                       <td><%= r.full_name || '-' %></td>
                       <td><span class="badge bg-light text-dark border"><%= r.payment_method %></span></td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(r.total) %></td>
+                      <td>
+                        <% if (String(r.payment_record_status || '').toUpperCase() === 'REFUNDED_PARTIAL') { %>
+                          <span class="badge bg-info text-dark">Estorno parcial</span>
+                          <% if (Number(r.refund_amount || 0) > 0) { %>
+                            <div class="small text-muted mt-1">R$ <%= toLocaleString(r.refund_amount) %></div>
+                          <% } %>
+                        <% } else { %>
+                          <span class="badge bg-success">Pago</span>
+                        <% } %>
+                      </td>
                       <td class="small text-muted">
-                        <% if (r.payment_method === 'PIX') { %>
+                        <% if (r.source_type === 'SERVICE') { %>
+                          Serviço agendado
+                        <% } else if (r.payment_method === 'PIX') { %>
                           <code class="text-break"><%= (r.pix_copy_paste || '').slice(0, 40) %>...</code>
                         <% } else if (r.payment_method === 'BOLETO') { %>
                           <code class="text-break"><%= (r.boleto_barcode || '').slice(0, 25) %>...</code>
@@ -75,7 +88,7 @@
                     </tr>
                   <% }) %>
                 <% } else { %>
-                  <tr><td colspan="5" class="text-muted">Sem recibos recentes.</td></tr>
+                  <tr><td colspan="6" class="text-muted">Sem recibos recentes.</td></tr>
                 <% } %>
               </tbody>
             </table>

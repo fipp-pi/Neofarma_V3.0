@@ -1563,6 +1563,22 @@ h6 {
   font-weight: 700 !important;
 }
 
+.btn-icon-square {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  line-height: 1;
+}
+
+.actions-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .btn-success {
   background-color: color-mix(in srgb, var(--accent-color), #1f7a3f 35%);
   border-color: color-mix(in srgb, var(--accent-color), #1f7a3f 35%);

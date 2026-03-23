@@ -11,7 +11,7 @@
   <div class="list-header">
     <div>
       <h2 class="neo-heading">Finanças - Relatórios</h2>
-      <p class="text-muted mb-0">Receita por método, por dia e produtos mais vendidos.</p>
+      <p class="text-muted mb-0">Receita por método, por dia e produtos mais vendidos (loja + serviços).</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -35,7 +35,8 @@
           <div class="text-muted small mb-2">Receita por método</div>
           <div class="d-flex justify-content-between"><span>PIX</span><strong>R$ <%= revenueByMethod && revenueByMethod.PIX ? toLocaleString(revenueByMethod.PIX) : '0,00' %></strong></div>
           <div class="d-flex justify-content-between mt-1"><span>BOLETO</span><strong>R$ <%= revenueByMethod && revenueByMethod.BOLETO ? toLocaleString(revenueByMethod.BOLETO) : '0,00' %></strong></div>
-          <div class="d-flex justify-content-between mt-1"><span>CARTÃO</span><strong>R$ <%= revenueByMethod && revenueByMethod.CREDIT_CARD ? toLocaleString(revenueByMethod.CREDIT_CARD) : '0,00' %></strong></div>
+          <div class="d-flex justify-content-between mt-1"><span>CARTÃO</span><strong>R$ <%= toLocaleString((revenueByMethod && revenueByMethod.CREDIT_CARD ? revenueByMethod.CREDIT_CARD : 0) + (revenueByMethod && revenueByMethod.DEBIT_CARD ? revenueByMethod.DEBIT_CARD : 0)) %></strong></div>
+          <div class="d-flex justify-content-between mt-1"><span>DINHEIRO</span><strong>R$ <%= revenueByMethod && revenueByMethod.CASH ? toLocaleString(revenueByMethod.CASH) : '0,00' %></strong></div>
         </div>
       </div>
     </div>
@@ -49,7 +50,7 @@
               <thead>
                 <tr>
                   <th>Dia</th>
-                  <th>Pedidos</th>
+                  <th>Transações</th>
                   <th class="text-end">Receita</th>
                 </tr>
               </thead>

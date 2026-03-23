@@ -27,6 +27,21 @@ function slugifyFilename(text) {
 async function dashboard(req, res, next) {
   try {
     const validityCounts = await InventoryBatch.getDashboardValidityCounts(30);
+    let appointmentCounts = { total: 0, pendingCash: 0 };
+    try {
+      const [rows] = await pool.execute(
+        `SELECT
+           COUNT(*) AS total,
+           SUM(CASE WHEN payment_method = 'CASH' AND payment_status = 'PENDING' THEN 1 ELSE 0 END) AS pending_cash
+         FROM service_appointments`
+      );
+      appointmentCounts = {
+        total: Number(rows && rows[0] && rows[0].total ? rows[0].total : 0),
+        pendingCash: Number(rows && rows[0] && rows[0].pending_cash ? rows[0].pending_cash : 0),
+      };
+    } catch (_) {
+      appointmentCounts = { total: 0, pendingCash: 0 };
+    }
     res.render('admin/dashboard', {
       title: 'Painel Admin - NeoFarma',
       bodyClass: 'admin-page',
@@ -35,6 +50,7 @@ async function dashboard(req, res, next) {
         expired: Number(validityCounts.expired_count || 0),
         expiring: Number(validityCounts.expiring_count || 0),
       },
+      appointmentCounts,
     });
   } catch (err) {
     next(err);

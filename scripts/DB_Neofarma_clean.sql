@@ -447,6 +447,121 @@ CREATE TABLE IF NOT EXISTS audit_logs (
       ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- Módulo de Agendamento de Serviços (Admin)
+
+CREATE TABLE IF NOT EXISTS health_services (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  duration_minutes INT NOT NULL DEFAULT 30,
+  requires_prescription TINYINT(1) NOT NULL DEFAULT 0,
+  service_group ENUM('VACINACAO','PROCEDIMENTO','TESTE_RAPIDO','ACOMPANHAMENTO','ORIENTACAO','OUTRO') NOT NULL DEFAULT 'OUTRO',
+  in_store_available TINYINT(1) NOT NULL DEFAULT 1,
+  home_available TINYINT(1) NOT NULL DEFAULT 1,
+  min_age_years TINYINT UNSIGNED NULL,
+  max_age_years TINYINT UNSIGNED NULL,
+  post_observation_minutes TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  prep_instructions TEXT NULL,
+  contraindications TEXT NULL,
+  required_supplies TEXT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_health_service_name (name)
+);
+
+CREATE TABLE IF NOT EXISTS service_professionals (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  full_name VARCHAR(120) NOT NULL,
+  role_name ENUM('FARMACEUTICO','ENFERMEIRO') NOT NULL DEFAULT 'FARMACEUTICO',
+  email VARCHAR(150) NULL,
+  phone VARCHAR(40) NULL,
+  council_type ENUM('CRF','COREN') NOT NULL,
+  council_uf CHAR(2) NOT NULL,
+  council_number VARCHAR(30) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_service_professionals_email (email),
+  UNIQUE KEY uk_service_professionals_phone (phone),
+  UNIQUE KEY uk_service_professionals_council (council_type, council_uf, council_number)
+);
+
+CREATE TABLE IF NOT EXISTS service_professional_availability (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  professional_id BIGINT UNSIGNED NOT NULL,
+  day_of_week TINYINT UNSIGNED NOT NULL COMMENT '0=Domingo ... 6=Sábado',
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_professional_dow (professional_id, day_of_week),
+  CONSTRAINT fk_professional_availability_professional
+    FOREIGN KEY (professional_id) REFERENCES service_professionals(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS service_holidays (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  holiday_date DATE NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_service_holidays_date (holiday_date)
+);
+
+CREATE TABLE IF NOT EXISTS service_appointments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  service_id BIGINT UNSIGNED NOT NULL,
+  professional_id BIGINT UNSIGNED NULL,
+  customer_id BIGINT UNSIGNED NULL,
+  customer_name VARCHAR(120) NOT NULL,
+  customer_email VARCHAR(150) NULL,
+  customer_phone VARCHAR(40) NULL,
+  modality ENUM('IN_STORE','HOME') NOT NULL DEFAULT 'IN_STORE',
+  address_text VARCHAR(255) NULL,
+  zip_code VARCHAR(20) NULL,
+  travel_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  scheduled_start DATETIME NOT NULL,
+  scheduled_end DATETIME NOT NULL,
+  reservation_expires_at DATETIME NULL,
+  status ENUM('RESERVED','PAYMENT_FAILED','CONFIRMED','IN_PROGRESS','COMPLETED','NO_SHOW','INCOMPLETE','CANCELLED') NOT NULL DEFAULT 'RESERVED',
+  payment_status ENUM('PENDING','PAID','FAILED','REFUNDED_PARTIAL') NOT NULL DEFAULT 'PENDING',
+  payment_method ENUM('CASH','PIX','CREDIT_CARD','DEBIT_CARD') NOT NULL DEFAULT 'PIX',
+  booking_channel ENUM('ADMIN','CUSTOMER_ONLINE') NOT NULL DEFAULT 'ADMIN',
+  payment_attempts INT NOT NULL DEFAULT 0,
+  payment_ref VARCHAR(80) NULL,
+  clinical_record TEXT NULL,
+  vaccine_batch_code VARCHAR(60) NULL,
+  vaccine_expiry_date DATE NULL,
+  application_site VARCHAR(80) NULL,
+  observations TEXT NULL,
+  incomplete_reason TEXT NULL,
+  refund_amount DECIMAL(10,2) NULL,
+  completed_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_service_appointments_start (scheduled_start),
+  KEY idx_service_appointments_status (status),
+  CONSTRAINT fk_service_appointments_service
+    FOREIGN KEY (service_id) REFERENCES health_services(id)
+    ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_service_appointments_professional
+    FOREIGN KEY (professional_id) REFERENCES service_professionals(id)
+    ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_service_appointments_customer
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+);
 -- ==============================
 -- Dados iniciais
 -- ==============================
@@ -469,6 +584,49 @@ INSERT INTO shipping_methods (name, description, estimated_days) VALUES
 ON DUPLICATE KEY UPDATE
   description = VALUES(description),
   estimated_days = VALUES(estimated_days);
+
+INSERT INTO health_services (
+  name,
+  price,
+  duration_minutes,
+  requires_prescription,
+  service_group,
+  in_store_available,
+  home_available,
+  min_age_years,
+  max_age_years,
+  post_observation_minutes,
+  prep_instructions,
+  contraindications,
+  required_supplies,
+  is_active,
+  notes
+) VALUES
+  ('Aplicação de injetáveis (IM/SC)', 39.90, 20, 1, 'PROCEDIMENTO', 1, 1, 12, NULL, 10, 'Levar receita válida e documento com foto.', 'Hipersensibilidade conhecida ao medicamento ou orientação médica contrária.', 'Seringa, agulha, algodão, antisséptico, descarpack.', 1, 'Aplicação por profissional habilitado com conferência de prescrição.'),
+  ('Curativo simples domiciliar', 49.90, 35, 0, 'PROCEDIMENTO', 1, 1, NULL, NULL, 0, 'Higienizar local e separar materiais anteriores, se houver.', 'Feridas extensas, sangramento ativo importante ou sinais de infecção grave exigem encaminhamento.', 'Gaze, soro fisiológico, cobertura estéril, fita hipoalergênica.', 1, 'Procedimento de baixa complexidade com orientação de troca.'),
+  ('Aferição de pressão arterial', 14.90, 10, 0, 'ACOMPANHAMENTO', 1, 1, NULL, NULL, 0, 'Evitar cafeína e exercício intenso 30 min antes quando possível.', 'Sem contraindicações absolutas.', 'Esfigmomanômetro validado.', 1, 'Inclui orientação breve e registro do resultado.'),
+  ('Glicemia capilar', 19.90, 12, 0, 'TESTE_RAPIDO', 1, 1, NULL, NULL, 0, 'Levar resultados anteriores para comparação quando disponível.', 'Nenhuma contraindicação relevante para teste capilar rotineiro.', 'Lanceta, tira reagente, glicosímetro.', 1, 'Triagem e orientação para procurar atendimento quando necessário.'),
+  ('Teste rápido de COVID-19', 34.90, 15, 0, 'TESTE_RAPIDO', 1, 0, 2, NULL, 0, 'Seguir orientação de janela de testagem conforme sintomas/exposição.', 'Não substitui avaliação médica em caso de sinais de gravidade.', 'Kit teste rápido aprovado, EPI.', 1, 'Disponível somente na farmácia para garantir biossegurança.'),
+  ('Vacinação aplicada na farmácia', 79.90, 25, 0, 'VACINACAO', 1, 0, NULL, NULL, 20, 'Apresentar carteira de vacinação e documento de identificação.', 'Febre aguda, alergia grave prévia a componente vacinal, conforme protocolo.', 'Imunobiológico, seringa, EPI e insumos de emergência.', 1, 'Valor base; vacina e protocolo podem variar conforme campanha.'),
+  ('Acompanhamento farmacoterapêutico mensal', 99.90, 45, 0, 'ACOMPANHAMENTO', 1, 1, 18, NULL, 0, 'Levar lista de medicamentos, exames e histórico clínico.', 'Sem contraindicação; serviço de cuidado contínuo.', 'Ficha clínica e plano de cuidado.', 1, 'Focado em adesão, interações e metas terapêuticas.'),
+  ('Revisão da farmacoterapia (polifarmácia)', 129.90, 60, 0, 'ACOMPANHAMENTO', 1, 1, 18, NULL, 0, 'Levar todos os medicamentos em uso (incluindo fitoterápicos e suplementos).', 'Sem contraindicação; requer colaboração do paciente/cuidador.', 'Checklist de interações e conciliação medicamentosa.', 1, 'Análise técnica e plano de intervenção farmacêutica.'),
+  ('Orientação farmacêutica pós-alta', 69.90, 30, 0, 'ORIENTACAO', 1, 1, NULL, NULL, 0, 'Trazer receita de alta, exames recentes e dúvidas principais.', 'Sem contraindicação.', 'Roteiro de educação em saúde.', 1, 'Suporte para transição de cuidado após internação.'),
+  ('Nebulização assistida', 29.90, 20, 1, 'PROCEDIMENTO', 1, 0, 2, NULL, 10, 'Levar medicação prescrita e receita quando aplicável.', 'Dispneia intensa, saturação baixa ou desconforto respiratório importante exigem emergência.', 'Nebulizador, máscara, solução prescrita.', 1, 'Realizada na farmácia com monitoramento básico.')
+ON DUPLICATE KEY UPDATE
+  price = VALUES(price),
+  duration_minutes = VALUES(duration_minutes),
+  requires_prescription = VALUES(requires_prescription),
+  service_group = VALUES(service_group),
+  in_store_available = VALUES(in_store_available),
+  home_available = VALUES(home_available),
+  min_age_years = VALUES(min_age_years),
+  max_age_years = VALUES(max_age_years),
+  post_observation_minutes = VALUES(post_observation_minutes),
+  prep_instructions = VALUES(prep_instructions),
+  contraindications = VALUES(contraindications),
+  required_supplies = VALUES(required_supplies),
+  is_active = VALUES(is_active),
+  notes = VALUES(notes);
 
 INSERT INTO stock_locations (name, description) VALUES
   ('LOJA_FISICA', 'Estoque da loja física'),

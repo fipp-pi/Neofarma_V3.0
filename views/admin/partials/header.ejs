@@ -212,6 +212,12 @@
         <a href="/admin/financas" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'financas' ? 'active' : '' %>">
           <i class="bi bi-cash-stack me-2"></i> Finanças
         </a>
+        <a href="/admin/agendamentos-servicos" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'agendamentos_servicos' ? 'active' : '' %>">
+          <i class="bi bi-calendar2-check me-2"></i> Agendar Serviços
+        </a>
+        <a href="/admin/agendamentos-servicos/caixa" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'agendamentos_servicos' ? 'active' : '' %>">
+          <i class="bi bi-cash-coin me-2"></i> Caixa de Serviços
+        </a>
         <a href="/admin/clientes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'clientes' ? 'active' : '' %> mt-2">
           <i class="bi bi-people me-2"></i> Clientes
         </a>

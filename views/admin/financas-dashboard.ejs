@@ -6,7 +6,7 @@
       const n = Number(v || 0);
       return n.toFixed(2).replace('.', ',');
     }
-    const totalOrders = Number(summary && summary.total_orders ? summary.total_orders : 0);
+    const totalOrders = Number(summary && summary.total_transactions ? summary.total_transactions : 0);
     const pending = Number(summary && summary.pending_count ? summary.pending_count : 0);
     const failed = Number(summary && summary.failed_count ? summary.failed_count : 0);
     const paid = Math.max(0, totalOrders - pending - failed);
@@ -23,12 +23,16 @@
 
     const pixRev = Number(revenueByMethod && revenueByMethod.PIX ? revenueByMethod.PIX : 0);
     const boletoRev = Number(revenueByMethod && revenueByMethod.BOLETO ? revenueByMethod.BOLETO : 0);
-    const cardRev = Number(revenueByMethod && revenueByMethod.CREDIT_CARD ? revenueByMethod.CREDIT_CARD : 0);
-    const totalRevByMethod = pixRev + boletoRev + cardRev;
+    const creditRev = Number(revenueByMethod && revenueByMethod.CREDIT_CARD ? revenueByMethod.CREDIT_CARD : 0);
+    const debitRev = Number(revenueByMethod && revenueByMethod.DEBIT_CARD ? revenueByMethod.DEBIT_CARD : 0);
+    const cashRev = Number(revenueByMethod && revenueByMethod.CASH ? revenueByMethod.CASH : 0);
+    const cardRev = creditRev + debitRev;
+    const totalRevByMethod = pixRev + boletoRev + cardRev + cashRev;
 
     const pixPct = pct(pixRev, totalRevByMethod);
     const boletoPct = pct(boletoRev, totalRevByMethod);
     const cardPct = pct(cardRev, totalRevByMethod);
+    const cashPct = pct(cashRev, totalRevByMethod);
   %>
 
   <div class="list-header">
@@ -68,8 +72,8 @@
     <div class="col-md-3">
       <div class="card h-100">
         <div class="card-body">
-          <div class="text-muted small">Total de pedidos</div>
-          <div class="display-6" style="font-weight: 700;"><%= summary && summary.total_orders ? summary.total_orders : 0 %></div>
+          <div class="text-muted small">Total de transações</div>
+          <div class="display-6" style="font-weight: 700;"><%= summary && summary.total_transactions ? summary.total_transactions : 0 %></div>
         </div>
       </div>
     </div>
@@ -97,14 +101,14 @@
       <div class="card h-100">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="text-muted small">Participação da receita por método</div>
+            <div class="text-muted small">Participação da receita por método (loja + serviços)</div>
             <strong class="small">Total: R$ <%= toLocaleString(totalRevByMethod) %></strong>
           </div>
           <div style="height: 250px;">
             <canvas id="revenueByMethodChart" aria-label="Gráfico de receita por método"></canvas>
           </div>
           <div class="small text-muted mt-2">
-            PIX: <strong>R$ <%= toLocaleString(pixRev) %></strong> | BOLETO: <strong>R$ <%= toLocaleString(boletoRev) %></strong> | CARTÃO: <strong>R$ <%= toLocaleString(cardRev) %></strong>
+            PIX: <strong>R$ <%= toLocaleString(pixRev) %></strong> | BOLETO: <strong>R$ <%= toLocaleString(boletoRev) %></strong> | CARTÃO: <strong>R$ <%= toLocaleString(cardRev) %></strong> | DINHEIRO: <strong>R$ <%= toLocaleString(cashRev) %></strong>
           </div>
         </div>
       </div>
@@ -196,11 +200,11 @@
       new window.Chart(revCtx, {
         type: 'bar',
         data: {
-          labels: ['PIX', 'BOLETO', 'CARTÃO'],
+          labels: ['PIX', 'BOLETO', 'CARTÃO', 'DINHEIRO'],
           datasets: [{
             label: 'Receita (R$)',
-            data: [<%= pixRev %>, <%= boletoRev %>, <%= cardRev %>],
-            backgroundColor: ['#0d6efd', '#6c757d', '#0dcaf0'],
+            data: [<%= pixRev %>, <%= boletoRev %>, <%= cardRev %>, <%= cashRev %>],
+            backgroundColor: ['#0d6efd', '#6c757d', '#0dcaf0', '#198754'],
             borderRadius: 6,
             borderSkipped: false,
           }]

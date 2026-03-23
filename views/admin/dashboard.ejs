@@ -57,6 +57,32 @@
     </a>
   </div>
   <div class="col-md-4">
+    <a href="/admin/agendamentos-servicos" class="card text-decoration-none text-dark h-100 border-primary">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <i class="bi bi-calendar2-check display-6 text-accent"></i>
+          <span class="badge bg-primary"><%= (appointmentCounts && appointmentCounts.total) || 0 %></span>
+        </div>
+        <h5 class="card-title mt-2">Agendamentos</h5>
+        <p class="card-text small text-muted mb-0">
+          Gestão de serviços e agenda. Caixa em dinheiro pendente: <strong><%= (appointmentCounts && appointmentCounts.pendingCash) || 0 %></strong>.
+        </p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="/admin/agendamentos-servicos/caixa" class="card text-decoration-none text-dark h-100 border-warning">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <i class="bi bi-cash-coin display-6 text-warning"></i>
+          <span class="badge bg-warning text-dark"><%= (appointmentCounts && appointmentCounts.pendingCash) || 0 %></span>
+        </div>
+        <h5 class="card-title mt-2">Caixa de Serviços</h5>
+        <p class="card-text small text-muted mb-0">Pendências de recebimento em dinheiro.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
     <a href="/admin/produtos?batchRisk=EXPIRED" class="card text-decoration-none text-dark h-100 border-danger">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center">

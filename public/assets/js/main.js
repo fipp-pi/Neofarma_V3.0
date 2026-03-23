@@ -320,6 +320,34 @@
   productDetailFeatures();
 
   /**
+   * Global CEP mask (Brazilian format 00000-000).
+   * Applies to inputs with:
+   * - data-mask-cep
+   * - id containing "cep"/"zip"
+   * - name containing "cep"/"zip"
+   */
+  function bindGlobalCepMask() {
+    function formatCep(v) {
+      const d = String(v || '').replace(/\D/g, '').slice(0, 8);
+      if (d.length <= 5) return d;
+      return `${d.slice(0, 5)}-${d.slice(5)}`;
+    }
+
+    document.addEventListener('input', function (ev) {
+      const t = ev.target;
+      if (!t || !t.tagName || t.tagName.toLowerCase() !== 'input') return;
+      const id = String(t.id || '').toLowerCase();
+      const name = String(t.name || '').toLowerCase();
+      const hasMaskAttr = t.hasAttribute('data-mask-cep');
+      const looksLikeCep = id.includes('cep') || id.includes('zip') || name.includes('cep') || name.includes('zip');
+      if (!hasMaskAttr && !looksLikeCep) return;
+      t.value = formatCep(t.value);
+    }, true);
+  }
+
+  bindGlobalCepMask();
+
+  /**
    * Price range slider implementation for price filtering.
    */
   function priceRangeWidget() {
