@@ -290,18 +290,46 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     })
-    .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
+    .then(function(r) {
+      return r.text().then(function(raw) {
+        var data = null;
+        if (raw) {
+          try { data = JSON.parse(raw); } catch (_) { data = null; }
+        }
+        return { status: r.status, okHttp: r.ok, data: data, raw: raw || '' };
+      });
+    })
     .then(function(result) {
       btn.disabled = false;
-      if (result.data.ok && result.data.redirect) {
-        window.neofarmaToast(result.data.message || 'Conta criada! Faça login.', 'success');
+      if (result.data && result.data.ok && result.data.redirect) {
+        try {
+          if (typeof window.neofarmaToast === 'function') {
+            window.neofarmaToast(result.data.message || 'Conta criada! Faça login.', 'success');
+          }
+        } catch (_) {}
         window.location.href = result.data.redirect;
-      } else {
-        msgErro.textContent = result.data.message || 'Erro ao criar conta.';
-        msgErro.classList.remove('d-none');
+        return;
       }
+
+      if (result.data && result.data.message) {
+        msgErro.textContent = result.data.message;
+      } else if (result.status === 409) {
+        msgErro.textContent = 'Este e-mail já está cadastrado.';
+      } else if (result.status >= 500) {
+        msgErro.textContent = 'Erro interno do servidor ao criar conta.';
+      } else if (!result.okHttp) {
+        msgErro.textContent = 'Não foi possível concluir o cadastro. Verifique os dados e tente novamente.';
+      } else {
+        msgErro.textContent = 'Resposta inesperada do servidor.';
+      }
+      msgErro.classList.remove('d-none');
     })
-    .catch(function() { btn.disabled = false; msgErro.textContent = 'Erro de conexão.'; msgErro.classList.remove('d-none'); });
+    .catch(function(err) {
+      btn.disabled = false;
+      console.error('Falha no cadastro (register fetch):', err);
+      msgErro.textContent = 'Erro de comunicação ao finalizar cadastro. Atualize a página e tente novamente.';
+      msgErro.classList.remove('d-none');
+    });
   });
 })();
 </script>

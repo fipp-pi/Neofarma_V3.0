@@ -11,7 +11,7 @@
   <link href="/assets/css/cadastro-custom.css" rel="stylesheet">
   <style>
     .admin-sidebar { min-height: 100vh; background: var(--accent-color); color: var(--contrast-color); }
-    .admin-sidebar a { color: rgba(255,255,255,0.9); text-decoration: none; padding: 0.5rem 1rem; display: block; border-radius: 0.25rem; transition: 0.3s; }
+    .admin-sidebar a { color: rgba(255,255,255,0.9); text-decoration: none; padding: 0.5rem 1rem; display: flex; align-items: center; border-radius: 0.25rem; transition: 0.3s; }
     .admin-sidebar a:hover, .admin-sidebar a.active { color: #fff; background: rgba(255,255,255,0.15); }
     .admin-content { padding: 1.5rem; }
     .admin-content .btn-primary { background-color: var(--accent-color); border-color: var(--accent-color); }
@@ -69,6 +69,31 @@
     .admin-content .card.border-primary {
       border-color: color-mix(in srgb, var(--accent-color), transparent 40%) !important;
     }
+
+    /* Sidebar recolhível (somente ícones) */
+    .admin-sidebar { width: 220px; transition: width 0.2s ease; }
+    body.admin-sidebar-collapsed .admin-sidebar { width: 64px; }
+    body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand-text,
+    body.admin-sidebar-collapsed .admin-sidebar .nav-label,
+    body.admin-sidebar-collapsed .admin-sidebar .sidebar-section-title {
+      display: none !important;
+    }
+    body.admin-sidebar-collapsed .admin-sidebar .sidebar-home-link {
+      display: none !important;
+    }
+    body.admin-sidebar-collapsed .admin-sidebar a {
+      justify-content: center;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+      min-height: 40px;
+    }
+    body.admin-sidebar-collapsed .admin-sidebar a i {
+      margin-right: 0 !important;
+    }
+    body.admin-sidebar-collapsed .admin-sidebar .sidebar-toggle-btn {
+      width: 100%;
+      justify-content: center;
+    }
   </style>
 </head>
 <body class="<%= locals.bodyClass || '' %>">
@@ -106,6 +131,13 @@
   </div>
 
   <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('neofarma_admin_sidebar');
+        if (saved === 'collapsed') document.body.classList.add('admin-sidebar-collapsed');
+      } catch (_) {}
+    })();
+
     window.neofarmaToast = window.neofarmaToast || function (message, type) {
       try {
         var toastEl = document.getElementById('neofarmaToast');
@@ -183,44 +215,63 @@
     };
   </script>
   <div class="d-flex">
-    <nav class="admin-sidebar flex-shrink-0" style="width: 220px;">
+    <nav class="admin-sidebar flex-shrink-0">
       <div class="p-3 border-bottom border-secondary">
-        <a href="/" class="d-flex align-items-center">
-          <i class="bi bi-house me-2"></i> Voltar ao site
-        </a>
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <a href="/" class="d-flex align-items-center flex-grow-1 sidebar-home-link">
+            <i class="bi bi-house me-2"></i>
+            <span class="sidebar-brand-text">Voltar ao site</span>
+          </a>
+          <button type="button" class="btn btn-sm btn-outline-light d-flex align-items-center gap-2 sidebar-toggle-btn" id="btnAdminToggleSidebar" aria-label="Recolher/expandir menu">
+            <i class="bi bi-layout-sidebar-inset"></i>
+            <span class="nav-label">Menu</span>
+          </button>
+        </div>
       </div>
       <div class="p-2">
-        <div class="small text-uppercase text-muted px-2 mb-2">Painel Admin</div>
+        <div class="small text-uppercase text-muted px-2 mb-2 sidebar-section-title">Painel Admin</div>
         <a href="/admin" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'dashboard' ? 'active' : '' %>">
-          <i class="bi bi-speedometer2 me-2"></i> Dashboard
+          <i class="bi bi-speedometer2 me-2"></i> <span class="nav-label">Dashboard</span>
         </a>
         <a href="/admin/produtos" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'produtos' ? 'active' : '' %>">
-          <i class="bi bi-box-seam me-2"></i> Produtos
+          <i class="bi bi-box-seam me-2"></i> <span class="nav-label">Produtos</span>
         </a>
         <a href="/admin/lotes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'lotes' ? 'active' : '' %>">
-          <i class="bi bi-archive me-2"></i> Lotes
+          <i class="bi bi-archive me-2"></i> <span class="nav-label">Lotes</span>
         </a>
         <a href="/admin/laboratorios" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'laboratorios' ? 'active' : '' %>">
-          <i class="bi bi-bank me-2"></i> Laboratórios
+          <i class="bi bi-bank me-2"></i> <span class="nav-label">Laboratórios</span>
         </a>
         <a href="/admin/fornecedores" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'fornecedores' ? 'active' : '' %>">
-          <i class="bi bi-truck me-2"></i> Fornecedores
+          <i class="bi bi-truck me-2"></i> <span class="nav-label">Fornecedores</span>
         </a>
         <a href="/admin/categorias" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'categorias' ? 'active' : '' %>">
-          <i class="bi bi-tags me-2"></i> Categorias
+          <i class="bi bi-tags me-2"></i> <span class="nav-label">Categorias</span>
         </a>
         <a href="/admin/financas" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'financas' ? 'active' : '' %>">
-          <i class="bi bi-cash-stack me-2"></i> Finanças
+          <i class="bi bi-cash-stack me-2"></i> <span class="nav-label">Finanças</span>
         </a>
         <a href="/admin/agendamentos-servicos" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'agendamentos_servicos' ? 'active' : '' %>">
-          <i class="bi bi-calendar2-check me-2"></i> Agendar Serviços
+          <i class="bi bi-calendar2-check me-2"></i> <span class="nav-label">Agendar Serviços</span>
         </a>
         <a href="/admin/agendamentos-servicos/caixa" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'agendamentos_servicos' ? 'active' : '' %>">
-          <i class="bi bi-cash-coin me-2"></i> Caixa de Serviços
+          <i class="bi bi-cash-coin me-2"></i> <span class="nav-label">Caixa de Serviços</span>
         </a>
         <a href="/admin/clientes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'clientes' ? 'active' : '' %> mt-2">
-          <i class="bi bi-people me-2"></i> Clientes
+          <i class="bi bi-people me-2"></i> <span class="nav-label">Clientes</span>
         </a>
       </div>
     </nav>
     <main class="admin-content flex-grow-1">
+      <script>
+        (function () {
+          var btn = document.getElementById('btnAdminToggleSidebar');
+          if (!btn) return;
+          btn.addEventListener('click', function () {
+            document.body.classList.toggle('admin-sidebar-collapsed');
+            try {
+              localStorage.setItem('neofarma_admin_sidebar', document.body.classList.contains('admin-sidebar-collapsed') ? 'collapsed' : 'expanded');
+            } catch (_) {}
+          });
+        })();
+      </script>

@@ -331,6 +331,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const formRegister = document.querySelector(".register-page form");
   if (!formRegister) return;
+  // A página register.ejs já possui fluxo próprio (validação + fetch /register).
+  // Evita dupla validação/submissão competindo entre scripts.
+  if (formRegister.id === "formRegister") return;
 
   //LISTA DE CAMPOS
   const campos = [

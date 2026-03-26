@@ -69,35 +69,40 @@ async function postRegister(req, res, next) {
       return res.status(500).json({ ok: false, message: 'Configuração do sistema indisponível.' });
     }
 
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
-    } catch (txErr) {
-      conn.release();
-      throw txErr;
-    }
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
 
     const password_hash = await bcrypt.hash(password, 10);
-    const userId = await User.create({
-      role_id: roleCliente.id,
-      full_name: full_name.trim(),
-      email: email.trim().toLowerCase(),
-      password_hash,
-      document: document && document.trim() ? document.trim() : null,
-      phone: phone && phone.trim() ? phone.trim() : null,
-      birth_date: birth_date && birth_date.trim() ? birth_date.trim() : null,
-    });
+    const [userResult] = await conn.execute(
+      `INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        roleCliente.id,
+        full_name.trim(),
+        email.trim().toLowerCase(),
+        password_hash,
+        document && document.trim() ? document.trim() : null,
+        phone && phone.trim() ? phone.trim() : null,
+        birth_date && birth_date.trim() ? birth_date.trim() : null,
+      ]
+    );
+    const userId = userResult.insertId;
 
-    const addressId = await Address.create({
-      street: street.trim(),
-      number: String(number).trim(),
-      complement: complement && String(complement).trim() ? String(complement).trim() : null,
-      district: district.trim(),
-      city: city.trim(),
-      state: String(state).trim().toUpperCase().slice(0, 2),
-      country: (country && String(country).trim()) || 'Brasil',
-      zip_code: cepClean,
-    });
+    const [addrResult] = await conn.execute(
+      `INSERT INTO addresses (street, number, complement, district, city, state, country, zip_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        street.trim(),
+        String(number).trim(),
+        complement && String(complement).trim() ? String(complement).trim() : null,
+        district.trim(),
+        city.trim(),
+        String(state).trim().toUpperCase().slice(0, 2),
+        (country && String(country).trim()) || 'Brasil',
+        cepClean,
+      ]
+    );
+    const addressId = addrResult.insertId;
 
     const [insertCust] = await conn.execute(
       'INSERT INTO customers (user_id, default_address_id) VALUES (?, ?)',
@@ -123,7 +128,8 @@ async function postRegister(req, res, next) {
     if (err.code === 'ER_NO_REFERENCED_ROW_2' || (err.message && err.message.includes('default_address_id'))) {
       return res.status(500).json({ ok: false, message: 'Tabela customers sem coluna default_address_id. Adicione a coluna ou use apenas customer_addresses.' });
     }
-    next(err);
+    console.error('Erro no registro:', err && err.message ? err.message : err);
+    return res.status(500).json({ ok: false, message: 'Erro interno ao criar conta. Tente novamente.' });
   }
 }
 
