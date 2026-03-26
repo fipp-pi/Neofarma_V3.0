@@ -240,6 +240,74 @@ async function updatePaymentResult(id, approved) {
   return result.affectedRows;
 }
 
+function buildPaymentRef(id) {
+  return `SRV-${String(id).padStart(8, '0')}`;
+}
+
+/**
+ * Confirma pagamento pelo lado do cliente (simulação).
+ * Segurança: valida o customer_id, status e expiração da reserva.
+ */
+async function payByCustomer({ id, customerId, payment_method }) {
+  await ensureAppointmentColumns();
+  const apptId = Number(id);
+  const custId = Number(customerId);
+  if (!apptId || !custId) return { ok: false, code: 'INVALID', message: 'Agendamento inválido.' };
+  const method = payment_method ? String(payment_method).toUpperCase() : null;
+  if (method && !['PIX', 'CREDIT_CARD', 'DEBIT_CARD'].includes(method)) {
+    return { ok: false, code: 'PAYMENT_METHOD_INVALID', message: 'Forma de pagamento inválida.' };
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.execute(
+      `SELECT id, customer_id, status, payment_status, payment_method, reservation_expires_at
+       FROM service_appointments
+       WHERE id = ?
+       FOR UPDATE`,
+      [apptId]
+    );
+    const current = rows && rows[0] ? rows[0] : null;
+    if (!current) {
+      await connection.rollback();
+      return { ok: false, code: 'NOT_FOUND', message: 'Agendamento não encontrado.' };
+    }
+    if (Number(current.customer_id || 0) !== custId) {
+      await connection.rollback();
+      return { ok: false, code: 'FORBIDDEN', message: 'Você não pode pagar este agendamento.' };
+    }
+    const status = String(current.status || '').toUpperCase();
+    if (!['RESERVED', 'PAYMENT_FAILED'].includes(status)) {
+      await connection.rollback();
+      return { ok: false, code: 'INVALID_STATUS', message: 'Este agendamento não está disponível para pagamento.' };
+    }
+    if (!current.reservation_expires_at || new Date(current.reservation_expires_at).getTime() < Date.now()) {
+      await connection.rollback();
+      return { ok: false, code: 'EXPIRED', message: 'Reserva expirada. Refaça o agendamento.' };
+    }
+
+    const paymentRef = buildPaymentRef(apptId);
+    const [result] = await connection.execute(
+      `UPDATE service_appointments
+       SET status = 'CONFIRMED',
+           payment_status = 'PAID',
+           payment_ref = ?,
+           payment_method = COALESCE(?, payment_method),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [paymentRef, method, apptId]
+    );
+    await connection.commit();
+    return { ok: !!(result && result.affectedRows), payment_ref: paymentRef };
+  } catch (err) {
+    try { await connection.rollback(); } catch (_) {}
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 async function confirmCashBooking(id) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -402,6 +470,7 @@ module.exports = {
   deleteHoliday,
   isHoliday,
   updatePaymentResult,
+  payByCustomer,
   confirmCashBooking,
   markInProgress,
   markCompleted,

@@ -18,6 +18,8 @@ router.delete('/account/address/:id', requireAuth, accountController.deleteAddre
 router.post('/account/address/:id/default', requireAuth, accountController.setAddressDefault);
 router.post('/account/orders/:id/cancel', requireAuth, accountController.postCancelOrder);
 router.get('/account/agendamentos', requireAuth, serviceAppointmentAdminController.renderCustomerBookingPage);
+router.get('/account/agendamentos/pagar/:id', requireAuth, serviceAppointmentAdminController.renderCustomerPaymentPage);
+router.get('/account/agendamentos/recibo/:id', requireAuth, serviceAppointmentAdminController.renderCustomerReceiptPage);
 router.get('/logout', authController.getLogout);
 router.get('/', catalogController.home);
 router.get('/cart', commerceController.renderCart);

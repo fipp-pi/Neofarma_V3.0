@@ -23,5 +23,6 @@ router.post('/shipping/select', commerceController.apiSetShipping);
 router.post('/checkout/finalize', requireAuth, commerceController.finalizeCheckout);
 router.post('/checkout/payment-preview', requireAuth, commerceController.apiPaymentPreview);
 router.post('/service-appointments', requireAuth, serviceAppointmentAdminController.createCustomerBooking);
+router.post('/service-appointments/:id/pay', requireAuth, serviceAppointmentAdminController.payCustomerAppointment);
 
 module.exports = router;

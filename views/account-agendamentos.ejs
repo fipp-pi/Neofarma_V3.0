@@ -65,7 +65,7 @@
       <h5 class="mb-2">Minhas solicitações</h5>
       <div class="table-responsive">
         <table class="table table-hover align-middle">
-          <thead><tr><th>#</th><th>Serviço</th><th>Profissional</th><th>Quando</th><th>Pagamento</th><th>Status</th></tr></thead>
+          <thead><tr><th>#</th><th>Serviço</th><th>Profissional</th><th>Quando</th><th>Pagamento</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
           <tbody>
             <% (bookings || []).forEach(function(b){ %>
               <tr>
@@ -73,12 +73,28 @@
                 <td><%= b.service_name %></td>
                 <td><%= b.professional_name || '-' %></td>
                 <td><%= new Date(b.scheduled_start).toLocaleString('pt-BR') %></td>
-                <td><%= b.payment_method %> / <%= b.payment_status %></td>
+                <td>
+                  <%= b.payment_method %> /
+                  <span class="badge <%= String(b.payment_status || '').toUpperCase() === 'PAID' ? 'bg-success' : (String(b.payment_status || '').toUpperCase() === 'FAILED' ? 'bg-danger' : 'bg-warning') %>">
+                    <%= b.payment_status %>
+                  </span>
+                </td>
                 <td><span class="badge bg-primary"><%= b.status %></span></td>
+                <td class="text-end">
+                  <% const canPay = (String(b.status || '').toUpperCase() === 'RESERVED' || String(b.status || '').toUpperCase() === 'PAYMENT_FAILED') && String(b.payment_status || '').toUpperCase() !== 'PAID' && String(b.payment_method || '').toUpperCase() !== 'CASH'; %>
+                  <% const canReceipt = (String(b.payment_status || '').toUpperCase() === 'PAID' || String(b.payment_status || '').toUpperCase() === 'REFUNDED_PARTIAL'); %>
+                  <% if (canPay) { %>
+                    <a class="btn btn-sm btn-success" href="/account/agendamentos/pagar/<%= b.id %>">Pagar</a>
+                  <% } else if (canReceipt) { %>
+                    <a class="btn btn-sm btn-outline-primary" href="/account/agendamentos/recibo/<%= b.id %>">Ver recibo</a>
+                  <% } else { %>
+                    <span class="text-muted small">-</span>
+                  <% } %>
+                </td>
               </tr>
             <% }) %>
             <% if (!bookings || !bookings.length) { %>
-              <tr><td colspan="6" class="text-muted">Nenhum agendamento ainda.</td></tr>
+              <tr><td colspan="7" class="text-muted">Nenhum agendamento ainda.</td></tr>
             <% } %>
           </tbody>
         </table>
@@ -88,37 +104,86 @@
 </main>
 <script>
   function toast(msg, type) {
-    if (typeof window.neofarmaToast === 'function') return window.neofarmaToast(msg, type);
-    console.log((type || 'info') + ': ' + msg);
+    const message = (msg == null ? '' : String(msg));
+    const level = String(type || 'info').toLowerCase();
+    try {
+      if (typeof window.neofarmaToast === 'function') {
+        window.neofarmaToast(message, level);
+        return;
+      }
+    } catch (_) {}
+    try {
+      var host = document.getElementById('local_booking_feedback');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'local_booking_feedback';
+        host.style.position = 'fixed';
+        host.style.right = '16px';
+        host.style.bottom = '16px';
+        host.style.zIndex = '2000';
+        host.style.display = 'flex';
+        host.style.flexDirection = 'column';
+        host.style.gap = '8px';
+        document.body.appendChild(host);
+      }
+      var cssClass = 'alert-info';
+      if (level === 'success') cssClass = 'alert-success';
+      if (level === 'danger' || level === 'error') cssClass = 'alert-danger';
+      if (level === 'warning') cssClass = 'alert-warning';
+      var item = document.createElement('div');
+      item.className = 'alert ' + cssClass;
+      item.style.margin = '0';
+      item.style.minWidth = '260px';
+      item.style.maxWidth = '420px';
+      item.textContent = message;
+      host.appendChild(item);
+      setTimeout(function () {
+        if (item && item.parentNode) item.parentNode.removeChild(item);
+      }, 4000);
+    } catch (e) {
+      console.log(level + ': ' + message);
+      try { alert(message); } catch (_) {}
+    }
   }
   document.getElementById('btnCriarAgendamento').addEventListener('click', async function () {
-    const when = document.getElementById('bk_scheduled_start').value;
-    const dt = when ? new Date(when) : null;
-    const minLead = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    if (!dt || Number.isNaN(dt.getTime()) || dt < minLead) {
-      return toast('Agende com no mínimo 1 dia de antecedência.', 'danger');
-    }
-    const holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0,10); })) %>;
-    if (dt.getDay() === 0 || holidayDates.indexOf(when.slice(0,10)) >= 0) {
-      return toast('Data indisponível para agendamento.', 'danger');
-    }
-    const resp = await fetch('/api/service-appointments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        service_id: document.getElementById('bk_service_id').value,
-        professional_id: document.getElementById('bk_professional_id').value,
-        modality: document.getElementById('bk_modality').value,
-        payment_method: document.getElementById('bk_payment_method').value,
-        scheduled_start: when
-      })
-    });
-    const data = await resp.json();
-    if (data.ok) {
-      toast(data.message || 'Agendamento solicitado.', 'success');
-      setTimeout(function(){ location.reload(); }, 800);
-    } else {
-      toast(data.message || 'Falha ao solicitar agendamento.', 'danger');
+    try {
+      const when = document.getElementById('bk_scheduled_start').value;
+      const dt = when ? new Date(when) : null;
+      const minLead = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      if (!dt || Number.isNaN(dt.getTime()) || dt < minLead) {
+        return toast('Agende com no mínimo 1 dia de antecedência.', 'danger');
+      }
+      const holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0,10); })) %>;
+      if (dt.getDay() === 0 || holidayDates.indexOf(when.slice(0,10)) >= 0) {
+        return toast('Data indisponível para agendamento.', 'danger');
+      }
+
+      const resp = await fetch('/api/service-appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: document.getElementById('bk_service_id').value,
+          professional_id: document.getElementById('bk_professional_id').value,
+          modality: document.getElementById('bk_modality').value,
+          payment_method: document.getElementById('bk_payment_method').value,
+          scheduled_start: when
+        })
+      });
+
+      const raw = await resp.text();
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch (_) { data = {}; }
+      if (data.ok) {
+        toast(data.message || 'Agendamento solicitado.', 'success');
+        setTimeout(function(){ location.reload(); }, 800);
+        return;
+      }
+      const code = data && data.code ? String(data.code) : '';
+      const msg = (data && data.message) ? String(data.message) : ('Falha ao solicitar agendamento. (HTTP ' + resp.status + ')');
+      toast(code ? ('[' + code + '] ' + msg) : msg, 'danger');
+    } catch (e) {
+      console.error('Falha ao criar agendamento:', e);
+      toast('Erro de comunicação ao solicitar agendamento. Tente novamente.', 'danger');
     }
   });
 </script>

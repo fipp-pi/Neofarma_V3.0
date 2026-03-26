@@ -1,0 +1,121 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Pagamento do agendamento</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li><a href="/account">Conta</a></li>
+          <li><a href="/account/agendamentos">Agendamentos</a></li>
+          <li class="current">Pagamento</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Confirme o pagamento (simulação)</h4>
+        <a href="/account/agendamentos" class="btn btn-outline-secondary btn-sm">Voltar</a>
+      </div>
+
+      <div class="card p-3 mb-3">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <div class="text-muted small">Serviço</div>
+            <div><strong><%= appointment.service_name %></strong></div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Profissional</div>
+            <div><strong><%= appointment.professional_name || '-' %></strong></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Quando</div>
+            <div><strong><%= new Date(appointment.scheduled_start).toLocaleString('pt-BR') %></strong></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Total</div>
+            <div><strong>R$ <%= Number(appointment.total_amount || 0).toFixed(2).replace('.', ',') %></strong></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Status</div>
+            <div><span class="badge bg-primary"><%= appointment.status %></span> <span class="badge <%= appointment.payment_status === 'PAID' ? 'bg-success' : (appointment.payment_status === 'FAILED' ? 'bg-danger' : 'bg-warning') %>"><%= appointment.payment_status %></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-6">
+            <label class="form-label">Forma de pagamento</label>
+            <select class="form-select" id="pay_method">
+              <option value="PIX" <%= String(appointment.payment_method || '').toUpperCase() === 'PIX' ? 'selected' : '' %>>PIX</option>
+              <option value="CREDIT_CARD" <%= String(appointment.payment_method || '').toUpperCase() === 'CREDIT_CARD' ? 'selected' : '' %>>Cartão de crédito</option>
+              <option value="DEBIT_CARD" <%= String(appointment.payment_method || '').toUpperCase() === 'DEBIT_CARD' ? 'selected' : '' %>>Cartão de débito</option>
+            </select>
+            <div class="small text-muted mt-1">Pagamento simulado: ao confirmar, o agendamento passa para <strong>PAID</strong> e aparece em Finanças.</div>
+          </div>
+          <div class="col-md-6 d-grid">
+            <button type="button" class="btn btn-success" id="btnConfirmPay">Confirmar pagamento</button>
+          </div>
+        </div>
+        <div id="pay_feedback" class="mt-2 small" style="display:none;"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  function toast(msg, type) {
+    try {
+      if (typeof window.neofarmaToast === 'function') return window.neofarmaToast(String(msg || ''), type);
+    } catch (_) {}
+    alert(String(msg || ''));
+  }
+
+  function setFeedback(message, isError) {
+    var el = document.getElementById('pay_feedback');
+    if (!el) return;
+    if (!message) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.className = 'mt-2 small ' + (isError ? 'text-danger' : 'text-success');
+    el.textContent = String(message);
+    el.style.display = 'block';
+  }
+
+  document.getElementById('btnConfirmPay').addEventListener('click', async function () {
+    var btn = this;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    setFeedback('', false);
+    try {
+      var resp = await fetch('/api/service-appointments/<%= appointment.id %>/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_method: document.getElementById('pay_method').value })
+      });
+      var raw = await resp.text();
+      var data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch (_) { data = {}; }
+      if (resp.ok && data.ok) {
+        toast(data.message || 'Pagamento confirmado.', 'success');
+        setTimeout(function(){ window.location.href = '/account/agendamentos'; }, 600);
+        return;
+      }
+      var code = data && data.code ? String(data.code) : '';
+      var msg = (data && data.message) ? String(data.message) : ('Falha no pagamento. (HTTP ' + resp.status + ')');
+      setFeedback(code ? ('[' + code + '] ' + msg) : msg, true);
+      toast(code ? ('[' + code + '] ' + msg) : msg, 'danger');
+    } catch (e) {
+      console.error(e);
+      setFeedback('Erro de comunicação ao confirmar pagamento.', true);
+      toast('Erro de comunicação ao confirmar pagamento.', 'danger');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>
+

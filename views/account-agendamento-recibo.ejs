@@ -1,0 +1,92 @@
+<%- include('partials/header') %>
+<main class="main">
+  <div class="page-title light-background">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Recibo do agendamento</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="/">Início</a></li>
+          <li><a href="/account">Conta</a></li>
+          <li><a href="/account/agendamentos">Agendamentos</a></li>
+          <li class="current">Recibo</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Comprovante de pagamento</h4>
+        <div class="d-flex gap-2">
+          <a href="/account/agendamentos" class="btn btn-outline-secondary btn-sm">Voltar</a>
+          <button type="button" class="btn btn-primary btn-sm" onclick="window.print()">Imprimir</button>
+        </div>
+      </div>
+
+      <div class="card p-3">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <div class="text-muted small">Recibo</div>
+            <div><strong>#<%= appointment.id %></strong></div>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="text-muted small">Data de emissão</div>
+            <div><strong><%= new Date().toLocaleString('pt-BR') %></strong></div>
+          </div>
+
+          <div class="col-md-6 mt-2">
+            <div class="text-muted small">Cliente</div>
+            <div><strong><%= appointment.customer_name %></strong></div>
+            <div class="small text-muted"><%= appointment.customer_email || '-' %></div>
+          </div>
+          <div class="col-md-6 mt-2">
+            <div class="text-muted small">Serviço</div>
+            <div><strong><%= appointment.service_name %></strong></div>
+            <div class="small text-muted">Profissional: <%= appointment.professional_name || '-' %></div>
+          </div>
+
+          <div class="col-md-4 mt-2">
+            <div class="text-muted small">Agendado para</div>
+            <div><strong><%= new Date(appointment.scheduled_start).toLocaleString('pt-BR') %></strong></div>
+          </div>
+          <div class="col-md-4 mt-2">
+            <div class="text-muted small">Forma de pagamento</div>
+            <div><strong><%= appointment.payment_method || '-' %></strong></div>
+          </div>
+          <div class="col-md-4 mt-2">
+            <div class="text-muted small">Status do pagamento</div>
+            <div>
+              <span class="badge <%= String(appointment.payment_status || '').toUpperCase() === 'PAID' ? 'bg-success' : 'bg-info text-dark' %>"><%= appointment.payment_status %></span>
+              <% if (String(appointment.payment_ref || '').trim()) { %>
+                <span class="badge bg-secondary">Ref: <%= appointment.payment_ref %></span>
+              <% } %>
+            </div>
+          </div>
+
+          <div class="col-12 mt-3">
+            <hr>
+            <div class="d-flex justify-content-between">
+              <div class="text-muted">Total</div>
+              <div><strong>R$ <%= Number(appointment.total_amount || 0).toFixed(2).replace('.', ',') %></strong></div>
+            </div>
+            <% if (String(appointment.payment_status || '').toUpperCase() === 'REFUNDED_PARTIAL' && Number(appointment.refund_amount || 0) > 0) { %>
+              <div class="d-flex justify-content-between mt-1">
+                <div class="text-muted">Estorno parcial</div>
+                <div><strong>R$ <%= Number(appointment.refund_amount || 0).toFixed(2).replace('.', ',') %></strong></div>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="col-12 mt-3">
+            <div class="small text-muted">
+              Este recibo é um comprovante gerado pelo sistema (pagamento simulado). Em produção, substitua pela integração com gateway (PIX/cartão).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<%- include('partials/footer') %>
+

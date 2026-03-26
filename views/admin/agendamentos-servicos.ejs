@@ -128,8 +128,13 @@
         <div class="btn-group btn-group-sm">
           <a class="btn <%= statusFilter === 'ALL' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos">Todos</a>
           <a class="btn <%= statusFilter === 'RESERVED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=RESERVED">Reservados</a>
+          <a class="btn <%= statusFilter === 'PAYMENT_FAILED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=PAYMENT_FAILED">Pagamento falhou</a>
           <a class="btn <%= statusFilter === 'CONFIRMED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=CONFIRMED">Confirmados</a>
           <a class="btn <%= statusFilter === 'IN_PROGRESS' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=IN_PROGRESS">Em atendimento</a>
+          <a class="btn <%= statusFilter === 'COMPLETED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=COMPLETED">Concluídos</a>
+          <a class="btn <%= statusFilter === 'CANCELLED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=CANCELLED">Cancelados</a>
+          <a class="btn <%= statusFilter === 'NO_SHOW' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=NO_SHOW">Ausentes</a>
+          <a class="btn <%= statusFilter === 'INCOMPLETE' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=INCOMPLETE">Não finalizados</a>
         </div>
       </div>
     </div>
@@ -137,16 +142,21 @@
       <table class="table table-custom align-middle" id="table_appointments">
         <thead>
           <tr>
-            <th>#</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Modalidade</th><th>Horário</th><th>Pagamento</th><th>Status</th><th class="text-end">Ações</th>
+            <th>#</th><th>Cliente</th><th>Origem</th><th>Serviço</th><th>Profissional</th><th>Modalidade</th><th>Horário</th><th>Pagamento</th><th>Status</th><th class="text-end">Ações</th>
           </tr>
         </thead>
         <tbody id="apt_tbody">
           <% (appointments || []).forEach(function(a) { %>
-            <tr data-search="<%= [a.id, a.customer_name, a.customer_email, a.service_name, a.professional_name, a.professional_role, a.modality, a.payment_method, a.payment_status, a.status].filter(Boolean).join(' ').toLowerCase() %>">
+            <tr data-search="<%= [a.id, a.customer_name, a.customer_email, a.booking_channel, a.service_name, a.professional_name, a.professional_role, a.modality, a.payment_method, a.payment_status, a.status].filter(Boolean).join(' ').toLowerCase() %>">
               <td><%= a.id %></td>
               <td>
                 <div><strong><%= a.customer_name %></strong></div>
                 <div class="small text-muted"><%= a.customer_email || '-' %></div>
+              </td>
+              <td>
+                <span class="badge <%= String(a.booking_channel || '').toUpperCase() === 'CUSTOMER_ONLINE' ? 'bg-info text-dark' : 'bg-secondary' %>">
+                  <%= String(a.booking_channel || 'ADMIN') === 'CUSTOMER_ONLINE' ? 'Online' : 'Admin' %>
+                </span>
               </td>
               <td><%= a.service_name %></td>
               <td>
@@ -200,7 +210,7 @@
             </tr>
           <% }) %>
           <% if (!appointments || !appointments.length) { %>
-            <tr><td colspan="9" class="text-muted">Nenhum agendamento encontrado.</td></tr>
+            <tr><td colspan="10" class="text-muted">Nenhum agendamento encontrado.</td></tr>
           <% } %>
         </tbody>
       </table>

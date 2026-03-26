@@ -294,51 +294,51 @@ async function reserveSlot(req, res, next) {
     const b = req.body || {};
     const serviceId = Number(b.service_id);
     const service = await HealthService.findById(serviceId);
-    if (!service || !service.is_active) return res.status(400).json({ ok: false, message: 'Serviço inválido/inativo.' });
+    if (!service || !service.is_active) return res.status(400).json({ ok: false, code: 'SERVICE_INVALID', message: 'Serviço inválido/inativo.' });
 
     const modality = String(b.modality || 'IN_STORE').toUpperCase();
     const paymentMethod = String(b.payment_method || 'PIX').toUpperCase();
     if (!['CASH', 'PIX', 'CREDIT_CARD', 'DEBIT_CARD'].includes(paymentMethod)) {
-      return res.status(400).json({ ok: false, message: 'Forma de pagamento inválida.' });
+      return res.status(400).json({ ok: false, code: 'PAYMENT_METHOD_INVALID', message: 'Forma de pagamento inválida.' });
     }
     const bookingChannel = String(b.booking_channel || 'ADMIN').toUpperCase();
     if (!['ADMIN', 'CUSTOMER_ONLINE'].includes(bookingChannel)) {
-      return res.status(400).json({ ok: false, message: 'Origem de agendamento inválida.' });
+      return res.status(400).json({ ok: false, code: 'BOOKING_CHANNEL_INVALID', message: 'Origem de agendamento inválida.' });
     }
-    if (!['IN_STORE', 'HOME'].includes(modality)) return res.status(400).json({ ok: false, message: 'Modalidade inválida.' });
+    if (!['IN_STORE', 'HOME'].includes(modality)) return res.status(400).json({ ok: false, code: 'MODALITY_INVALID', message: 'Modalidade inválida.' });
     if (modality === 'HOME' && !service.home_available) {
-      return res.status(400).json({ ok: false, message: 'Este serviço não está disponível em domicílio.' });
+      return res.status(400).json({ ok: false, code: 'HOME_NOT_AVAILABLE', message: 'Este serviço não está disponível em domicílio.' });
     }
 
     const startAt = new Date(b.scheduled_start);
-    if (Number.isNaN(startAt.getTime())) return res.status(400).json({ ok: false, message: 'Data/hora inválida.' });
+    if (Number.isNaN(startAt.getTime())) return res.status(400).json({ ok: false, code: 'DATETIME_INVALID', message: 'Data/hora inválida.' });
     const minLead = new Date(Date.now() + (24 * 60 * 60 * 1000));
     if (startAt < minLead) {
-      return res.status(400).json({ ok: false, message: 'Agendamento deve ser feito com no mínimo 1 dia de antecedência.' });
+      return res.status(400).json({ ok: false, code: 'MIN_LEAD', message: 'Agendamento deve ser feito com no mínimo 1 dia de antecedência.' });
     }
     if (startAt.getDay() === 0) {
-      return res.status(400).json({ ok: false, message: 'Não é possível agendar em domingo.' });
+      return res.status(400).json({ ok: false, code: 'SUNDAY', message: 'Não é possível agendar em domingo.' });
     }
     const dateOnly = startAt.toISOString().slice(0, 10);
     const holiday = await ServiceAppointment.isHoliday(dateOnly);
     if (holiday) {
-      return res.status(400).json({ ok: false, message: 'Não é possível agendar em feriado cadastrado.' });
+      return res.status(400).json({ ok: false, code: 'HOLIDAY', message: 'Não é possível agendar em feriado cadastrado.' });
     }
     const professionalId = Number(b.professional_id);
-    if (!professionalId) return res.status(400).json({ ok: false, message: 'Selecione um profissional.' });
+    if (!professionalId) return res.status(400).json({ ok: false, code: 'PROFESSIONAL_REQUIRED', message: 'Selecione um profissional.' });
     const endAt = new Date(startAt.getTime() + Number(service.duration_minutes) * 60000);
     const hasAvailability = await ServiceProfessional.hasAvailability(professionalId, startAt, endAt);
     if (!hasAvailability) {
-      return res.status(409).json({ ok: false, message: 'Profissional sem disponibilidade para esse dia/horário.' });
+      return res.status(409).json({ ok: false, code: 'NO_AVAILABILITY', message: 'Profissional sem disponibilidade para esse dia/horário.' });
     }
     const hasConflict = await ServiceAppointment.hasScheduleConflict(startAt, endAt, professionalId);
-    if (hasConflict) return res.status(409).json({ ok: false, message: 'Horário indisponível. Escolha outro horário.' });
+    if (hasConflict) return res.status(409).json({ ok: false, code: 'CONFLICT', message: 'Horário indisponível. Escolha outro horário.' });
 
     if (modality === 'HOME') {
       const cep = String(b.zip_code || '').replace(/\D/g, '');
-      if (cep.length !== 8) return res.status(400).json({ ok: false, message: 'CEP inválido para atendimento em domicílio.' });
+      if (cep.length !== 8) return res.status(400).json({ ok: false, code: 'ZIP_INVALID', message: 'CEP inválido para atendimento em domicílio.' });
       if (!String(b.street || '').trim() || !String(b.number || '').trim() || !String(b.district || '').trim() || !String(b.city || '').trim() || !String(b.state || '').trim()) {
-        return res.status(400).json({ ok: false, message: 'Preencha endereço completo para atendimento em domicílio.' });
+        return res.status(400).json({ ok: false, code: 'ADDRESS_REQUIRED', message: 'Preencha endereço completo para atendimento em domicílio.' });
       }
     }
 
@@ -429,6 +429,76 @@ async function createCustomerBooking(req, res, next) {
       payment_method: req.body && req.body.payment_method ? req.body.payment_method : 'PIX',
     };
     return reserveSlot(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function renderCustomerPaymentPage(req, res, next) {
+  try {
+    const profile = await Customer.getProfileByUserId(req.session.userId);
+    if (!profile || !profile.customer_id) return res.redirect('/login?redirect=/account/agendamentos');
+    await ServiceAppointment.expirePendingReservations();
+    const id = Number(req.params.id);
+    if (!id) return res.redirect('/account/agendamentos');
+    const appointment = await ServiceAppointment.findById(id);
+    if (!appointment || Number(appointment.customer_id || 0) !== Number(profile.customer_id)) {
+      return res.redirect('/account/agendamentos');
+    }
+    res.render('account-agendamento-pagamento', {
+      title: 'Pagamento do Agendamento - NeoFarma',
+      bodyClass: 'account-page',
+      activeNav: 'account',
+      profile,
+      appointment,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function renderCustomerReceiptPage(req, res, next) {
+  try {
+    const profile = await Customer.getProfileByUserId(req.session.userId);
+    if (!profile || !profile.customer_id) return res.redirect('/login?redirect=/account/agendamentos');
+    const id = Number(req.params.id);
+    if (!id) return res.redirect('/account/agendamentos');
+    const appointment = await ServiceAppointment.findById(id);
+    if (!appointment || Number(appointment.customer_id || 0) !== Number(profile.customer_id)) {
+      return res.redirect('/account/agendamentos');
+    }
+    const paymentStatus = String(appointment.payment_status || '').toUpperCase();
+    if (!['PAID', 'REFUNDED_PARTIAL'].includes(paymentStatus)) {
+      return res.redirect('/account/agendamentos');
+    }
+    res.render('account-agendamento-recibo', {
+      title: 'Recibo do Agendamento - NeoFarma',
+      bodyClass: 'account-page',
+      activeNav: 'account',
+      profile,
+      appointment,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function payCustomerAppointment(req, res, next) {
+  try {
+    const profile = await Customer.getProfileByUserId(req.session.userId);
+    if (!profile || !profile.customer_id) return res.status(403).json({ ok: false, code: 'CUSTOMER_NOT_FOUND', message: 'Cliente não encontrado.' });
+    await ServiceAppointment.expirePendingReservations();
+    const id = Number(req.params.id);
+    const method = req.body && req.body.payment_method ? String(req.body.payment_method).toUpperCase() : null;
+    const result = await ServiceAppointment.payByCustomer({ id, customerId: profile.customer_id, payment_method: method });
+    if (result && result.ok) {
+      return res.json({ ok: true, message: 'Pagamento confirmado e agendamento efetivado (simulação).', payment_ref: result.payment_ref });
+    }
+    const status = (result && result.code === 'NOT_FOUND') ? 404
+      : (result && (result.code === 'FORBIDDEN')) ? 403
+        : (result && (result.code === 'CONFLICT' || result.code === 'NO_AVAILABILITY')) ? 409
+          : 400;
+    return res.status(status).json({ ok: false, code: result.code || 'PAY_FAILED', message: result.message || 'Não foi possível confirmar o pagamento.' });
   } catch (err) {
     next(err);
   }
@@ -673,6 +743,9 @@ module.exports = {
   deleteAppointment,
   renderCustomerBookingPage,
   createCustomerBooking,
+  renderCustomerPaymentPage,
+  renderCustomerReceiptPage,
+  payCustomerAppointment,
   processPayment,
   startAttendance,
   completeAttendance,
