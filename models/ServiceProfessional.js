@@ -1,5 +1,8 @@
 const { pool } = require('../config/database');
 
+/**
+ * Verifica se já existe profissional parecido (email, telefone ou nome+cargo).
+ */
 async function findDuplicate(data) {
   const email = data.email ? String(data.email).trim().toLowerCase() : null;
   const phone = data.phone ? String(data.phone).replace(/\D/g, '') : null;
@@ -24,6 +27,9 @@ async function findDuplicate(data) {
   return rows[0] || null;
 }
 
+/**
+ * Lista profissionais (todos ou só ativos).
+ */
 async function findAll(activeOnly = false) {
   let sql = 'SELECT * FROM service_professionals WHERE 1=1';
   if (activeOnly) sql += ' AND is_active = 1';
@@ -32,11 +38,17 @@ async function findAll(activeOnly = false) {
   return rows;
 }
 
+/**
+ * Busca profissional por id.
+ */
 async function findById(id) {
   const [rows] = await pool.execute('SELECT * FROM service_professionals WHERE id = ? LIMIT 1', [id]);
   return rows[0] || null;
 }
 
+/**
+ * Cria ou atualiza profissional.
+ */
 async function upsert(data, connection = pool) {
   const duplicate = await findDuplicate(data);
   if (duplicate) {
@@ -84,6 +96,9 @@ async function upsert(data, connection = pool) {
   return { id: result.insertId, affectedRows: result.affectedRows };
 }
 
+/**
+ * Substitui a agenda de horários do profissional.
+ */
 async function replaceAvailability(professionalId, slots = [], connection = pool) {
   await connection.execute('DELETE FROM service_professional_availability WHERE professional_id = ?', [professionalId]);
   for (const s of slots) {
@@ -95,6 +110,44 @@ async function replaceAvailability(professionalId, slots = [], connection = pool
   }
 }
 
+/**
+ * Lista faixas de horário cadastradas para um dia da semana.
+ */
+async function listAvailabilityForDay(professionalId, dayOfWeek) {
+  const [rows] = await pool.execute(
+    `SELECT day_of_week, start_time, end_time
+     FROM service_professional_availability
+     WHERE professional_id = ?
+       AND day_of_week = ?
+       AND is_active = 1
+     ORDER BY start_time ASC`,
+    [professionalId, dayOfWeek]
+  );
+  return rows;
+}
+
+/**
+ * Lista toda a disponibilidade semanal do profissional (para edição no admin).
+ */
+async function listAvailability(professionalId) {
+  const [rows] = await pool.execute(
+    `SELECT day_of_week, start_time, end_time
+     FROM service_professional_availability
+     WHERE professional_id = ?
+       AND is_active = 1
+     ORDER BY day_of_week ASC, start_time ASC`,
+    [professionalId]
+  );
+  return rows.map((r) => ({
+    day_of_week: r.day_of_week,
+    start_time: String(r.start_time || '').slice(0, 5),
+    end_time: String(r.end_time || '').slice(0, 5),
+  }));
+}
+
+/**
+ * Confere se o profissional atende naquele dia e faixa de horário.
+ */
 async function hasAvailability(professionalId, startAt, endAt) {
   const startDay = new Date(startAt).getDay();
   const startTime = new Date(startAt).toTimeString().slice(0, 8);
@@ -113,6 +166,9 @@ async function hasAvailability(professionalId, startAt, endAt) {
   return !!rows.length;
 }
 
+/**
+ * Exclui profissional pelo id.
+ */
 async function deleteById(id, connection = pool) {
   const [result] = await connection.execute('DELETE FROM service_professionals WHERE id = ?', [id]);
   return result.affectedRows;
@@ -123,6 +179,8 @@ module.exports = {
   findById,
   upsert,
   replaceAvailability,
+  listAvailabilityForDay,
+  listAvailability,
   hasAvailability,
   deleteById,
 };

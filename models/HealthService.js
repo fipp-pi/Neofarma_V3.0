@@ -1,5 +1,8 @@
 const { pool } = require('../config/database');
 
+/**
+ * Lista os serviços de saúde cadastrados.
+ */
 async function findAll(activeOnly = false) {
   let sql = 'SELECT * FROM health_services WHERE 1=1';
   if (activeOnly) sql += ' AND is_active = 1';
@@ -8,11 +11,17 @@ async function findAll(activeOnly = false) {
   return rows;
 }
 
+/**
+ * Busca um serviço pelo id.
+ */
 async function findById(id) {
   const [rows] = await pool.execute('SELECT * FROM health_services WHERE id = ? LIMIT 1', [id]);
   return rows[0] || null;
 }
 
+/**
+ * Cria ou atualiza um serviço de saúde (mesma função para os dois casos).
+ */
 async function upsert(data) {
   if (data.id) {
     const [result] = await pool.execute(
@@ -65,6 +74,9 @@ async function upsert(data) {
   return { id: result.insertId, affectedRows: result.affectedRows };
 }
 
+/**
+ * Remove serviço pelo id.
+ */
 async function deleteById(id) {
   const [result] = await pool.execute('DELETE FROM health_services WHERE id = ?', [id]);
   return result.affectedRows;

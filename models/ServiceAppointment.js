@@ -1,5 +1,11 @@
 const { pool } = require('../config/database');
+const HealthService = require('./HealthService');
+const ServiceProfessional = require('./ServiceProfessional');
 
+/**
+ * Garante que colunas novas existam na tabela de agendamentos.
+ * Isso evita erro quando o banco está desatualizado.
+ */
 async function ensureAppointmentColumns() {
   const checks = [
     ['customer_id', 'ALTER TABLE service_appointments ADD COLUMN customer_id BIGINT UNSIGNED NULL AFTER professional_id'],
@@ -21,6 +27,9 @@ async function ensureAppointmentColumns() {
   }
 }
 
+/**
+ * Garante que a tabela de feriados exista.
+ */
 async function ensureHolidaysTable() {
   await pool.execute(
     `CREATE TABLE IF NOT EXISTS service_holidays (
@@ -36,6 +45,9 @@ async function ensureHolidaysTable() {
   );
 }
 
+/**
+ * Cancela reservas que passaram do tempo limite de pagamento.
+ */
 async function expirePendingReservations() {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -48,6 +60,9 @@ async function expirePendingReservations() {
   return result.affectedRows;
 }
 
+/**
+ * Verifica se o profissional já tem outro agendamento no mesmo horário.
+ */
 async function hasScheduleConflict(startAt, endAt, professionalId, ignoreId = null) {
   await ensureAppointmentColumns();
   let sql = `SELECT id
@@ -67,6 +82,9 @@ async function hasScheduleConflict(startAt, endAt, professionalId, ignoreId = nu
   return !!rows.length;
 }
 
+/**
+ * Cria uma reserva de agendamento (ainda aguardando pagamento/confirmação).
+ */
 async function createReservation(data) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -102,6 +120,9 @@ async function createReservation(data) {
   return result.insertId;
 }
 
+/**
+ * Busca um agendamento por id com dados do serviço e profissional.
+ */
 async function findById(id) {
   await ensureAppointmentColumns();
   const [rows] = await pool.execute(
@@ -116,6 +137,9 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+/**
+ * Lista agendamentos para o painel administrativo.
+ */
 async function listAll(filters = {}) {
   await ensureAppointmentColumns();
   const status = String(filters.status || 'ALL').toUpperCase();
@@ -134,6 +158,9 @@ async function listAll(filters = {}) {
   return rows;
 }
 
+/**
+ * Lista agendamentos de um cliente específico.
+ */
 async function listByCustomerId(customerId) {
   await ensureAppointmentColumns();
   const [rows] = await pool.execute(
@@ -148,6 +175,9 @@ async function listByCustomerId(customerId) {
   return rows;
 }
 
+/**
+ * Lista atendimentos com pagamento presencial ainda pendente.
+ */
 async function listCashPending(options = {}) {
   await ensureAppointmentColumns();
   const from = options.from ? String(options.from).trim() : '';
@@ -178,6 +208,9 @@ async function listCashPending(options = {}) {
   return rows;
 }
 
+/**
+ * Lista feriados cadastrados para bloquear agenda.
+ */
 async function listHolidays(activeOnly = true) {
   await ensureHolidaysTable();
   let sql = 'SELECT id, holiday_date, name, is_active FROM service_holidays WHERE 1=1';
@@ -187,6 +220,9 @@ async function listHolidays(activeOnly = true) {
   return rows;
 }
 
+/**
+ * Cria um novo feriado.
+ */
 async function addHoliday(dateStr, name) {
   await ensureHolidaysTable();
   const [result] = await pool.execute(
@@ -197,12 +233,18 @@ async function addHoliday(dateStr, name) {
   return result.insertId;
 }
 
+/**
+ * Remove um feriado pelo id.
+ */
 async function deleteHoliday(id) {
   await ensureHolidaysTable();
   const [result] = await pool.execute('DELETE FROM service_holidays WHERE id = ?', [id]);
   return result.affectedRows;
 }
 
+/**
+ * Verifica se uma data é feriado ativo.
+ */
 async function isHoliday(dateStr) {
   await ensureHolidaysTable();
   const [rows] = await pool.execute(
@@ -216,6 +258,9 @@ async function isHoliday(dateStr) {
   return !!rows.length;
 }
 
+/**
+ * Atualiza resultado do pagamento da reserva (aprovado ou recusado).
+ */
 async function updatePaymentResult(id, approved) {
   await ensureAppointmentColumns();
   if (approved) {
@@ -240,6 +285,9 @@ async function updatePaymentResult(id, approved) {
   return result.affectedRows;
 }
 
+/**
+ * Monta um código amigável para identificar pagamento de serviço.
+ */
 function buildPaymentRef(id) {
   return `SRV-${String(id).padStart(8, '0')}`;
 }
@@ -262,7 +310,8 @@ async function payByCustomer({ id, customerId, payment_method }) {
   try {
     await connection.beginTransaction();
     const [rows] = await connection.execute(
-      `SELECT id, customer_id, status, payment_status, payment_method, reservation_expires_at
+      `SELECT id, customer_id, status, payment_status, payment_method, reservation_expires_at,
+              service_id, professional_id, scheduled_start, scheduled_end
        FROM service_appointments
        WHERE id = ?
        FOR UPDATE`,
@@ -287,6 +336,29 @@ async function payByCustomer({ id, customerId, payment_method }) {
       return { ok: false, code: 'EXPIRED', message: 'Reserva expirada. Refaça o agendamento.' };
     }
 
+    const startAt = new Date(current.scheduled_start);
+    const endAt = new Date(current.scheduled_end);
+    const proId = Number(current.professional_id);
+    if (!proId || Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      await connection.rollback();
+      return { ok: false, code: 'INVALID', message: 'Dados do agendamento incompletos.' };
+    }
+    const hasAvailability = await ServiceProfessional.hasAvailability(proId, startAt, endAt);
+    if (!hasAvailability) {
+      await connection.rollback();
+      return { ok: false, code: 'NO_AVAILABILITY', message: 'O horário não está mais disponível. Refaça o agendamento.' };
+    }
+    const hasConflict = await hasScheduleConflict(startAt, endAt, proId, apptId);
+    if (hasConflict) {
+      await connection.rollback();
+      return { ok: false, code: 'CONFLICT', message: 'O horário foi ocupado por outro cliente. Refaça o agendamento.' };
+    }
+    const service = await HealthService.findById(current.service_id);
+    if (!service || !service.is_active) {
+      await connection.rollback();
+      return { ok: false, code: 'SERVICE_INVALID', message: 'Serviço indisponível. Refaça o agendamento.' };
+    }
+
     const paymentRef = buildPaymentRef(apptId);
     const [result] = await connection.execute(
       `UPDATE service_appointments
@@ -308,6 +380,9 @@ async function payByCustomer({ id, customerId, payment_method }) {
   }
 }
 
+/**
+ * Confirma agendamento para pagamento presencial.
+ */
 async function confirmCashBooking(id) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -320,6 +395,9 @@ async function confirmCashBooking(id) {
   return result.affectedRows;
 }
 
+/**
+ * Marca atendimento como "em andamento".
+ */
 async function markInProgress(id) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -331,6 +409,9 @@ async function markInProgress(id) {
   return result.affectedRows;
 }
 
+/**
+ * Finaliza atendimento e salva dados clínicos.
+ */
 async function markCompleted(id, data) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -356,6 +437,9 @@ async function markCompleted(id, data) {
   return result.affectedRows;
 }
 
+/**
+ * Marca cliente como ausente e registra estorno parcial.
+ */
 async function markNoShow(id, refundAmount) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -371,6 +455,9 @@ async function markNoShow(id, refundAmount) {
   return result.affectedRows;
 }
 
+/**
+ * Marca atendimento como não finalizado e aplica regras de estorno.
+ */
 async function markIncomplete(id, reason, options = {}) {
   await ensureAppointmentColumns();
   const refundAmount = Number(options.refund_amount || 0);
@@ -395,6 +482,9 @@ async function markIncomplete(id, reason, options = {}) {
   return result.affectedRows;
 }
 
+/**
+ * Marca pagamento presencial como pago.
+ */
 async function markCashAsPaid(id, paymentMethod = null) {
   await ensureAppointmentColumns();
   const allowed = ['CASH', 'PIX', 'CREDIT_CARD', 'DEBIT_CARD'];
@@ -414,6 +504,9 @@ async function markCashAsPaid(id, paymentMethod = null) {
   return result.affectedRows;
 }
 
+/**
+ * Atualiza dados principais de um agendamento.
+ */
 async function updateById(id, data) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute(
@@ -451,6 +544,9 @@ async function updateById(id, data) {
   return result.affectedRows;
 }
 
+/**
+ * Exclui agendamento pelo id.
+ */
 async function deleteById(id) {
   await ensureAppointmentColumns();
   const [result] = await pool.execute('DELETE FROM service_appointments WHERE id = ?', [id]);

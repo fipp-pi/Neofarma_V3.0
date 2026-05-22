@@ -11,6 +11,9 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
+/**
+ * Gera um nome de arquivo "limpo" para salvar imagens.
+ */
 function slugifyFilename(text) {
   return String(text || 'produto')
     .toLowerCase()
@@ -58,6 +61,9 @@ async function dashboard(req, res, next) {
 }
 
 // ---- Laboratórios ----
+/**
+ * Lista laboratórios na tela administrativa.
+ */
 async function listLabs(req, res, next) {
   try {
     const list = await Lab.findAllWithAddress();
@@ -67,6 +73,9 @@ async function listLabs(req, res, next) {
   }
 }
 
+/**
+ * Cria ou atualiza laboratório (mesma função para os dois casos).
+ */
 async function saveLab(req, res, next) {
   try {
     const data = req.body || {};
@@ -121,6 +130,9 @@ async function saveLab(req, res, next) {
   }
 }
 
+/**
+ * Remove laboratório pelo id.
+ */
 async function deleteLab(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
@@ -133,6 +145,9 @@ async function deleteLab(req, res, next) {
 }
 
 // ---- Fornecedores ----
+/**
+ * Lista fornecedores no painel admin.
+ */
 async function listSuppliers(req, res, next) {
   try {
     const list = await Supplier.findAllWithAddress();
@@ -142,6 +157,9 @@ async function listSuppliers(req, res, next) {
   }
 }
 
+/**
+ * Cria ou atualiza fornecedor.
+ */
 async function saveSupplier(req, res, next) {
   try {
     const data = req.body || {};
@@ -197,6 +215,9 @@ async function saveSupplier(req, res, next) {
   }
 }
 
+/**
+ * Remove fornecedor pelo id.
+ */
 async function deleteSupplier(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
@@ -209,6 +230,9 @@ async function deleteSupplier(req, res, next) {
 }
 
 // ---- Categorias ----
+/**
+ * Lista categorias de produtos.
+ */
 async function listCategories(req, res, next) {
   try {
     const list = await Category.findAll();
@@ -219,6 +243,9 @@ async function listCategories(req, res, next) {
   }
 }
 
+/**
+ * Cria ou atualiza categoria.
+ */
 async function saveCategory(req, res, next) {
   try {
     const data = req.body || {};
@@ -247,6 +274,9 @@ async function saveCategory(req, res, next) {
   }
 }
 
+/**
+ * Exclui categoria pelo id.
+ */
 async function deleteCategory(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
@@ -259,6 +289,10 @@ async function deleteCategory(req, res, next) {
 }
 
 // ---- Produtos ----
+/**
+ * Lista produtos para gestão no admin.
+ * Também traz indicadores de risco de lote (vencido/a vencer).
+ */
 async function listProducts(req, res, next) {
   try {
     const riskFilter = String(req.query.batchRisk || 'ALL').toUpperCase();
@@ -307,6 +341,9 @@ async function listProducts(req, res, next) {
   }
 }
 
+/**
+ * Cria ou atualiza produto e sincroniza categoria no vínculo N:N.
+ */
 async function saveProduct(req, res, next) {
   try {
     const data = req.body || {};
@@ -387,6 +424,9 @@ async function saveProduct(req, res, next) {
   }
 }
 
+/**
+ * Remove produto pelo id.
+ */
 async function deleteProduct(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
@@ -398,6 +438,9 @@ async function deleteProduct(req, res, next) {
   }
 }
 
+/**
+ * Busca imagens cadastradas de um produto.
+ */
 async function getProductImages(req, res, next) {
   try {
     const productId = parseInt(req.params.id, 10);
@@ -411,6 +454,9 @@ async function getProductImages(req, res, next) {
   }
 }
 
+/**
+ * Adiciona uma imagem ao produto via URL.
+ */
 async function addProductImage(req, res, next) {
   try {
     const productId = parseInt(req.params.id, 10);
@@ -426,6 +472,9 @@ async function addProductImage(req, res, next) {
   }
 }
 
+/**
+ * Faz upload da imagem do produto, gera versão principal e miniatura.
+ */
 async function uploadProductImage(req, res, next) {
   try {
     const productId = parseInt(req.params.id, 10);
@@ -465,6 +514,9 @@ async function uploadProductImage(req, res, next) {
   }
 }
 
+/**
+ * Remove imagem do produto (arquivo físico + registro no banco).
+ */
 async function deleteProductImage(req, res, next) {
   try {
     const imageId = parseInt(req.params.id, 10);

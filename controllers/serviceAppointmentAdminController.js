@@ -3,11 +3,18 @@ const ServiceAppointment = require('../models/ServiceAppointment');
 const ServiceProfessional = require('../models/ServiceProfessional');
 const { pool } = require('../config/database');
 const Customer = require('../models/Customer');
+const Scheduling = require('../services/appointmentSchedulingService');
 
+/**
+ * Formata número para mostrar como valor monetário na interface.
+ */
 function toMoney(v) {
   return Number(v || 0).toFixed(2);
 }
 
+/**
+ * Calcula taxa de deslocamento quando o atendimento é em casa.
+ */
 function calcTravelFee(modality, zip) {
   if (modality !== 'HOME') return 0;
   const cep = String(zip || '').replace(/\D/g, '');
@@ -15,10 +22,17 @@ function calcTravelFee(modality, zip) {
   return Number((15 + (tail % 10) * 1.5).toFixed(2));
 }
 
+/**
+ * Cria um código amigável para identificar o pagamento do serviço.
+ */
 function buildPaymentRef(id) {
   return `SRV-${String(id).padStart(8, '0')}`;
 }
 
+/**
+ * Renderiza a página principal de agendamentos do admin.
+ * Conversa com serviços, profissionais e agendamentos.
+ */
 async function renderPage(req, res, next) {
   try {
     await ServiceAppointment.expirePendingReservations();
@@ -36,6 +50,13 @@ async function renderPage(req, res, next) {
       return acc;
     }, { total: 0, reserved: 0, confirmed: 0, inProgress: 0, completed: 0 });
 
+    const minBookingDate = Scheduling.toLocalDateString(new Date(Date.now() + Scheduling.MIN_LEAD_MS));
+    const maxBookingDate = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + Scheduling.MAX_BOOKING_DAYS);
+      return Scheduling.toLocalDateString(d);
+    })();
+
     res.render('admin/agendamentos-servicos', {
       title: 'Agendar Serviços - Admin',
       bodyClass: 'admin-page',
@@ -47,12 +68,25 @@ async function renderPage(req, res, next) {
       statusFilter,
       summary,
       toMoney,
+      minBookingDate,
+      maxBookingDate,
+      servicesCatalog: services.filter((s) => s.is_active).map((s) => ({
+        id: s.id,
+        name: s.name,
+        price: s.price,
+        duration_minutes: s.duration_minutes,
+        in_store_available: !!s.in_store_available,
+        home_available: !!s.home_available,
+      })),
     });
   } catch (err) {
     next(err);
   }
 }
 
+/**
+ * Mostra o caixa dos serviços com foco em pagamentos pendentes.
+ */
 async function renderCashDeskPage(req, res, next) {
   try {
     const from = String(req.query.from || '').trim();
@@ -75,6 +109,9 @@ async function renderCashDeskPage(req, res, next) {
   }
 }
 
+/**
+ * Exporta o relatório do caixa para CSV.
+ */
 async function exportCashDeskCsv(req, res, next) {
   try {
     const from = String(req.query.from || '').trim();
@@ -114,6 +151,9 @@ async function exportCashDeskCsv(req, res, next) {
   }
 }
 
+/**
+ * Cadastra um feriado para bloquear agendamentos nesse dia.
+ */
 async function addHoliday(req, res, next) {
   try {
     const b = req.body || {};
@@ -131,6 +171,9 @@ async function addHoliday(req, res, next) {
   }
 }
 
+/**
+ * Remove um feriado cadastrado.
+ */
 async function deleteHoliday(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -142,6 +185,10 @@ async function deleteHoliday(req, res, next) {
   }
 }
 
+/**
+ * Cria ou atualiza profissional e agenda de disponibilidade.
+ * Conversa com model de profissional e banco em transação.
+ */
 async function saveProfessional(req, res, next) {
   const connection = await pool.getConnection();
   try {
@@ -212,6 +259,9 @@ async function saveProfessional(req, res, next) {
   }
 }
 
+/**
+ * Cria ou atualiza um tipo de serviço oferecido na farmácia.
+ */
 async function saveService(req, res, next) {
   try {
     const b = req.body || {};
@@ -273,6 +323,9 @@ async function saveService(req, res, next) {
   }
 }
 
+/**
+ * Exclui serviço quando ele não está preso a outros registros.
+ */
 async function deleteService(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -288,6 +341,70 @@ async function deleteService(req, res, next) {
   }
 }
 
+/**
+ * Retorna a grade semanal de um profissional (para edição no admin).
+ */
+async function getProfessionalAvailability(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ ok: false, message: 'ID inválido.' });
+    const pro = await ServiceProfessional.findById(id);
+    if (!pro) return res.status(404).json({ ok: false, message: 'Profissional não encontrado.' });
+    const availability = await ServiceProfessional.listAvailability(id);
+    return res.json({ ok: true, availability });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Lista horários livres em um dia (admin ou cliente autenticado).
+ */
+async function getAvailabilitySlots(req, res, next) {
+  try {
+    await ServiceAppointment.expirePendingReservations();
+    const q = req.query || {};
+    const result = await Scheduling.listAvailableSlots({
+      professionalId: q.professional_id,
+      serviceId: q.service_id,
+      date: q.date,
+      ignoreAppointmentId: q.ignore_appointment_id ? Number(q.ignore_appointment_id) : null,
+    });
+    const status = result.ok ? 200 : 400;
+    return res.status(status).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Lista dias com pelo menos um horário livre no intervalo.
+ */
+async function getAvailableDays(req, res, next) {
+  try {
+    await ServiceAppointment.expirePendingReservations();
+    const q = req.query || {};
+    const minFrom = Scheduling.toLocalDateString(new Date(Date.now() + Scheduling.MIN_LEAD_MS));
+    const from = String(q.from || minFrom).trim() || minFrom;
+    const to = String(q.to || '').trim();
+    const result = await Scheduling.listAvailableDays({
+      professionalId: q.professional_id,
+      serviceId: q.service_id,
+      from,
+      to: to || undefined,
+      ignoreAppointmentId: q.ignore_appointment_id ? Number(q.ignore_appointment_id) : null,
+    });
+    const status = result.ok ? 200 : 400;
+    return res.status(status).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Reserva um horário de atendimento e valida todas as regras.
+ * Conversa com service/profissional/agendamento.
+ */
 async function reserveSlot(req, res, next) {
   try {
     await ServiceAppointment.expirePendingReservations();
@@ -306,33 +423,15 @@ async function reserveSlot(req, res, next) {
       return res.status(400).json({ ok: false, code: 'BOOKING_CHANNEL_INVALID', message: 'Origem de agendamento inválida.' });
     }
     if (!['IN_STORE', 'HOME'].includes(modality)) return res.status(400).json({ ok: false, code: 'MODALITY_INVALID', message: 'Modalidade inválida.' });
-    if (modality === 'HOME' && !service.home_available) {
-      return res.status(400).json({ ok: false, code: 'HOME_NOT_AVAILABLE', message: 'Este serviço não está disponível em domicílio.' });
-    }
 
     const startAt = new Date(b.scheduled_start);
-    if (Number.isNaN(startAt.getTime())) return res.status(400).json({ ok: false, code: 'DATETIME_INVALID', message: 'Data/hora inválida.' });
-    const minLead = new Date(Date.now() + (24 * 60 * 60 * 1000));
-    if (startAt < minLead) {
-      return res.status(400).json({ ok: false, code: 'MIN_LEAD', message: 'Agendamento deve ser feito com no mínimo 1 dia de antecedência.' });
-    }
-    if (startAt.getDay() === 0) {
-      return res.status(400).json({ ok: false, code: 'SUNDAY', message: 'Não é possível agendar em domingo.' });
-    }
-    const dateOnly = startAt.toISOString().slice(0, 10);
-    const holiday = await ServiceAppointment.isHoliday(dateOnly);
-    if (holiday) {
-      return res.status(400).json({ ok: false, code: 'HOLIDAY', message: 'Não é possível agendar em feriado cadastrado.' });
-    }
+    const rules = await Scheduling.validateBookingRules({ startAt, modality, service });
+    if (!rules.ok) return res.status(400).json({ ok: false, code: rules.code, message: rules.message });
+
     const professionalId = Number(b.professional_id);
-    if (!professionalId) return res.status(400).json({ ok: false, code: 'PROFESSIONAL_REQUIRED', message: 'Selecione um profissional.' });
     const endAt = new Date(startAt.getTime() + Number(service.duration_minutes) * 60000);
-    const hasAvailability = await ServiceProfessional.hasAvailability(professionalId, startAt, endAt);
-    if (!hasAvailability) {
-      return res.status(409).json({ ok: false, code: 'NO_AVAILABILITY', message: 'Profissional sem disponibilidade para esse dia/horário.' });
-    }
-    const hasConflict = await ServiceAppointment.hasScheduleConflict(startAt, endAt, professionalId);
-    if (hasConflict) return res.status(409).json({ ok: false, code: 'CONFLICT', message: 'Horário indisponível. Escolha outro horário.' });
+    const slot = await Scheduling.validateProfessionalSlot({ professionalId, startAt, endAt });
+    if (!slot.ok) return res.status(409).json({ ok: false, code: slot.code, message: slot.message });
 
     if (modality === 'HOME') {
       const cep = String(b.zip_code || '').replace(/\D/g, '');
@@ -391,6 +490,9 @@ async function reserveSlot(req, res, next) {
   }
 }
 
+/**
+ * Mostra ao cliente a tela para criar e acompanhar agendamentos.
+ */
 async function renderCustomerBookingPage(req, res, next) {
   try {
     const profile = await Customer.getProfileByUserId(req.session.userId);
@@ -400,6 +502,13 @@ async function renderCustomerBookingPage(req, res, next) {
     const professionals = (await ServiceProfessional.findAll(true)).filter((p) => p.is_active);
     const holidays = await ServiceAppointment.listHolidays(true);
     const bookings = await ServiceAppointment.listByCustomerId(profile.customer_id);
+    const minBookingDate = Scheduling.toLocalDateString(new Date(Date.now() + Scheduling.MIN_LEAD_MS));
+    const maxBookingDate = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + Scheduling.MAX_BOOKING_DAYS);
+      return Scheduling.toLocalDateString(d);
+    })();
+
     res.render('account-agendamentos', {
       title: 'Meus Agendamentos - NeoFarma',
       bodyClass: 'account-page',
@@ -409,12 +518,25 @@ async function renderCustomerBookingPage(req, res, next) {
       professionals,
       holidays,
       bookings,
+      minBookingDate,
+      maxBookingDate,
+      servicesCatalog: services.map((s) => ({
+        id: s.id,
+        name: s.name,
+        price: s.price,
+        duration_minutes: s.duration_minutes,
+        in_store_available: !!s.in_store_available,
+        home_available: !!s.home_available,
+      })),
     });
   } catch (err) {
     next(err);
   }
 }
 
+/**
+ * Cria agendamento pelo cliente reaproveitando a lógica de reserva.
+ */
 async function createCustomerBooking(req, res, next) {
   try {
     const profile = await Customer.getProfileByUserId(req.session.userId);
@@ -434,6 +556,9 @@ async function createCustomerBooking(req, res, next) {
   }
 }
 
+/**
+ * Abre a tela de pagamento de um agendamento do próprio cliente.
+ */
 async function renderCustomerPaymentPage(req, res, next) {
   try {
     const profile = await Customer.getProfileByUserId(req.session.userId);
@@ -457,6 +582,9 @@ async function renderCustomerPaymentPage(req, res, next) {
   }
 }
 
+/**
+ * Mostra o recibo do agendamento quando o pagamento foi confirmado.
+ */
 async function renderCustomerReceiptPage(req, res, next) {
   try {
     const profile = await Customer.getProfileByUserId(req.session.userId);
@@ -483,6 +611,9 @@ async function renderCustomerReceiptPage(req, res, next) {
   }
 }
 
+/**
+ * Confirma o pagamento do agendamento feito pelo cliente.
+ */
 async function payCustomerAppointment(req, res, next) {
   try {
     const profile = await Customer.getProfileByUserId(req.session.userId);
@@ -504,6 +635,9 @@ async function payCustomerAppointment(req, res, next) {
   }
 }
 
+/**
+ * Processa retorno de pagamento no fluxo do admin (simulação).
+ */
 async function processPayment(req, res, next) {
   try {
     await ServiceAppointment.expirePendingReservations();
@@ -530,6 +664,9 @@ async function processPayment(req, res, next) {
   }
 }
 
+/**
+ * Marca início do atendimento.
+ */
 async function startAttendance(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -541,6 +678,9 @@ async function startAttendance(req, res, next) {
   }
 }
 
+/**
+ * Finaliza atendimento com dados clínicos obrigatórios.
+ */
 async function completeAttendance(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -569,6 +709,9 @@ async function completeAttendance(req, res, next) {
   }
 }
 
+/**
+ * Marca ausência do cliente e calcula estorno parcial.
+ */
 async function markNoShow(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -583,6 +726,9 @@ async function markNoShow(req, res, next) {
   }
 }
 
+/**
+ * Marca atendimento como não finalizado e trata estorno quando preciso.
+ */
 async function markIncomplete(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -611,6 +757,9 @@ async function markIncomplete(req, res, next) {
   }
 }
 
+/**
+ * Confirma recebimento presencial de pagamento no caixa.
+ */
 async function markCashReceived(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -633,6 +782,9 @@ async function markCashReceived(req, res, next) {
   }
 }
 
+/**
+ * Exclui profissional cadastrado.
+ */
 async function deleteProfessional(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -645,6 +797,9 @@ async function deleteProfessional(req, res, next) {
   }
 }
 
+/**
+ * Edita um agendamento existente e recalcula valores/regras.
+ */
 async function updateAppointment(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -662,25 +817,13 @@ async function updateAppointment(req, res, next) {
 
     const modality = String(b.modality || 'IN_STORE').toUpperCase();
     if (!['IN_STORE', 'HOME'].includes(modality)) return res.status(400).json({ ok: false, message: 'Modalidade inválida.' });
-    if (modality === 'HOME' && !service.home_available) {
-      return res.status(400).json({ ok: false, message: 'Este serviço não está disponível em domicílio.' });
-    }
-
     const startAt = new Date(b.scheduled_start);
-    if (Number.isNaN(startAt.getTime())) return res.status(400).json({ ok: false, message: 'Data/hora inválida.' });
-    if (startAt.getDay() === 0) return res.status(400).json({ ok: false, message: 'Não é possível agendar em domingo.' });
-    const minLead = new Date(Date.now() + (24 * 60 * 60 * 1000));
-    if (startAt < minLead) return res.status(400).json({ ok: false, message: 'Agendamento deve ser feito com no mínimo 1 dia de antecedência.' });
-    const dateOnly = startAt.toISOString().slice(0, 10);
-    if (await ServiceAppointment.isHoliday(dateOnly)) {
-      return res.status(400).json({ ok: false, message: 'Não é possível agendar em feriado cadastrado.' });
-    }
+    const rules = await Scheduling.validateBookingRules({ startAt, modality, service });
+    if (!rules.ok) return res.status(400).json({ ok: false, message: rules.message });
 
     const endAt = new Date(startAt.getTime() + Number(service.duration_minutes) * 60000);
-    const hasAvailability = await ServiceProfessional.hasAvailability(professionalId, startAt, endAt);
-    if (!hasAvailability) return res.status(409).json({ ok: false, message: 'Profissional sem disponibilidade para esse dia/horário.' });
-    const hasConflict = await ServiceAppointment.hasScheduleConflict(startAt, endAt, professionalId, id);
-    if (hasConflict) return res.status(409).json({ ok: false, message: 'Horário indisponível. Escolha outro horário.' });
+    const slot = await Scheduling.validateProfessionalSlot({ professionalId, startAt, endAt, ignoreAppointmentId: id });
+    if (!slot.ok) return res.status(409).json({ ok: false, message: slot.message });
 
     const zip = String(b.zip_code || '').trim();
     if (modality === 'HOME') {
@@ -716,6 +859,9 @@ async function updateAppointment(req, res, next) {
   }
 }
 
+/**
+ * Remove um agendamento.
+ */
 async function deleteAppointment(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -735,6 +881,9 @@ module.exports = {
   saveService,
   deleteService,
   saveProfessional,
+  getProfessionalAvailability,
+  getAvailabilitySlots,
+  getAvailableDays,
   deleteProfessional,
   addHoliday,
   deleteHoliday,

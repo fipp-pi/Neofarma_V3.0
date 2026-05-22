@@ -13,16 +13,25 @@ const { getValidStockByProductId } = require('../services/inventoryService');
 /**
  * Detecta se o cliente espera resposta JSON (API/AJAX).
  */
+/**
+ * Detecta se a requisição espera resposta em JSON.
+ */
 function wantsJson(req) {
   return req.xhr || /application\/json/i.test(req.get('accept') || '');
 }
 
+/**
+ * Formata CEP para exibição no padrão 00000-000.
+ */
 function formatZip(zip) {
   const digits = String(zip || '').replace(/\D/g, '');
   if (digits.length !== 8) return '';
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
+/**
+ * Busca o CEP padrão do cliente logado para preencher checkout/frete.
+ */
 async function getUserDefaultZip(req) {
   if (!req.session || !req.session.userId) return '';
   const profile = await Customer.getProfileByUserId(req.session.userId);
@@ -30,6 +39,10 @@ async function getUserDefaultZip(req) {
   return formatZip(zip);
 }
 
+/**
+ * Decide qual CEP usar no frete:
+ * primeiro o digitado; se vazio, usa o CEP do perfil.
+ */
 async function resolveShippingCep(req, inputCep) {
   const manual = String(inputCep || '').trim();
   if (manual) return manual;
@@ -37,6 +50,9 @@ async function resolveShippingCep(req, inputCep) {
   return userZip;
 }
 
+/**
+ * Retorna o carrinho em JSON para uso no front.
+ */
 async function apiGetCart(req, res, next) {
   try {
     const cart = await cartService.getCart(req.session);
@@ -46,6 +62,9 @@ async function apiGetCart(req, res, next) {
   }
 }
 
+/**
+ * Adiciona item no carrinho e devolve estado atualizado.
+ */
 async function apiAddToCart(req, res, next) {
   try {
     const { product_id, quantity } = req.body || {};
@@ -56,6 +75,9 @@ async function apiAddToCart(req, res, next) {
   }
 }
 
+/**
+ * Atualiza quantidade de item no carrinho.
+ */
 async function apiUpdateCartItem(req, res, next) {
   try {
     const { quantity } = req.body || {};
@@ -66,6 +88,9 @@ async function apiUpdateCartItem(req, res, next) {
   }
 }
 
+/**
+ * Remove item específico do carrinho.
+ */
 async function apiRemoveCartItem(req, res, next) {
   try {
     const cart = await cartService.removeItem(req.session, req.params.productId);
@@ -75,6 +100,9 @@ async function apiRemoveCartItem(req, res, next) {
   }
 }
 
+/**
+ * Limpa carrinho inteiro.
+ */
 async function apiClearCart(req, res, next) {
   try {
     const cart = await cartService.clearCart(req.session);
@@ -84,6 +112,9 @@ async function apiClearCart(req, res, next) {
   }
 }
 
+/**
+ * Calcula opções de frete para o carrinho atual.
+ */
 async function apiShippingQuote(req, res, next) {
   try {
     const { cep } = req.body || {};
@@ -99,6 +130,9 @@ async function apiShippingQuote(req, res, next) {
   }
 }
 
+/**
+ * Salva no carrinho a opção de frete escolhida pelo usuário.
+ */
 async function apiSetShipping(req, res, next) {
   try {
     const { cep, service_code } = req.body || {};
@@ -123,6 +157,9 @@ async function apiSetShipping(req, res, next) {
   }
 }
 
+/**
+ * Gera uma prévia de pagamento (Pix/Boleto) antes de finalizar compra.
+ */
 async function apiPaymentPreview(req, res, next) {
   try {
     const { payment_method, amount } = req.body || {};
@@ -162,6 +199,9 @@ async function apiPaymentPreview(req, res, next) {
   }
 }
 
+/**
+ * Renderiza página do carrinho.
+ */
 async function renderCart(req, res, next) {
   try {
     const cart = await cartService.getCart(req.session);
@@ -178,6 +218,9 @@ async function renderCart(req, res, next) {
   }
 }
 
+/**
+ * Renderiza checkout com endereços e parcelas disponíveis.
+ */
 async function renderCheckout(req, res, next) {
   try {
     const cart = await cartService.getCart(req.session);
@@ -197,6 +240,10 @@ async function renderCheckout(req, res, next) {
   }
 }
 
+/**
+ * Fecha a compra: valida estoque, grava pedido e pagamento.
+ * Conversa com modelos de pedido, pagamento, estoque e cliente.
+ */
 async function finalizeCheckout(req, res, next) {
   const connection = await pool.getConnection();
   try {
@@ -321,6 +368,9 @@ async function finalizeCheckout(req, res, next) {
   }
 }
 
+/**
+ * Renderiza página final de confirmação do pedido.
+ */
 async function renderOrderConfirmation(req, res, next) {
   try {
     const orderId = Number(req.query.order);

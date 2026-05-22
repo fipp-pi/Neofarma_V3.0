@@ -1,3 +1,6 @@
+/**
+ * Gera uma sequência numérica aleatória para códigos simples.
+ */
 function randomNumeric(len) {
   let out = '';
   while (out.length < len) out += Math.floor(Math.random() * 10);
@@ -96,12 +99,19 @@ function generatePseudoQrSvgDataUri(text, opts = {}) {
   return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
 }
 
+/**
+ * Gera dígitos usando um gerador já criado (determinístico).
+ */
 function randomDigitsFromRnd(rnd, len) {
   let out = '';
   for (let i = 0; i < len; i += 1) out += Math.floor(rnd() * 10);
   return out;
 }
 
+/**
+ * Monta os dados simulados de pagamento PIX.
+ * É usado pelo checkout e pela tela de preview.
+ */
 function buildPixPayload(orderId, amount, opts = {}) {
   const ref = opts.orderRef != null ? opts.orderRef : orderId;
   const copyPaste = `00020126360014BR.GOV.BCB.PIX0114neofarma@pix520400005303986540${amount.toFixed(2).replace('.', '')}5802BR5908NeoFarma6009SaoPaulo62070503***6304${String(ref).padStart(4, '0')}`;
@@ -113,6 +123,10 @@ function buildPixPayload(orderId, amount, opts = {}) {
   };
 }
 
+/**
+ * Monta os dados simulados de boleto (código e vencimento).
+ * Mantém consistência entre telas usando referência do pedido.
+ */
 function buildBoletoPayload(orderId, opts = {}) {
   const orderRef = opts.orderRef != null ? opts.orderRef : orderId;
   const dueDateStr = opts.dueDate
@@ -145,6 +159,9 @@ function buildBoletoPayload(orderId, opts = {}) {
   };
 }
 
+/**
+ * Tenta identificar a bandeira do cartão pelos primeiros dígitos.
+ */
 function detectBrand(cardNumber = '') {
   const clean = String(cardNumber).replace(/\D/g, '');
   if (/^4/.test(clean)) return 'VISA';
@@ -153,6 +170,9 @@ function detectBrand(cardNumber = '') {
   return 'OUTRO';
 }
 
+/**
+ * Cria as opções de parcelamento para mostrar no checkout.
+ */
 function buildInstallments(total) {
   const plans = [];
   for (let i = 1; i <= 12; i += 1) {

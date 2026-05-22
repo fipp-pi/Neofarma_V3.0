@@ -51,6 +51,7 @@ const pages = [
 ];
 
 const pageController = {};
+// Cria automaticamente os handlers de cada rota estática.
 pages.forEach((p) => {
   pageController[p.path === '/' ? 'index' : p.path.slice(1).replace(/\//g, '_')] = renderPage(p.view, p);
 });

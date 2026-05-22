@@ -1,7 +1,15 @@
+/**
+ * Limpa o CEP e deixa só números (até 8 dígitos).
+ * Essa função é usada pelas outras funções de frete.
+ */
 function normalizeCep(cep = '') {
   return String(cep).replace(/\D/g, '').slice(0, 8);
 }
 
+/**
+ * Calcula um frete "de reserva" quando não usamos API externa.
+ * Conversa apenas com os dados recebidos na requisição.
+ */
 function calculateFallbackShipping({ cep, subtotal = 0 }) {
   const cleanCep = normalizeCep(cep);
   if (cleanCep.length !== 8) {
@@ -33,6 +41,10 @@ function calculateFallbackShipping({ cep, subtotal = 0 }) {
   };
 }
 
+/**
+ * Tenta buscar opções reais de frete na API do Melhor Envio.
+ * Se der erro, retorna null para o sistema usar o cálculo interno.
+ */
 async function quoteWithMelhorEnvio({ cep, subtotal = 0 }) {
   const cleanCep = normalizeCep(cep);
   if (cleanCep.length !== 8) {
@@ -92,6 +104,10 @@ async function quoteWithMelhorEnvio({ cep, subtotal = 0 }) {
   return { destinationZip: cleanCep, services };
 }
 
+/**
+ * Ponto principal do frete.
+ * Primeiro tenta Melhor Envio; se não der, usa cálculo local.
+ */
 async function calculateShipping({ cep, subtotal = 0 }) {
   const melhorEnvioQuote = await quoteWithMelhorEnvio({ cep, subtotal });
   if (melhorEnvioQuote) return melhorEnvioQuote;

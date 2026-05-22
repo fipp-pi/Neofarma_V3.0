@@ -326,15 +326,15 @@
         </div>
         <div class="small text-muted mt-1">Farmacêutico usa CRF e Enfermeiro usa COREN.</div>
         <label class="form-label mt-2">Disponibilidade semanal</label>
-        <div class="small text-muted mb-2">Formato HH:MM. Deixe em branco para não incluir o dia.</div>
-        <% const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']; %>
-        <% for (let d = 0; d < 7; d++) { %>
+        <div class="small text-muted mb-2">Segunda a sábado (HH:MM). Domingo não permite agendamento.</div>
+        <% const weekDays = [{ d: 1, l: 'Seg' }, { d: 2, l: 'Ter' }, { d: 3, l: 'Qua' }, { d: 4, l: 'Qui' }, { d: 5, l: 'Sex' }, { d: 6, l: 'Sáb' }]; %>
+        <% weekDays.forEach(function(day) { %>
           <div class="row g-1 mb-1">
-            <div class="col-3 small pt-1"><%= days[d] %></div>
-            <div class="col"><input class="form-control form-control-sm" id="pro_<%= d %>_start" placeholder="08:00"></div>
-            <div class="col"><input class="form-control form-control-sm" id="pro_<%= d %>_end" placeholder="18:00"></div>
+            <div class="col-3 small pt-1"><%= day.l %></div>
+            <div class="col"><input class="form-control form-control-sm" id="pro_<%= day.d %>_start" placeholder="08:00"></div>
+            <div class="col"><input class="form-control form-control-sm" id="pro_<%= day.d %>_end" placeholder="18:00"></div>
           </div>
-        <% } %>
+        <% }) %>
       </div>
       <div id="pro_feedback" class="small px-3 pb-1" style="display:none;"></div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnSalvarProfissional" onclick="salvarProfissional()">Salvar</button></div>
@@ -384,7 +384,16 @@
           <div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control" id="res_customer_name"></div>
           <div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" id="res_customer_email"></div>
           <div class="col-md-6"><label class="form-label">Telefone</label><input class="form-control" id="res_customer_phone" placeholder="(11) 99999-9999"></div>
-          <div class="col-md-6"><label class="form-label">Data/Hora</label><input class="form-control" id="res_scheduled_start" type="datetime-local"></div>
+          <div class="col-md-4">
+            <label class="form-label">Data</label>
+            <input class="form-control" id="res_scheduled_date" type="date" min="<%= minBookingDate %>" max="<%= maxBookingDate %>">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Horário disponível</label>
+            <div id="res_slot_buttons" class="d-flex flex-wrap gap-1"></div>
+            <div id="res_slot_hint" class="small text-muted mt-1">Selecione serviço, profissional e data para ver os horários.</div>
+            <input type="hidden" id="res_scheduled_start">
+          </div>
           <div class="col-md-3" id="home_zip_wrap" style="display:none;"><label class="form-label">CEP</label><input class="form-control" id="res_zip_code" placeholder="00000-000"></div>
           <div class="col-md-6" id="home_street_wrap" style="display:none;"><label class="form-label">Rua</label><input class="form-control" id="res_street"></div>
           <div class="col-md-3" id="home_number_wrap" style="display:none;"><label class="form-label">Número</label><input class="form-control" id="res_number"></div>
@@ -451,6 +460,7 @@
   </div>
 </div>
 
+<script src="/assets/js/appointment-scheduling.js"></script>
 <script>
   function safeToast(message, type) {
     if (typeof window.neofarmaToast === 'function') {
@@ -679,7 +689,7 @@
     if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
     try {
       const availability = [];
-      for (let d = 0; d < 7; d++) {
+      for (let d = 1; d <= 6; d++) {
         const start = (document.getElementById('pro_' + d + '_start').value || '').trim();
         const end = (document.getElementById('pro_' + d + '_end').value || '').trim();
         if (start && end) availability.push({ day_of_week: d, start_time: start, end_time: end });
@@ -692,9 +702,9 @@
         phone: document.getElementById('pro_phone').value,
         council_type: document.getElementById('pro_council_type').value,
         council_uf: document.getElementById('pro_council_uf').value,
-        council_number: document.getElementById('pro_council_number').value
+        council_number: document.getElementById('pro_council_number').value,
+        availability: availability
       };
-      if (!payload.id || availability.length) payload.availability = availability;
 
       const resp = await fetch('/admin/agendamentos-servicos/profissionais', {
         method: 'POST',
@@ -743,25 +753,11 @@
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Reservando...'; }
     setReserveFeedback('', false);
     try {
+    if (window.adminSlotPicker && !window.adminSlotPicker.validateBeforeSubmit()) return;
     const whenStr = document.getElementById('res_scheduled_start').value;
     const when = whenStr ? new Date(whenStr) : null;
-    const minLead = new Date(Date.now() + 24 * 60 * 60 * 1000);
     if (!when || Number.isNaN(when.getTime())) {
-      safeToast('Informe uma data/hora válida.', 'danger');
-      return;
-    }
-    if (when < minLead) {
-      safeToast('Agendamento deve ser feito com no mínimo 1 dia de antecedência.', 'danger');
-      return;
-    }
-    if (when.getDay() === 0) {
-      safeToast('Não é possível agendar em domingo.', 'danger');
-      return;
-    }
-    var dateOnly = whenStr.slice(0, 10);
-    var holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0, 10); })) %>;
-    if (holidayDates.indexOf(dateOnly) >= 0) {
-      safeToast('Não é possível agendar em feriado cadastrado.', 'danger');
+      safeToast('Selecione um horário disponível.', 'danger');
       return;
     }
     const body = {
@@ -823,6 +819,7 @@
   async function editarAgendamentoSalvar(id) {
     const btn = document.getElementById('btnReservarAgendamento');
     if (btn && btn.disabled) return;
+    if (window.adminSlotPicker && !window.adminSlotPicker.validateBeforeSubmit()) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
     setReserveFeedback('', false);
     try {
@@ -894,10 +891,38 @@
     preencherFormProfissional({});
     document.getElementById('pro_id').value = '';
     document.querySelector('#modalProfessional .modal-title').textContent = 'Novo profissional';
-    for (var d = 0; d < 7; d++) {
+    for (var d = 1; d <= 6; d++) {
       document.getElementById('pro_' + d + '_start').value = '';
       document.getElementById('pro_' + d + '_end').value = '';
     }
+  }
+
+  function parseAddressTextClient(text) {
+    if (!text || !String(text).trim()) return {};
+    var parts = String(text).split(' - ').map(function (s) { return s.trim(); }).filter(Boolean);
+    if (parts.length < 3) return { street: String(text).trim() };
+    var cityState = parts[parts.length - 1];
+    var district = parts[parts.length - 2];
+    var head = parts.slice(0, -2).join(' - ');
+    var slash = cityState.lastIndexOf('/');
+    var city = slash >= 0 ? cityState.slice(0, slash).trim() : cityState;
+    var state = slash >= 0 ? cityState.slice(slash + 1).trim() : '';
+    var comma = head.lastIndexOf(',');
+    if (comma < 0) return { street: head, district: district, city: city, state: state };
+    var street = head.slice(0, comma).trim();
+    var numPart = head.slice(comma + 1).trim();
+    var innerDash = numPart.indexOf(' - ');
+    if (innerDash >= 0) {
+      return {
+        street: street,
+        number: numPart.slice(0, innerDash).trim(),
+        complement: numPart.slice(innerDash + 3).trim(),
+        district: district,
+        city: city,
+        state: state
+      };
+    }
+    return { street: street, number: numPart, district: district, city: city, state: state };
   }
 
   function verServico(s) {
@@ -936,8 +961,28 @@
     new bootstrap.Modal(document.getElementById('modalViewInfo')).show();
   }
 
-  function editarProfissional(p) {
+  async function editarProfissional(p) {
     preencherFormProfissional(p || {});
+    for (var d = 1; d <= 6; d++) {
+      document.getElementById('pro_' + d + '_start').value = '';
+      document.getElementById('pro_' + d + '_end').value = '';
+    }
+    if (p && p.id) {
+      try {
+        var resp = await fetch('/admin/agendamentos-servicos/profissionais/' + p.id + '/disponibilidade');
+        var data = await resp.json();
+        if (data.ok && data.availability) {
+          data.availability.forEach(function (s) {
+            var dow = Number(s.day_of_week);
+            if (dow < 1 || dow > 6) return;
+            document.getElementById('pro_' + dow + '_start').value = s.start_time || '';
+            document.getElementById('pro_' + dow + '_end').value = s.end_time || '';
+          });
+        }
+      } catch (e) {
+        safeToast('Não foi possível carregar a disponibilidade do profissional.', 'warning');
+      }
+    }
     document.querySelector('#modalProfessional .modal-title').textContent = 'Editar profissional';
     new bootstrap.Modal(document.getElementById('modalProfessional')).show();
   }
@@ -982,14 +1027,21 @@
     document.getElementById('res_customer_name').value = a.customer_name || '';
     document.getElementById('res_customer_email').value = a.customer_email || '';
     document.getElementById('res_customer_phone').value = formatPhoneBr(a.customer_phone || '');
-    document.getElementById('res_scheduled_start').value = toDatetimeLocal(a.scheduled_start);
     document.getElementById('res_zip_code').value = a.zip_code || '';
-    document.getElementById('res_street').value = '';
-    document.getElementById('res_number').value = '';
-    document.getElementById('res_complement').value = '';
-    document.getElementById('res_district').value = '';
-    document.getElementById('res_city').value = '';
-    document.getElementById('res_state').value = '';
+    var addr = parseAddressTextClient(a.address_text || '');
+    document.getElementById('res_street').value = addr.street || '';
+    document.getElementById('res_number').value = addr.number || '';
+    document.getElementById('res_complement').value = addr.complement || '';
+    document.getElementById('res_district').value = addr.district || '';
+    document.getElementById('res_city').value = addr.city || '';
+    document.getElementById('res_state').value = addr.state || '';
+    if (window.adminSlotPicker) {
+      window.adminSlotPicker.ignoreAppointmentId = a.id || null;
+      if (window.adminSlotPicker.filterServicesByModality) window.adminSlotPicker.filterServicesByModality();
+      window.adminSlotPicker.selectSlotByIso(a.scheduled_start);
+    } else {
+      document.getElementById('res_scheduled_start').value = toDatetimeLocal(a.scheduled_start);
+    }
     updateHomeAddressVisibility();
     document.querySelector('#modalReserve .modal-title').textContent = 'Editar agendamento';
     document.getElementById('btnReservarAgendamento').textContent = 'Salvar agendamento';
@@ -1001,7 +1053,12 @@
     document.getElementById('res_customer_name').value = '';
     document.getElementById('res_customer_email').value = '';
     document.getElementById('res_customer_phone').value = '';
+    document.getElementById('res_scheduled_date').value = '';
     document.getElementById('res_scheduled_start').value = '';
+    if (window.adminSlotPicker) {
+      window.adminSlotPicker.ignoreAppointmentId = null;
+      window.adminSlotPicker.renderSlots([], 'Selecione serviço, profissional e data.');
+    }
     document.getElementById('res_zip_code').value = '';
     document.getElementById('res_street').value = '';
     document.getElementById('res_number').value = '';
@@ -1153,5 +1210,29 @@
     render();
   }
   bindAppointmentTableTools();
+
+  (function initAdminSlotPicker() {
+    if (!window.NeofarmaAppointmentSlots) return;
+    var holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0,10); })) %>;
+    window.adminSlotPicker = new window.NeofarmaAppointmentSlots.AppointmentSlotPicker({
+      prefix: 'res',
+      slotsUrl: '/admin/agendamentos-servicos/disponibilidade/slots',
+      daysUrl: '/admin/agendamentos-servicos/disponibilidade/dias',
+      servicesCatalog: <%- JSON.stringify(servicesCatalog || []) %>,
+      minDate: '<%= minBookingDate %>',
+      maxDate: '<%= maxBookingDate %>',
+      holidayDates: holidayDates,
+      onToast: safeToast
+    });
+    var reserveModal = document.getElementById('modalReserve');
+    if (reserveModal) {
+      reserveModal.addEventListener('shown.bs.modal', function () {
+        if (window.adminSlotPicker) {
+          window.adminSlotPicker.filterServicesByModality();
+          window.adminSlotPicker.refreshAvailableDays();
+        }
+      });
+    }
+  })();
 </script>
 <%- include('partials/footer') %>

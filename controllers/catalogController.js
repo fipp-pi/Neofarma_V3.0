@@ -15,12 +15,19 @@ function withThumb(url) {
   return url;
 }
 
+/**
+ * Formata CEP para mostrar no detalhe do produto.
+ */
 function formatZip(zip) {
   const digits = String(zip || '').replace(/\D/g, '');
   if (digits.length !== 8) return '';
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
+/**
+ * Monta o objeto padrão de produto para os cards da vitrine.
+ * Junta preço, imagem e estoque em um formato único.
+ */
 function normalizeCard(product, imageUrl, stock = 0) {
   const unit = Number(product.unit_price || 0);
   const promo = product.promotional_price != null ? Number(product.promotional_price) : null;
@@ -58,6 +65,9 @@ function buildLabHighlights(products = []) {
     .slice(0, 4);
 }
 
+/**
+ * Página de catálogo geral (com destaque por laboratório).
+ */
 async function listCatalog(req, res, next) {
   try {
     const selectedLab = String(req.query.lab || '').trim();
@@ -238,6 +248,9 @@ async function listCategory(req, res, next) {
   }
 }
 
+/**
+ * Monta os blocos da home com produtos ativos.
+ */
 async function home(req, res, next) {
   try {
     const allActive = await Product.findAll({ status: 'ACTIVE' });
@@ -280,6 +293,9 @@ async function home(req, res, next) {
   }
 }
 
+/**
+ * Página de detalhes do produto com galeria, estoque e relacionados.
+ */
 async function getProductDetail(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);

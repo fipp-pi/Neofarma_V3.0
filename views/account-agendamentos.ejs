@@ -21,11 +21,20 @@
       </div>
       <div class="card p-3 mb-4">
         <div class="row g-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
+            <label class="form-label">Modalidade</label>
+            <select class="form-select" id="bk_modality">
+              <option value="IN_STORE">Na farmácia</option>
+              <option value="HOME">Em domicílio</option>
+            </select>
+          </div>
+          <div class="col-md-8">
             <label class="form-label">Serviço</label>
             <select class="form-select" id="bk_service_id">
-              <% (services || []).forEach(function(s){ %>
-                <option value="<%= s.id %>"><%= s.name %> - R$ <%= Number(s.price || 0).toFixed(2).replace('.', ',') %></option>
+              <% (services || []).forEach(function(s){
+                if (!s.in_store_available && !s.home_available) return;
+              %>
+                <option value="<%= s.id %>" data-in-store="<%= s.in_store_available ? 1 : 0 %>" data-home="<%= s.home_available ? 1 : 0 %>"><%= s.name %> - R$ <%= Number(s.price || 0).toFixed(2).replace('.', ',') %></option>
               <% }) %>
             </select>
           </div>
@@ -37,14 +46,7 @@
               <% }) %>
             </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Modalidade</label>
-            <select class="form-select" id="bk_modality">
-              <option value="IN_STORE">Na farmácia</option>
-              <option value="HOME">Em domicílio</option>
-            </select>
-          </div>
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label class="form-label">Pagamento</label>
             <select class="form-select" id="bk_payment_method">
               <option value="PIX">PIX</option>
@@ -53,9 +55,52 @@
             </select>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Data/Hora</label>
-            <input id="bk_scheduled_start" type="datetime-local" class="form-control">
+            <label class="form-label">Data</label>
+            <input id="bk_scheduled_date" type="date" class="form-control" min="<%= minBookingDate %>" max="<%= maxBookingDate %>">
           </div>
+          <div class="col-md-8">
+            <label class="form-label">Horário disponível</label>
+            <div id="bk_slot_buttons" class="d-flex flex-wrap gap-1"></div>
+            <div id="bk_slot_hint" class="small text-muted mt-1">Selecione serviço, profissional e data para ver os horários.</div>
+            <input type="hidden" id="bk_scheduled_start">
+          </div>
+
+          <div id="bk_home_fields" class="col-12" style="display:none;">
+            <div class="border rounded p-3 bg-light">
+              <div class="fw-semibold mb-2">Endereço para atendimento em domicílio</div>
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <label class="form-label">CEP</label>
+                  <input class="form-control" id="bk_zip_code" placeholder="00000-000" maxlength="9">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Rua</label>
+                  <input class="form-control" id="bk_street">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Número</label>
+                  <input class="form-control" id="bk_number">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Complemento</label>
+                  <input class="form-control" id="bk_complement">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Bairro</label>
+                  <input class="form-control" id="bk_district">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Cidade</label>
+                  <input class="form-control" id="bk_city">
+                </div>
+                <div class="col-md-1">
+                  <label class="form-label">UF</label>
+                  <input class="form-control text-uppercase" id="bk_state" maxlength="2">
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="col-12">
             <button type="button" class="btn btn-primary" id="btnCriarAgendamento">Solicitar agendamento</button>
           </div>
@@ -102,6 +147,7 @@
     </div>
   </section>
 </main>
+<script src="/assets/js/appointment-scheduling.js"></script>
 <script>
   function toast(msg, type) {
     const message = (msg == null ? '' : String(msg));
@@ -145,29 +191,64 @@
       try { alert(message); } catch (_) {}
     }
   }
+
+  function updateHomeFieldsVisibility() {
+    var mod = document.getElementById('bk_modality');
+    var wrap = document.getElementById('bk_home_fields');
+    if (!mod || !wrap) return;
+    wrap.style.display = String(mod.value || '').toUpperCase() === 'HOME' ? '' : 'none';
+  }
+
+  document.getElementById('bk_modality').addEventListener('change', updateHomeFieldsVisibility);
+  updateHomeFieldsVisibility();
+
+  var customerSlotPicker = null;
+  if (window.NeofarmaAppointmentSlots) {
+    customerSlotPicker = new window.NeofarmaAppointmentSlots.AppointmentSlotPicker({
+      prefix: 'bk',
+      slotsUrl: '/api/service-appointments/availability/slots',
+      daysUrl: '/api/service-appointments/availability/days',
+      servicesCatalog: <%- JSON.stringify(servicesCatalog || []) %>,
+      minDate: '<%= minBookingDate %>',
+      maxDate: '<%= maxBookingDate %>',
+      holidayDates: <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0,10); })) %>,
+      onToast: toast
+    });
+  }
+
   document.getElementById('btnCriarAgendamento').addEventListener('click', async function () {
     try {
+      if (customerSlotPicker && !customerSlotPicker.validateBeforeSubmit()) return;
+
       const when = document.getElementById('bk_scheduled_start').value;
-      const dt = when ? new Date(when) : null;
-      const minLead = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      if (!dt || Number.isNaN(dt.getTime()) || dt < minLead) {
-        return toast('Agende com no mínimo 1 dia de antecedência.', 'danger');
-      }
-      const holidayDates = <%- JSON.stringify((holidays || []).map(function(h){ return String(h.holiday_date).slice(0,10); })) %>;
-      if (dt.getDay() === 0 || holidayDates.indexOf(when.slice(0,10)) >= 0) {
-        return toast('Data indisponível para agendamento.', 'danger');
+      const modality = document.getElementById('bk_modality').value;
+
+      const payload = {
+        service_id: document.getElementById('bk_service_id').value,
+        professional_id: document.getElementById('bk_professional_id').value,
+        modality: modality,
+        payment_method: document.getElementById('bk_payment_method').value,
+        scheduled_start: when
+      };
+
+      if (String(modality).toUpperCase() === 'HOME') {
+        payload.zip_code = document.getElementById('bk_zip_code').value;
+        payload.street = document.getElementById('bk_street').value;
+        payload.number = document.getElementById('bk_number').value;
+        payload.complement = document.getElementById('bk_complement').value;
+        payload.district = document.getElementById('bk_district').value;
+        payload.city = document.getElementById('bk_city').value;
+        payload.state = document.getElementById('bk_state').value;
+        const required = [payload.zip_code, payload.street, payload.number, payload.district, payload.city, payload.state];
+        if (required.some(function (v) { return !String(v || '').trim(); })) {
+          return toast('Preencha o endereço completo para atendimento em domicílio.', 'danger');
+        }
       }
 
       const resp = await fetch('/api/service-appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: document.getElementById('bk_service_id').value,
-          professional_id: document.getElementById('bk_professional_id').value,
-          modality: document.getElementById('bk_modality').value,
-          payment_method: document.getElementById('bk_payment_method').value,
-          scheduled_start: when
-        })
+        body: JSON.stringify(payload)
       });
 
       const raw = await resp.text();

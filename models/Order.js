@@ -1,8 +1,6 @@
 /**
- * Persistência de pedidos e itens. Funções que recebem `connection` participam de transações
- * externas (checkout, cancelamento). `customer_id` em queries usa string por compatibilidade com BIGINT no driver.
- *
- * @see docs/code-commenting.md
+ * Funções de pedido e itens do pedido.
+ * Esse arquivo conversa direto com tabelas `orders` e `order_items`.
  */
 const { pool } = require('../config/database');
 
@@ -71,8 +69,7 @@ async function createOrderItem(data, connection = pool) {
 }
 
 /**
- * @param {number|string} orderId
- * @returns {Promise<object|null>}
+ * Busca pedido pelo id.
  */
 async function findById(orderId) {
   const [rows] = await pool.execute('SELECT * FROM orders WHERE id = ? LIMIT 1', [orderId]);

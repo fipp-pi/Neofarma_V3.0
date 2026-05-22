@@ -4,6 +4,9 @@ const User = require('../models/User');
 const Address = require('../models/Address');
 const { pool } = require('../config/database');
 
+/**
+ * Abre a tela de login.
+ */
 function getLogin(req, res) {
   res.render('login', {
     title: 'Login - NeoFarma',
@@ -11,6 +14,9 @@ function getLogin(req, res) {
   });
 }
 
+/**
+ * Abre a tela de cadastro público.
+ */
 function getRegister(req, res) {
   res.render('register', {
     title: 'Registrar - NeoFarma',
@@ -193,6 +199,9 @@ async function postLogin(req, res, next) {
   }
 }
 
+/**
+ * Encerra a sessão atual e volta para a home.
+ */
 function getLogout(req, res) {
   req.session.destroy((err) => {
     if (err) console.error('Logout session destroy:', err);

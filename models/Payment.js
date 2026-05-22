@@ -1,5 +1,8 @@
 const { pool } = require('../config/database');
 
+/**
+ * Salva um registro de pagamento ligado ao pedido.
+ */
 async function create(data, connection = pool) {
   const [result] = await connection.execute(
     `INSERT INTO payments
@@ -23,6 +26,9 @@ async function create(data, connection = pool) {
   return result.insertId;
 }
 
+/**
+ * Busca o último pagamento de um pedido.
+ */
 async function findByOrderId(orderId) {
   const [rows] = await pool.execute(
     `SELECT * FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1`,
@@ -31,6 +37,9 @@ async function findByOrderId(orderId) {
   return rows[0] || null;
 }
 
+/**
+ * Atualiza status de pagamento pelo id do pedido.
+ */
 async function updateStatusByOrderId(orderId, status, connection = pool) {
   const [result] = await connection.execute(
     'UPDATE payments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_id = ?',

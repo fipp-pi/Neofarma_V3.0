@@ -1,8 +1,6 @@
 /**
- * Consultas agregadas e ações administrativas do painel financeiro.
- * Regras: período por `from`/`to` (YYYY-MM-DD) ou janela móvel em dias; receita considera pedidos `PAID` onde aplicável.
- *
- * @see docs/code-commenting.md
+ * Funções do financeiro para dashboard e relatórios do admin.
+ * Conversa com pedidos, pagamentos e agendamentos de serviço.
  */
 const { pool } = require('../config/database');
 
@@ -21,6 +19,9 @@ function toDateOrNull(v) {
   return null;
 }
 
+/**
+ * Monta trecho de filtro por período para reaproveitar nas consultas.
+ */
 function buildPeriodWhere(alias, options = {}) {
   const days = options.days != null ? Number(options.days) : 30;
   const from = options.from ? toDateOrNull(options.from) : null;

@@ -1,5 +1,8 @@
 const { pool } = require('../config/database');
 
+/**
+ * Converte nome em slug para URL do produto.
+ */
 function slugify(text) {
   return (text || '')
     .toString()
@@ -11,6 +14,9 @@ function slugify(text) {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * Garante slug único para não repetir no banco.
+ */
 async function buildUniqueSlug(baseText, excludeId = null) {
   const base = slugify(baseText) || 'produto';
   let candidate = base;
@@ -31,6 +37,9 @@ async function buildUniqueSlug(baseText, excludeId = null) {
   return `${base}-${Date.now()}`;
 }
 
+/**
+ * Cria produto novo.
+ */
 async function create(data) {
   const slug = await buildUniqueSlug(data.slug || data.name);
   const [result] = await pool.execute(
@@ -55,6 +64,9 @@ async function create(data) {
   return result.insertId;
 }
 
+/**
+ * Busca produto por id com nome do laboratório e fornecedor.
+ */
 async function findById(id) {
   const [rows] = await pool.execute(
     `SELECT p.*, l.name AS lab_name, s.corporate_name AS supplier_name
@@ -67,6 +79,9 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+/**
+ * Lista produtos com filtros simples (status e busca).
+ */
 async function findAll(filters = {}) {
   let sql = `SELECT p.*, l.name AS lab_name FROM products p LEFT JOIN labs l ON p.lab_id = l.id WHERE 1=1`;
   const params = [];
@@ -84,6 +99,9 @@ async function findAll(filters = {}) {
   return rows;
 }
 
+/**
+ * Busca vários produtos de uma vez pelo array de ids.
+ */
 async function findByIds(ids = [], filters = {}) {
   if (!Array.isArray(ids) || ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(', ');
@@ -101,6 +119,9 @@ async function findByIds(ids = [], filters = {}) {
   return rows;
 }
 
+/**
+ * Atualiza produto e, se necessário, recalcula slug único.
+ */
 async function updateById(id, data) {
   const localData = { ...data };
   if (localData.slug !== undefined || localData.name !== undefined) {
@@ -121,6 +142,9 @@ async function updateById(id, data) {
   return result.affectedRows;
 }
 
+/**
+ * Exclui produto pelo id.
+ */
 async function deleteById(id) {
   const [result] = await pool.execute('DELETE FROM products WHERE id = ?', [id]);
   return result.affectedRows;

@@ -1,10 +1,6 @@
 /**
- * Lotes de estoque por produto. Regras principais:
- * - **Estoque válido para venda**: `quantity > 0` e `expiry_date >= CURDATE()` (vencidos não entram na venda).
- * - **FEFO** (`allocateFEFO`): consome primeiro os lotes com validade mais próxima, com lock `FOR UPDATE` na transação.
- * - **ORDER BY** em listagens usa apenas chaves permitidas no código (whitelist), nunca input cru do usuário.
- *
- * @see docs/code-commenting.md
+ * Regras de lotes de estoque.
+ * Aqui o sistema decide validade, risco e baixa/reposição de quantidade.
  */
 const { pool } = require('../config/database');
 
@@ -60,8 +56,7 @@ async function findByProductId(productId, options = {}) {
 }
 
 /**
- * @param {number|string} id
- * @returns {Promise<object|null>}
+ * Busca lote pelo id.
  */
 async function findById(id) {
   const [rows] = await pool.execute(
@@ -100,8 +95,7 @@ async function updateById(id, data) {
 }
 
 /**
- * @param {number|string} id
- * @returns {Promise<number>} affectedRows
+ * Exclui lote pelo id.
  */
 async function deleteById(id) {
   const [result] = await pool.execute('DELETE FROM inventory_batches WHERE id = ?', [id]);

@@ -1,5 +1,8 @@
 const { pool } = require('../config/database');
 
+/**
+ * Transforma texto em "slug" (formato de URL).
+ */
 function slugify(text) {
   return (text || '')
     .toString()
@@ -11,6 +14,9 @@ function slugify(text) {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * Cria categoria nova no banco.
+ */
 async function create(data) {
   const slug = data.slug || slugify(data.name);
   const [result] = await pool.execute(
@@ -27,11 +33,17 @@ async function create(data) {
   return result.insertId;
 }
 
+/**
+ * Busca categoria por id.
+ */
 async function findById(id) {
   const [rows] = await pool.execute('SELECT * FROM categories WHERE id = ?', [id]);
   return rows[0] || null;
 }
 
+/**
+ * Lista categorias (opcional: só ativas).
+ */
 async function findAll(activeOnly = false) {
   let sql = 'SELECT * FROM categories WHERE 1=1';
   if (activeOnly) sql += ' AND is_active = 1';
@@ -40,6 +52,9 @@ async function findAll(activeOnly = false) {
   return rows;
 }
 
+/**
+ * Atualiza categoria existente.
+ */
 async function updateById(id, data) {
   const fields = [];
   const values = [];
@@ -56,6 +71,9 @@ async function updateById(id, data) {
   return result.affectedRows;
 }
 
+/**
+ * Remove categoria pelo id.
+ */
 async function deleteById(id) {
   const [result] = await pool.execute('DELETE FROM categories WHERE id = ?', [id]);
   return result.affectedRows;

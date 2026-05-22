@@ -2,6 +2,10 @@ const Product = require('../models/Product');
 const ProductImage = require('../models/ProductImage');
 const { getValidStockMapByProductIds } = require('./inventoryService');
 
+/**
+ * Garante que a sessão tenha a estrutura do carrinho.
+ * "Conversa" com a sessão do usuário logado/visitante.
+ */
 function ensureCart(session) {
   if (!session.cart || !Array.isArray(session.cart.items)) {
     session.cart = { items: [], shipping: null };
@@ -9,11 +13,18 @@ function ensureCart(session) {
   return session.cart;
 }
 
+/**
+ * Ajusta quantidade para um número válido (mínimo 1).
+ */
 function normalizeQty(value) {
   const qty = parseInt(value, 10);
   return Number.isNaN(qty) || qty < 1 ? 1 : qty;
 }
 
+/**
+ * Recalcula o carrinho com dados atuais do banco:
+ * produtos, imagens e estoque disponível.
+ */
 async function hydrateCart(cart) {
   const productIds = cart.items.map((i) => Number(i.productId));
   if (productIds.length === 0) {
@@ -65,11 +76,17 @@ async function hydrateCart(cart) {
   };
 }
 
+/**
+ * Retorna o carrinho pronto para exibir na tela.
+ */
 async function getCart(session) {
   const cart = ensureCart(session);
   return hydrateCart(cart);
 }
 
+/**
+ * Adiciona item ao carrinho na sessão e recalcula totais.
+ */
 async function addItem(session, productId, quantity) {
   const cart = ensureCart(session);
   const id = Number(productId);
@@ -80,6 +97,10 @@ async function addItem(session, productId, quantity) {
   return getCart(session);
 }
 
+/**
+ * Atualiza quantidade de um item do carrinho.
+ * Se quantidade for 0, remove o item.
+ */
 async function updateItem(session, productId, quantity) {
   const cart = ensureCart(session);
   const id = Number(productId);
@@ -94,6 +115,9 @@ async function updateItem(session, productId, quantity) {
   return getCart(session);
 }
 
+/**
+ * Remove um item do carrinho pela identificação do produto.
+ */
 async function removeItem(session, productId) {
   const cart = ensureCart(session);
   const id = Number(productId);
@@ -101,11 +125,17 @@ async function removeItem(session, productId) {
   return getCart(session);
 }
 
+/**
+ * Limpa todo o carrinho do usuário na sessão.
+ */
 async function clearCart(session) {
   session.cart = { items: [], shipping: null };
   return getCart(session);
 }
 
+/**
+ * Salva a opção de frete escolhida dentro do carrinho.
+ */
 function setShipping(session, shipping) {
   const cart = ensureCart(session);
   cart.shipping = shipping || null;

@@ -1,5 +1,9 @@
 const { pool } = require('../config/database');
 
+/**
+ * Cria um laboratório no banco.
+ * Conversa direto com a tabela `labs`.
+ */
 async function create(data) {
   const [result] = await pool.execute(
     `INSERT INTO labs (name, cnpj, email, phone, address_id, is_active)
@@ -16,6 +20,9 @@ async function create(data) {
   return result.insertId;
 }
 
+/**
+ * Busca um laboratório pelo id (já trazendo endereço).
+ */
 async function findById(id) {
   const [rows] = await pool.execute(
     'SELECT l.*, a.street, a.number, a.city, a.state, a.zip_code FROM labs l LEFT JOIN addresses a ON l.address_id = a.id WHERE l.id = ?',
@@ -24,6 +31,9 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+/**
+ * Lista laboratórios, podendo filtrar só os ativos.
+ */
 async function findAll(activeOnly = false) {
   let sql = 'SELECT * FROM labs WHERE 1=1';
   if (activeOnly) sql += ' AND is_active = 1';
@@ -32,6 +42,9 @@ async function findAll(activeOnly = false) {
   return rows;
 }
 
+/**
+ * Lista laboratórios com campos completos de endereço.
+ */
 async function findAllWithAddress(activeOnly = false) {
   let sql = 'SELECT l.*, a.street, a.number, a.complement, a.district, a.city, a.state, a.country, a.zip_code FROM labs l LEFT JOIN addresses a ON l.address_id = a.id WHERE 1=1';
   if (activeOnly) sql += ' AND l.is_active = 1';
@@ -40,6 +53,9 @@ async function findAllWithAddress(activeOnly = false) {
   return rows;
 }
 
+/**
+ * Atualiza os dados de um laboratório existente.
+ */
 async function updateById(id, data) {
   const fields = [];
   const values = [];
@@ -56,6 +72,9 @@ async function updateById(id, data) {
   return result.affectedRows;
 }
 
+/**
+ * Remove laboratório pelo id.
+ */
 async function deleteById(id) {
   const [result] = await pool.execute('DELETE FROM labs WHERE id = ?', [id]);
   return result.affectedRows;
