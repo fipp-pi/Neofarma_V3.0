@@ -6,11 +6,11 @@ require('dotenv').config({ quiet: true });
 const mysql = require('mysql2/promise');
 
 const dbConfig = {
-  host: process.env.DB_HOST || '132.226.245.178',
+  host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT, 10) || 3306,
-  user: process.env.DB_USER || '10442511034',
-  password: process.env.DB_PASSWORD || '10442511034.',
-  database: process.env.DB_NAME || 'PFS1_10442511034',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || 'Joao2510.',
+  database: process.env.DB_NAME || 'neofarma',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
