@@ -45,7 +45,7 @@ app.use(session({
   cookie: {
     maxAge: SESSION_MAX_AGE_MS,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
     sameSite: 'lax',
   },
 }));
@@ -123,16 +123,19 @@ app.use((err, req, res, next) => {
 });
 
 // ==========================================
-// INICIALIZAÇÃO DO SERVIDOR
+// INICIALIZAÇÃO DO SERVIDOR (local / VPS)
+// Na Vercel o app é exportado como handler — não chama listen().
 // ==========================================
 const PORT = process.env.PORT || 3555;
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Servidor Neofarma rodando na porta ${PORT}`);
-  console.log(`🔗 Acesse: http://localhost:${PORT}`);
-  const ok = await testConnection();
-  if (ok) console.log('✅ MySQL conectado (neofarma).');
-  else console.log('⚠️ MySQL não conectado. Verifique config/database.js e o banco neofarma.');
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Servidor Neofarma rodando na porta ${PORT}`);
+    console.log(`🔗 Acesse: http://localhost:${PORT}`);
+    const ok = await testConnection();
+    if (ok) console.log('✅ MySQL conectado (neofarma).');
+    else console.log('⚠️ MySQL não conectado. Verifique config/database.js e o banco neofarma.');
+  });
+}
 
 module.exports = app;
