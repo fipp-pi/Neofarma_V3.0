@@ -1,17 +1,24 @@
 <%- include('partials/header') %>
-<div class="container">
+
+<div class="container admin-lotes">
   <%
     const currentSort = (filters && filters.sort) ? filters.sort : 'expiry_asc';
     const currentStatus = (filters && filters.status) ? filters.status : 'ALL';
     const currentSearch = (filters && filters.search) ? filters.search : '';
     const currentPageSize = (pagination && pagination.pageSize) ? pagination.pageSize : 25;
-    function sortUrl(nextSort) {
-      return '/admin/lotes?status=' + encodeURIComponent(currentStatus) +
-        '&sort=' + encodeURIComponent(nextSort) +
-        '&search=' + encodeURIComponent(currentSearch) +
-        '&pageSize=' + encodeURIComponent(currentPageSize) +
-        '&page=1';
+    const hideDisposed = !!(filters && filters.hideDisposed);
+    const summaryData = typeof summary !== 'undefined' ? summary : {};
+    function lotesQuery(extra) {
+      const p = new URLSearchParams();
+      p.set('status', currentStatus);
+      p.set('sort', currentSort);
+      p.set('search', currentSearch);
+      p.set('pageSize', String(currentPageSize));
+      if (hideDisposed) p.set('hideDisposed', '1');
+      if (extra) Object.keys(extra).forEach(function (k) { if (extra[k] != null && extra[k] !== '') p.set(k, extra[k]); });
+      return '/admin/lotes?' + p.toString();
     }
+    function sortUrl(nextSort) { return lotesQuery({ sort: nextSort, page: '1' }); }
     const nextExpirySort = currentSort === 'expiry_asc' ? 'expiry_desc' : 'expiry_asc';
     const nextQtySort = currentSort === 'qty_desc' ? 'qty_asc' : 'qty_desc';
     const nextProductSort = currentSort === 'product_asc' ? 'product_desc' : 'product_asc';
@@ -20,166 +27,542 @@
     const expiryArrow = currentSort === 'expiry_asc' ? 'bi-arrow-down' : (currentSort === 'expiry_desc' ? 'bi-arrow-up' : 'bi-arrow-down-up');
     const daysArrow = currentSort === 'days_asc' ? 'bi-arrow-down' : (currentSort === 'days_desc' ? 'bi-arrow-up' : 'bi-arrow-down-up');
     const qtyArrow = currentSort === 'qty_asc' ? 'bi-arrow-up' : (currentSort === 'qty_desc' ? 'bi-arrow-down' : 'bi-arrow-down-up');
+    const statusTabs = [
+      { v: 'ALL', l: 'Todos', icon: 'bi-grid' },
+      { v: 'VALID', l: 'Válidos', icon: 'bi-check-circle' },
+      { v: 'EXPIRING', l: 'A vencer', icon: 'bi-clock-history' },
+      { v: 'EXPIRED', l: 'Vencidos', icon: 'bi-exclamation-triangle' },
+    ];
   %>
+
+  <div id="pageFlash" class="mb-3" style="<%= disposedOk ? '' : 'display:none;' %>">
+    <div class="alert alert-success alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText">Descarte registrado. O lote aparece abaixo com o status de descarte atualizado.</span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
+
   <div class="list-header">
     <div>
-      <h2 class="neo-heading">Lotes (visão global)</h2>
-      <p class="text-muted mb-0">Monitore validade, estoque e execute ações em massa.</p>
+      <h2 class="neo-heading">Lotes</h2>
+      <p class="text-muted mb-0">Visualize todos os lotes em estoque, acompanhe vencimentos e trate situações que exigem descarte ou reposição.</p>
     </div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-primary btn-sm" href="/admin/lotes/export.csv?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>">
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-primary btn-sm" href="/admin/descartes">
+        <i class="bi bi-trash3 me-1"></i> Registrar descarte
+      </a>
+      <a class="btn btn-outline-primary btn-sm" href="/admin/lotes/export.csv?status=<%= encodeURIComponent(currentStatus) %>&sort=<%= encodeURIComponent(currentSort) %>&search=<%= encodeURIComponent(currentSearch) %><%= hideDisposed ? '&hideDisposed=1' : '' %>">
         <i class="bi bi-download me-1"></i> Exportar CSV
       </a>
-      <button class="btn btn-outline-danger btn-sm" id="btnDeleteMany">
+      <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteMany">
         <i class="bi bi-trash me-1"></i> Excluir selecionados
       </button>
     </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <span class="badge bg-success">Válidos: <%= summary.valid %></span>
-    <span class="badge bg-warning text-dark">Próx. vencimento: <%= summary.expiring %></span>
-    <span class="badge bg-danger">Vencidos: <%= summary.expired %></span>
-  </div>
-
-  <form class="row g-2 mb-3" method="get" action="/admin/lotes">
-    <div class="col-md-4">
-      <input class="form-control" name="search" value="<%= filters.search || '' %>" placeholder="Buscar por produto ou lote">
+  <div class="admin-lotes__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <a href="<%= lotesQuery({ status: 'VALID', page: '1' }) %>" class="admin-lotes__stat admin-lotes__stat--success text-decoration-none">
+        <span class="admin-lotes__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div>
+          <div class="admin-lotes__stat-value"><%= summaryData.valid || 0 %></div>
+          <div class="admin-lotes__stat-label">Lotes válidos</div>
+        </div>
+      </a>
     </div>
-    <div class="col-md-3">
-      <select class="form-select" name="status">
-        <option value="ALL" <%= (filters.status || 'ALL') === 'ALL' ? 'selected' : '' %>>Todos</option>
-        <option value="VALID" <%= filters.status === 'VALID' ? 'selected' : '' %>>Válidos</option>
-        <option value="EXPIRING" <%= filters.status === 'EXPIRING' ? 'selected' : '' %>>Próx. vencimento</option>
-        <option value="EXPIRED" <%= filters.status === 'EXPIRED' ? 'selected' : '' %>>Vencidos</option>
-      </select>
+    <div class="col-6 col-lg-3">
+      <a href="<%= lotesQuery({ status: 'EXPIRING', page: '1' }) %>" class="admin-lotes__stat admin-lotes__stat--warning text-decoration-none">
+        <span class="admin-lotes__stat-icon"><i class="bi bi-clock-history"></i></span>
+        <div>
+          <div class="admin-lotes__stat-value"><%= summaryData.expiring || 0 %></div>
+          <div class="admin-lotes__stat-label">Próximos do vencimento</div>
+        </div>
+      </a>
     </div>
-    <div class="col-md-3">
-      <select class="form-select" name="sort">
-        <option value="product_asc" <%= filters.sort === 'product_asc' ? 'selected' : '' %>>Produto A-Z</option>
-        <option value="product_desc" <%= filters.sort === 'product_desc' ? 'selected' : '' %>>Produto Z-A</option>
-        <option value="expiry_asc" <%= (filters.sort || 'expiry_asc') === 'expiry_asc' ? 'selected' : '' %>>Validade asc</option>
-        <option value="expiry_desc" <%= filters.sort === 'expiry_desc' ? 'selected' : '' %>>Validade desc</option>
-        <option value="days_asc" <%= filters.sort === 'days_asc' ? 'selected' : '' %>>Dias (menor primeiro)</option>
-        <option value="days_desc" <%= filters.sort === 'days_desc' ? 'selected' : '' %>>Dias (maior primeiro)</option>
-        <option value="qty_desc" <%= filters.sort === 'qty_desc' ? 'selected' : '' %>>Quantidade desc</option>
-        <option value="qty_asc" <%= filters.sort === 'qty_asc' ? 'selected' : '' %>>Quantidade asc</option>
-      </select>
+    <div class="col-6 col-lg-3">
+      <a href="<%= lotesQuery({ status: 'EXPIRED', page: '1' }) %>" class="admin-lotes__stat admin-lotes__stat--danger text-decoration-none">
+        <span class="admin-lotes__stat-icon"><i class="bi bi-exclamation-triangle"></i></span>
+        <div>
+          <div class="admin-lotes__stat-value"><%= summaryData.expired || 0 %></div>
+          <div class="admin-lotes__stat-label">Vencidos com saldo</div>
+        </div>
+      </a>
     </div>
-    <div class="col-md-2 d-grid">
-      <button class="btn btn-primary">Filtrar</button>
-    </div>
-    <div class="col-md-2">
-      <select class="form-select" name="pageSize">
-        <option value="10" <%= pagination && pagination.pageSize === 10 ? 'selected' : '' %>>10 / pág.</option>
-        <option value="25" <%= pagination && pagination.pageSize === 25 ? 'selected' : '' %>>25 / pág.</option>
-        <option value="50" <%= pagination && pagination.pageSize === 50 ? 'selected' : '' %>>50 / pág.</option>
-        <option value="100" <%= pagination && pagination.pageSize === 100 ? 'selected' : '' %>>100 / pág.</option>
-      </select>
-    </div>
-  </form>
-
-  <div class="table-container">
-    <div class="table-responsive">
-      <table class="table table-hover table-custom align-middle">
-        <thead>
-          <tr>
-            <th><input type="checkbox" id="checkAll"></th>
-            <th>
-              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextProductSort) %>" title="Ordenar por produto">
-                Produto <i class="bi <%= productArrow %>"></i>
-              </a>
-            </th>
-            <th>SKU</th>
-            <th>Lote</th>
-            <th>Fabricação</th>
-            <th>
-              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextExpirySort) %>" title="Ordenar por validade">
-                Validade <i class="bi <%= expiryArrow %>"></i>
-              </a>
-            </th>
-            <th>Status</th>
-            <th>
-              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextDaysSort) %>" title="Ordenar por dias para vencer">
-                Dias <i class="bi <%= daysArrow %>"></i>
-              </a>
-            </th>
-            <th>
-              <a class="text-decoration-none text-dark" href="<%= sortUrl(nextQtySort) %>" title="Ordenar por quantidade">
-                Qtd <i class="bi <%= qtyArrow %>"></i>
-              </a>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (rows && rows.length) { rows.forEach(function(r) { %>
-            <tr>
-              <td><input type="checkbox" class="row-check" value="<%= r.id %>"></td>
-              <td><a href="/admin/produtos"><%= r.product_name %></a></td>
-              <td><%= r.sku || '-' %></td>
-              <td><%= r.batch_code %></td>
-              <td><%= r.mfg_date ? new Date(r.mfg_date).toLocaleDateString('pt-BR') : '-' %></td>
-              <td><%= r.expiry_date ? new Date(r.expiry_date).toLocaleDateString('pt-BR') : '-' %></td>
-              <td>
-                <% if (r.validity_status === 'EXPIRED') { %><span class="badge bg-danger">Vencido</span><% } %>
-                <% if (r.validity_status === 'EXPIRING') { %><span class="badge bg-warning text-dark">Próx. vencimento</span><% } %>
-                <% if (r.validity_status === 'VALID') { %><span class="badge bg-success">Válido</span><% } %>
-              </td>
-              <td><%= r.days_to_expiry %></td>
-              <td><%= r.quantity %></td>
-            </tr>
-          <% }); } else { %>
-            <tr><td colspan="9" class="text-muted">Nenhum lote encontrado.</td></tr>
-          <% } %>
-        </tbody>
-      </table>
+    <div class="col-6 col-lg-3">
+      <div class="admin-lotes__stat admin-lotes__stat--neutral">
+        <span class="admin-lotes__stat-icon"><i class="bi bi-archive"></i></span>
+        <div>
+          <div class="admin-lotes__stat-value"><%= pagination ? pagination.total : 0 %></div>
+          <div class="admin-lotes__stat-label">Resultado do filtro atual</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <% if (pagination) { %>
-    <div class="d-flex justify-content-between align-items-center mt-3">
-      <small class="text-muted">
-        Exibindo página <%= pagination.page %> de <%= pagination.totalPages %> — total: <%= pagination.total %> lote(s)
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          <li class="page-item <%= pagination.page <= 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/lotes?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= pagination.pageSize %>&page=<%= Math.max(1, pagination.page - 1) %>">Anterior</a>
-          </li>
-          <% for (let p = Math.max(1, pagination.page - 2); p <= Math.min(pagination.totalPages, pagination.page + 2); p++) { %>
-            <li class="page-item <%= p === pagination.page ? 'active' : '' %>">
-              <a class="page-link" href="/admin/lotes?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= pagination.pageSize %>&page=<%= p %>"><%= p %></a>
-            </li>
-          <% } %>
-          <li class="page-item <%= pagination.page >= pagination.totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/lotes?status=<%= encodeURIComponent(filters.status || 'ALL') %>&sort=<%= encodeURIComponent(filters.sort || 'expiry_asc') %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= pagination.pageSize %>&page=<%= Math.min(pagination.totalPages, pagination.page + 1) %>">Próxima</a>
-          </li>
-        </ul>
-      </nav>
+  <% if ((expiredAwaiting || 0) > 0) { %>
+  <div class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-exclamation-octagon me-1"></i> Atenção:</strong>
+      existem <strong><%= expiredAwaiting %></strong> lote(s) vencido(s) ainda com quantidade em estoque.
+      Registre o descarte após conferência física.
     </div>
+    <a class="btn btn-sm btn-danger" href="/admin/descartes">Ir para descartes</a>
+  </div>
   <% } %>
+
+  <div class="admin-lotes__tabs mb-3">
+    <% statusTabs.forEach(function (t) { %>
+      <a href="<%= lotesQuery({ status: t.v, page: '1' }) %>" class="admin-lotes__tab <%= currentStatus === t.v ? 'is-active' : '' %>">
+        <i class="bi <%= t.icon %> me-1"></i><%= t.l %>
+      </a>
+    <% }); %>
+  </div>
+
+  <section class="admin-lotes__panel admin-lotes__panel--filters mb-4">
+    <div class="admin-lotes__panel-head">
+      <h3 class="admin-lotes__panel-title"><i class="bi bi-funnel me-2"></i>Filtros e ordenação</h3>
+    </div>
+    <div class="admin-lotes__panel-body">
+      <form class="row g-3 align-items-end" method="get" action="/admin/lotes">
+        <input type="hidden" name="status" value="<%= currentStatus %>">
+        <div class="col-md-4 col-lg-4">
+          <label for="lotes_search" class="form-label">Buscar</label>
+          <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input class="form-control" id="lotes_search" name="search" value="<%= currentSearch %>" placeholder="Produto, SKU ou código do lote">
+          </div>
+        </div>
+        <div class="col-md-4 col-lg-3">
+          <label for="lotes_sort" class="form-label">Ordenar por</label>
+          <select class="form-select" id="lotes_sort" name="sort">
+            <option value="product_asc" <%= currentSort === 'product_asc' ? 'selected' : '' %>>Produto A–Z</option>
+            <option value="product_desc" <%= currentSort === 'product_desc' ? 'selected' : '' %>>Produto Z–A</option>
+            <option value="expiry_asc" <%= currentSort === 'expiry_asc' ? 'selected' : '' %>>Validade (mais próxima)</option>
+            <option value="expiry_desc" <%= currentSort === 'expiry_desc' ? 'selected' : '' %>>Validade (mais distante)</option>
+            <option value="days_asc" <%= currentSort === 'days_asc' ? 'selected' : '' %>>Dias restantes (menor)</option>
+            <option value="days_desc" <%= currentSort === 'days_desc' ? 'selected' : '' %>>Dias restantes (maior)</option>
+            <option value="qty_desc" <%= currentSort === 'qty_desc' ? 'selected' : '' %>>Quantidade (maior)</option>
+            <option value="qty_asc" <%= currentSort === 'qty_asc' ? 'selected' : '' %>>Quantidade (menor)</option>
+          </select>
+        </div>
+        <div class="col-md-2 col-lg-2">
+          <label for="lotes_pageSize" class="form-label">Por página</label>
+          <select class="form-select" id="lotes_pageSize" name="pageSize">
+            <option value="10" <%= pagination && pagination.pageSize === 10 ? 'selected' : '' %>>10</option>
+            <option value="25" <%= pagination && pagination.pageSize === 25 ? 'selected' : '' %>>25</option>
+            <option value="50" <%= pagination && pagination.pageSize === 50 ? 'selected' : '' %>>50</option>
+            <option value="100" <%= pagination && pagination.pageSize === 100 ? 'selected' : '' %>>100</option>
+          </select>
+        </div>
+        <div class="col-md-2 col-lg-3 d-grid">
+          <button type="submit" class="btn btn-save"><i class="bi bi-search me-1"></i> Aplicar</button>
+        </div>
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="hideDisposed" value="1" id="hideDisposed" <%= hideDisposed ? 'checked' : '' %>>
+            <label class="form-check-label" for="hideDisposed">Ocultar lotes totalmente descartados (saldo zero)</label>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="admin-lotes__panel admin-lotes__panel--table">
+    <div class="admin-lotes__panel-head admin-lotes__panel-head--table">
+      <h3 class="admin-lotes__panel-title"><i class="bi bi-list-ul me-2"></i>Listagem de lotes</h3>
+      <% if (pagination) { %>
+        <span class="admin-lotes__panel-meta">
+          Página <%= pagination.page %> de <%= pagination.totalPages %> · <%= pagination.total %> lote(s)
+          <% if (hideDisposed) { %><span class="text-muted">· descartados ocultos</span><% } %>
+        </span>
+      <% } %>
+    </div>
+
+    <% if (!rows || !rows.length) { %>
+      <div class="admin-lotes__empty">
+        <i class="bi bi-inbox d-block mb-2"></i>
+        Nenhum lote encontrado para os filtros selecionados.
+        <div class="mt-2">
+          <a href="/admin/lotes" class="btn btn-sm btn-outline-primary">Limpar filtros</a>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaLotes">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="checkAll" aria-label="Selecionar todos"></th>
+              <th><a class="admin-lotes__sort-link" href="<%= sortUrl(nextProductSort) %>">Produto <i class="bi <%= productArrow %>"></i></a></th>
+              <th>SKU</th>
+              <th>Lote</th>
+              <th>Fabricação</th>
+              <th><a class="admin-lotes__sort-link" href="<%= sortUrl(nextExpirySort) %>">Validade <i class="bi <%= expiryArrow %>"></i></a></th>
+              <th>Status</th>
+              <th>Descarte</th>
+              <th><a class="admin-lotes__sort-link" href="<%= sortUrl(nextDaysSort) %>">Dias <i class="bi <%= daysArrow %>"></i></a></th>
+              <th class="text-center"><a class="admin-lotes__sort-link" href="<%= sortUrl(nextQtySort) %>">Qtd <i class="bi <%= qtyArrow %>"></i></a></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (r) {
+              var rowClass = r.disposal_status === 'FULL' ? 'admin-lotes__row--disposed' : (r.validity_status === 'EXPIRED' ? 'admin-lotes__row--expired' : '');
+              var daysNum = Number(r.days_to_expiry);
+              var daysClass = daysNum < 0 ? 'admin-lotes__days--danger' : (daysNum <= 30 ? 'admin-lotes__days--warning' : '');
+            %>
+              <tr class="<%= rowClass %>">
+                <td class="col-check"><input type="checkbox" class="row-check" value="<%= r.id %>" aria-label="Selecionar lote"></td>
+                <td><span class="cell-truncate-wide fw-semibold" title="<%= r.product_name %>"><%= r.product_name %></span></td>
+                <td class="small text-muted"><%= r.sku || '—' %></td>
+                <td><code class="admin-lotes__batch-code"><%= r.batch_code %></code></td>
+                <td class="text-nowrap small"><%= r.mfg_date ? fmtDate(r.mfg_date) : '—' %></td>
+                <td class="text-nowrap small"><%= r.expiry_date ? fmtDate(r.expiry_date) : '—' %></td>
+                <td>
+                  <% if (r.validity_status === 'EXPIRED') { %><span class="admin-lotes__badge admin-lotes__badge--danger">Vencido</span><% } %>
+                  <% if (r.validity_status === 'EXPIRING') { %><span class="admin-lotes__badge admin-lotes__badge--warning">A vencer</span><% } %>
+                  <% if (r.validity_status === 'VALID') { %><span class="admin-lotes__badge admin-lotes__badge--success">Válido</span><% } %>
+                </td>
+                <td>
+                  <% if (r.disposal_status === 'FULL') { %>
+                    <span class="admin-lotes__badge admin-lotes__badge--muted" title="<%= r.last_disposed_at ? 'Último descarte: ' + fmtDateTime(r.last_disposed_at) : '' %>">
+                      Total (<%= r.disposed_qty %> un.)
+                    </span>
+                  <% } else if (r.disposal_status === 'PARTIAL') { %>
+                    <span class="admin-lotes__badge admin-lotes__badge--info" title="<%= r.last_disposed_at ? 'Último descarte: ' + fmtDateTime(r.last_disposed_at) : '' %>">
+                      Parcial (<%= r.disposed_qty %> un.)
+                    </span>
+                  <% } else { %>
+                    <span class="text-muted small">—</span>
+                  <% } %>
+                </td>
+                <td><span class="admin-lotes__days <%= daysClass %>"><%= r.days_to_expiry %></span></td>
+                <td class="text-center"><span class="admin-lotes__qty-badge"><%= r.quantity %></span></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if (pagination && pagination.totalPages > 1) { %>
+        <div class="admin-lotes__pagination">
+          <nav aria-label="Paginação de lotes">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item <%= pagination.page <= 1 ? 'disabled' : '' %>">
+                <a class="page-link" href="<%= lotesQuery({ page: String(Math.max(1, pagination.page - 1)) }) %>">Anterior</a>
+              </li>
+              <% for (let p = Math.max(1, pagination.page - 2); p <= Math.min(pagination.totalPages, pagination.page + 2); p++) { %>
+                <li class="page-item <%= p === pagination.page ? 'active' : '' %>">
+                  <a class="page-link" href="<%= lotesQuery({ page: String(p) }) %>"><%= p %></a>
+                </li>
+              <% } %>
+              <li class="page-item <%= pagination.page >= pagination.totalPages ? 'disabled' : '' %>">
+                <a class="page-link" href="<%= lotesQuery({ page: String(Math.min(pagination.totalPages, pagination.page + 1)) }) %>">Próxima</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      <% } %>
+    <% } %>
+  </section>
 </div>
 
+<style>
+  .admin-lotes__stats { margin-top: 0.25rem; }
+
+  .admin-lotes__stat {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: #fff;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    min-height: 88px;
+    color: inherit;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+
+  a.admin-lotes__stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+    border-color: color-mix(in srgb, var(--accent-color), transparent 70%);
+  }
+
+  .admin-lotes__stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  .admin-lotes__stat--success .admin-lotes__stat-icon { background: #e8f6ee; color: #198754; }
+  .admin-lotes__stat--warning .admin-lotes__stat-icon { background: #fff8e6; color: #997404; }
+  .admin-lotes__stat--danger .admin-lotes__stat-icon { background: #fdecec; color: color-mix(in srgb, var(--accent-color), #a3343f 45%); }
+  .admin-lotes__stat--neutral .admin-lotes__stat-icon { background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); }
+
+  .admin-lotes__stat-value {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    line-height: 1.1;
+  }
+
+  .admin-lotes__stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.15rem;
+  }
+
+  .admin-lotes__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-lotes__tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fff;
+    color: #495057;
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  }
+
+  .admin-lotes__tab:hover {
+    border-color: color-mix(in srgb, var(--accent-color), transparent 70%);
+    color: var(--accent-color);
+  }
+
+  .admin-lotes__tab.is-active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--contrast-color);
+  }
+
+  .admin-lotes__panel {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+
+  .admin-lotes__panel-head {
+    padding: 0.95rem 1.15rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), #fff 92%) 0%, #fff 100%);
+  }
+
+  .admin-lotes__panel-head--table {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .admin-lotes__panel-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--heading-color);
+  }
+
+  .admin-lotes__panel-meta {
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+
+  .admin-lotes__panel-body {
+    padding: 1.15rem 1.15rem 1.25rem;
+  }
+
+  .admin-lotes__panel-body .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.3rem;
+  }
+
+  .admin-lotes__panel-body .form-control,
+  .admin-lotes__panel-body .form-select {
+    border-radius: 8px;
+    border-color: #dee2e6;
+    font-size: 0.9rem;
+  }
+
+  .admin-lotes__panel-body .form-control:focus,
+  .admin-lotes__panel-body .form-select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%);
+  }
+
+  .admin-lotes__panel-body .search-box .form-control {
+    padding-left: 2rem;
+  }
+
+  .btn-save {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--contrast-color);
+    font-weight: 600;
+    border-radius: 8px;
+  }
+
+  .btn-save:hover {
+    background: color-mix(in srgb, var(--accent-color), black 12%);
+    border-color: color-mix(in srgb, var(--accent-color), black 12%);
+    color: var(--contrast-color);
+  }
+
+  .admin-lotes__panel--table .table-custom th {
+    font-size: 0.72rem;
+    padding: 0.85rem 1rem;
+    white-space: nowrap;
+  }
+
+  .admin-lotes__panel--table .table-custom td {
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  .admin-lotes__panel--table .col-check {
+    width: 42px;
+  }
+
+  .admin-lotes__sort-link {
+    color: inherit;
+    text-decoration: none;
+    font-weight: inherit;
+  }
+
+  .admin-lotes__sort-link:hover {
+    color: var(--accent-color);
+  }
+
+  .admin-lotes__batch-code {
+    font-size: 0.78rem;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color), transparent 92%);
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+  }
+
+  .admin-lotes__badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.22rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  .admin-lotes__badge--success { background: #d1e7dd; color: #0f5132; }
+  .admin-lotes__badge--warning { background: #fff3cd; color: #664d03; }
+  .admin-lotes__badge--danger { background: #f8d7da; color: #842029; }
+  .admin-lotes__badge--info { background: #dbeafe; color: #0a58ca; }
+  .admin-lotes__badge--muted { background: #e9ecef; color: #495057; }
+
+  .admin-lotes__qty-badge {
+    display: inline-block;
+    min-width: 2rem;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color), transparent 86%);
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .admin-lotes__days {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: #495057;
+  }
+
+  .admin-lotes__days--warning { color: #997404; }
+  .admin-lotes__days--danger { color: #b02a37; }
+
+  .admin-lotes__row--expired { background: color-mix(in srgb, #dc3545, transparent 94%); }
+  .admin-lotes__row--disposed { background: #f8f9fa; }
+
+  .admin-lotes__empty {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: #868e96;
+    font-size: 0.92rem;
+  }
+
+  .admin-lotes__empty i {
+    font-size: 2.2rem;
+    opacity: 0.65;
+  }
+
+  .admin-lotes__pagination {
+    display: flex;
+    justify-content: center;
+    padding: 1rem 1.15rem 1.15rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    background: #fafbfc;
+  }
+
+  .admin-lotes__pagination .page-item.active .page-link {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+  }
+
+  .admin-lotes__pagination .page-link {
+    color: var(--accent-color);
+  }
+
+  @media (max-width: 767.98px) {
+    .admin-lotes__panel-head--table {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
+
 <%- include('partials/footer') %>
+
 <script>
   document.getElementById('checkAll')?.addEventListener('change', function () {
-    document.querySelectorAll('.row-check').forEach((c) => { c.checked = this.checked; });
+    document.querySelectorAll('.row-check').forEach(function (c) { c.checked = this.checked; }.bind(this));
   });
+
   document.getElementById('btnDeleteMany')?.addEventListener('click', async function () {
-    const ids = Array.from(document.querySelectorAll('.row-check:checked')).map((c) => Number(c.value));
-    if (!ids.length) return window.neofarmaToast('Selecione ao menos um lote.', 'danger');
-    const ok = await window.neofarmaConfirm({
-      title: 'Excluir lotes',
-      message: 'Excluir os lotes selecionados?'
-    });
+    var ids = Array.from(document.querySelectorAll('.row-check:checked')).map(function (c) { return Number(c.value); });
+    if (!ids.length) return window.neofarmaToast('Selecione ao menos um lote.', 'warning');
+    var ok = await window.neofarmaConfirm({ title: 'Excluir lotes', message: 'Excluir os lotes selecionados? Esta ação não pode ser desfeita.' });
     if (!ok) return;
-    const resp = await fetch('/admin/lotes/delete-many', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids })
-    });
-    const data = await resp.json();
-    if (!data.ok) return window.neofarmaToast(data.message || 'Falha na exclusão em massa.', 'danger');
-    window.location.reload();
+    var btn = this;
+    btn.disabled = true;
+    try {
+      var resp = await fetch('/admin/lotes/delete-many', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+      });
+      var data = await resp.json();
+      if (!data.ok) {
+        window.neofarmaToast(data.message || 'Falha na exclusão em massa.', 'danger');
+        return;
+      }
+      window.neofarmaToast('Lotes excluídos com sucesso.', 'success');
+      window.location.reload();
+    } catch (e) {
+      window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger');
+    } finally {
+      btn.disabled = false;
+    }
   });
 </script>

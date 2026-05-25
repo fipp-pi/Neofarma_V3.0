@@ -3,6 +3,7 @@
  * Conversa com pedidos, pagamentos e agendamentos de serviço.
  */
 const { pool } = require('../config/database');
+const { fulfillOrderStock } = require('../services/orderFulfillmentService');
 
 /**
  * Normaliza datas vindas de query string / formulário para uso seguro em SQL.
@@ -376,6 +377,16 @@ async function markPaymentForOrderAdmin(orderId, paymentStatus) {
 
     const nextOrderStatus = newPaymentStatus === 'PAID' ? 'PROCESSING' : 'CANCELLED';
 
+    if (newPaymentStatus === 'PAID') {
+      const fulfill = await fulfillOrderStock(orderId, connection);
+      if (!fulfill.ok && fulfill.code !== 'NO_PENDING_ITEMS') {
+        await connection.rollback();
+        const err = new Error(fulfill.message || 'Não foi possível baixar estoque para o pedido.');
+        err.code = fulfill.code || 'FULFILL_FAILED';
+        throw err;
+      }
+    }
+
     await connection.execute('UPDATE payments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_id = ?', [
       newPaymentStatus,
       orderId,
@@ -400,6 +411,332 @@ async function markPaymentForOrderAdmin(orderId, paymentStatus) {
   }
 }
 
+/**
+ * RF_S1 — relatório de produtos (tipo, categoria, laboratório, mais/menos vendidos).
+ */
+async function getProductReport(options = {}) {
+  const limit = Math.min(500, Math.max(5, parseInt(options.limit, 10) || 50));
+  const sort = String(options.sort || 'most').toLowerCase() === 'least' ? 'least' : 'most';
+  const categoryId = options.category_id ? parseInt(options.category_id, 10) : null;
+  const productTypeId = options.product_type_id ? parseInt(options.product_type_id, 10) : null;
+  const labId = options.lab_id ? parseInt(options.lab_id, 10) : null;
+  const minQty = options.min_qty ? parseInt(options.min_qty, 10) : null;
+  const search = options.search ? String(options.search).trim() : '';
+  const productStatus = options.product_status ? String(options.product_status).trim().toUpperCase() : '';
+
+  const whereParts = ['p.status != ?'];
+  const params = ['DISCONTINUED'];
+  if (categoryId) {
+    whereParts.push('pc.category_id = ?');
+    params.push(categoryId);
+  }
+  if (productTypeId) {
+    whereParts.push('p.product_type_id = ?');
+    params.push(productTypeId);
+  }
+  if (labId) {
+    whereParts.push('p.lab_id = ?');
+    params.push(labId);
+  }
+  if (productStatus) {
+    whereParts.push('p.status = ?');
+    params.push(productStatus);
+  }
+  if (search) {
+    whereParts.push('(p.name LIKE ? OR p.sku LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  const salesWhere = ["o.payment_status = 'PAID'"];
+  const salesParams = [];
+  const from = options.from ? toDateOrNull(options.from) : null;
+  const to = options.to ? toDateOrNull(options.to) : null;
+  if (from && to) {
+    salesWhere.push('o.created_at >= ? AND o.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
+    salesParams.push(from, to);
+  } else {
+    const days = options.days != null ? Number(options.days) : 90;
+    salesWhere.push('o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
+    salesParams.push(days);
+  }
+
+  const havingParts = [];
+  const havingParams = [];
+  if (minQty != null && Number.isFinite(minQty) && minQty > 0) {
+    havingParts.push('COALESCE(SUM(oi.quantity), 0) >= ?');
+    havingParams.push(minQty);
+  }
+  const havingClause = havingParts.length ? `HAVING ${havingParts.join(' AND ')}` : '';
+  const orderDir = sort === 'least' ? 'ASC' : 'DESC';
+
+  const [rows] = await pool.execute(
+    `SELECT
+      p.id,
+      p.name AS product_name,
+      p.sku,
+      p.unit_price,
+      p.status AS product_status,
+      pt.name AS type_name,
+      l.name AS lab_name,
+      GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS categories,
+      COALESCE(SUM(oi.quantity), 0) AS qty_sold,
+      COALESCE(SUM(oi.line_total), 0) AS revenue,
+      CASE
+        WHEN COALESCE(SUM(oi.quantity), 0) > 0
+        THEN COALESCE(SUM(oi.line_total), 0) / SUM(oi.quantity)
+        ELSE 0
+      END AS avg_ticket
+     FROM products p
+     LEFT JOIN product_types pt ON pt.id = p.product_type_id
+     LEFT JOIN labs l ON l.id = p.lab_id
+     LEFT JOIN product_categories pc ON pc.product_id = p.id
+     LEFT JOIN categories c ON c.id = pc.category_id
+     LEFT JOIN order_items oi ON oi.product_id = p.id
+     LEFT JOIN orders o ON o.id = oi.order_id AND ${salesWhere.join(' AND ')}
+     WHERE ${whereParts.join(' AND ')}
+     GROUP BY p.id, p.name, p.sku, p.unit_price, p.status, pt.name, l.name
+     ${havingClause}
+     ORDER BY qty_sold ${orderDir}, revenue ${orderDir}
+     LIMIT ${limit}`,
+    [...salesParams, ...params, ...havingParams]
+  );
+  return rows || [];
+}
+
+/**
+ * RF_S2 — relatório de vendas (cliente, categoria, produto, pagamento, período).
+ */
+async function getSalesReport(options = {}) {
+  const limit = Math.min(500, Math.max(10, parseInt(options.limit, 10) || 100));
+  const customerId = options.customer_id ? parseInt(options.customer_id, 10) : null;
+  const categoryId = options.category_id ? parseInt(options.category_id, 10) : null;
+  const productId = options.product_id ? parseInt(options.product_id, 10) : null;
+  const paymentMethod = options.payment_method ? String(options.payment_method).trim().toUpperCase() : '';
+  const orderStatus = options.order_status ? String(options.order_status).trim().toUpperCase() : '';
+  const search = options.search ? String(options.search).trim() : '';
+
+  const whereParts = ["o.payment_status = 'PAID'"];
+  const params = [];
+  const from = options.from ? toDateOrNull(options.from) : null;
+  const to = options.to ? toDateOrNull(options.to) : null;
+  if (from && to) {
+    whereParts.push('o.created_at >= ? AND o.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
+    params.push(from, to);
+  } else {
+    const days = options.days != null ? Number(options.days) : 30;
+    whereParts.push('o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
+    params.push(days);
+  }
+  if (customerId) {
+    whereParts.push('o.customer_id = ?');
+    params.push(customerId);
+  }
+  if (productId) {
+    whereParts.push('oi.product_id = ?');
+    params.push(productId);
+  }
+  if (categoryId) {
+    whereParts.push('EXISTS (SELECT 1 FROM product_categories pc2 WHERE pc2.product_id = oi.product_id AND pc2.category_id = ?)');
+    params.push(categoryId);
+  }
+  if (paymentMethod) {
+    whereParts.push('o.payment_method = ?');
+    params.push(paymentMethod);
+  }
+  if (orderStatus) {
+    whereParts.push('o.status = ?');
+    params.push(orderStatus);
+  }
+  if (search) {
+    whereParts.push('(u.full_name LIKE ? OR p.name LIKE ? OR CAST(o.id AS CHAR) LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT
+      o.id AS order_id,
+      o.created_at,
+      o.status AS order_status,
+      u.full_name AS customer_name,
+      p.name AS product_name,
+      p.sku,
+      (SELECT GROUP_CONCAT(DISTINCT cat.name ORDER BY cat.name SEPARATOR ', ')
+       FROM product_categories pc3
+       INNER JOIN categories cat ON cat.id = pc3.category_id
+       WHERE pc3.product_id = p.id) AS category_name,
+      oi.quantity,
+      oi.line_total,
+      o.payment_method
+     FROM orders o
+     INNER JOIN order_items oi ON oi.order_id = o.id
+     INNER JOIN products p ON p.id = oi.product_id
+     INNER JOIN customers c ON c.id = o.customer_id
+     INNER JOIN users u ON u.id = c.user_id
+     WHERE ${whereParts.join(' AND ')}
+     ORDER BY o.created_at DESC, o.id DESC
+     LIMIT ${limit}`,
+    params
+  );
+  return rows || [];
+}
+
+/**
+ * RF_S3 — relatório de clientes (PF/PJ, cidade, nome, inadimplente, gasto total).
+ */
+async function getCustomerReport(options = {}) {
+  const limit = Math.min(500, Math.max(10, parseInt(options.limit, 10) || 100));
+  const personType = options.person_type ? String(options.person_type).toUpperCase() : '';
+  const city = options.city ? String(options.city).trim() : '';
+  const name = options.name ? String(options.name).trim() : '';
+  const search = options.search ? String(options.search).trim() : '';
+  const delinquentOnly = options.delinquent === '1' || options.delinquent === 'true';
+  const minSpent = options.min_spent ? parseFloat(options.min_spent) : null;
+
+  const whereParts = ["r.name = 'CLIENTE'"];
+  const params = [];
+  if (personType === 'PF') {
+    whereParts.push("CHAR_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(u.document,''),'.',''),'-',''),'/',''),' ','')) <= 11");
+  } else if (personType === 'PJ') {
+    whereParts.push("CHAR_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(u.document,''),'.',''),'-',''),'/',''),' ','')) > 11");
+  }
+  if (city) {
+    whereParts.push('a.city LIKE ?');
+    params.push(`%${city}%`);
+  }
+  if (name) {
+    whereParts.push('u.full_name LIKE ?');
+    params.push(`%${name}%`);
+  }
+  if (search) {
+    whereParts.push('(u.full_name LIKE ? OR u.email LIKE ? OR u.document LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (delinquentOnly) {
+    whereParts.push(`EXISTS (
+      SELECT 1 FROM orders ox
+      WHERE ox.customer_id = c.id
+        AND (ox.payment_status = 'FAILED'
+          OR (ox.payment_status = 'PENDING' AND ox.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)))
+    )`);
+  }
+  if (minSpent != null && Number.isFinite(minSpent) && minSpent > 0) {
+    whereParts.push(`(
+      SELECT COALESCE(SUM(o2.total), 0) FROM orders o2
+      WHERE o2.customer_id = c.id AND o2.payment_status = 'PAID'
+    ) >= ?`);
+    params.push(minSpent);
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT
+      c.id AS customer_id,
+      u.full_name,
+      u.email,
+      u.document,
+      u.phone,
+      a.city,
+      CASE
+        WHEN CHAR_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(u.document,''),'.',''),'-',''),'/',''),' ','')) > 11 THEN 'PJ'
+        ELSE 'PF'
+      END AS person_type,
+      (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id AND o.payment_status = 'PAID') AS paid_orders,
+      (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id AND o.payment_status = 'PAID') AS total_spent,
+      (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id AND (o.payment_status = 'FAILED'
+        OR (o.payment_status = 'PENDING' AND o.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)))) AS delinquent_flags
+     FROM customers c
+     INNER JOIN users u ON u.id = c.user_id
+     INNER JOIN roles r ON r.id = u.role_id
+     LEFT JOIN addresses a ON a.id = c.default_address_id
+     WHERE ${whereParts.join(' AND ')}
+     ORDER BY total_spent DESC, u.full_name
+     LIMIT ${limit}`,
+    params
+  );
+  return rows || [];
+}
+
+/**
+ * RF_04 — relatório de serviços (profissional, status, serviço, pagamento, período).
+ */
+async function getServiceReport(options = {}) {
+  const limit = Math.min(500, Math.max(10, parseInt(options.limit, 10) || 100));
+  const professionalId = options.professional_id ? parseInt(options.professional_id, 10) : null;
+  const serviceId = options.service_id ? parseInt(options.service_id, 10) : null;
+  const statusFilter = options.status_filter ? String(options.status_filter) : '';
+  const paymentStatus = options.payment_status ? String(options.payment_status).trim().toUpperCase() : '';
+  const modality = options.modality ? String(options.modality).trim().toUpperCase() : '';
+  const channel = options.channel ? String(options.channel).trim().toUpperCase() : '';
+  const search = options.search ? String(options.search).trim() : '';
+
+  const whereParts = ['1=1'];
+  const params = [];
+  const from = options.from ? toDateOrNull(options.from) : null;
+  const to = options.to ? toDateOrNull(options.to) : null;
+  if (from && to) {
+    whereParts.push('sa.created_at >= ? AND sa.created_at <= DATE_ADD(?, INTERVAL 1 DAY)');
+    params.push(from, to);
+  } else {
+    const days = options.days != null ? Number(options.days) : 90;
+    whereParts.push('sa.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)');
+    params.push(days);
+  }
+  if (professionalId) {
+    whereParts.push('sa.professional_id = ?');
+    params.push(professionalId);
+  }
+  if (serviceId) {
+    whereParts.push('sa.service_id = ?');
+    params.push(serviceId);
+  }
+  if (statusFilter === 'completed') {
+    whereParts.push("sa.status = 'COMPLETED'");
+  } else if (statusFilter === 'open') {
+    whereParts.push("sa.status IN ('RESERVED','CONFIRMED','IN_PROGRESS')");
+  } else if (statusFilter === 'cancelled') {
+    whereParts.push("sa.status = 'CANCELLED'");
+  }
+  if (paymentStatus) {
+    whereParts.push('sa.payment_status = ?');
+    params.push(paymentStatus);
+  }
+  if (modality) {
+    whereParts.push('sa.modality = ?');
+    params.push(modality);
+  }
+  if (channel) {
+    whereParts.push('sa.booking_channel = ?');
+    params.push(channel);
+  }
+  if (search) {
+    whereParts.push('(sa.customer_name LIKE ? OR hs.name LIKE ? OR sp.full_name LIKE ? OR CAST(sa.id AS CHAR) LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT
+      sa.id,
+      sa.scheduled_start,
+      sa.status,
+      sa.payment_status,
+      sa.payment_method,
+      sa.modality,
+      sa.booking_channel,
+      sa.total_amount,
+      hs.name AS service_name,
+      sp.full_name AS professional_name,
+      sa.customer_name,
+      sa.customer_email
+     FROM service_appointments sa
+     INNER JOIN health_services hs ON hs.id = sa.service_id
+     LEFT JOIN service_professionals sp ON sp.id = sa.professional_id
+     WHERE ${whereParts.join(' AND ')}
+     ORDER BY sa.scheduled_start DESC
+     LIMIT ${limit}`,
+    params
+  );
+  return rows || [];
+}
+
 module.exports = {
   getFinanceSummary,
   getRevenueByPaymentMethod,
@@ -408,5 +745,9 @@ module.exports = {
   getRevenueByDay,
   listRecentReceipts,
   markPaymentForOrderAdmin,
+  getProductReport,
+  getSalesReport,
+  getCustomerReport,
+  getServiceReport,
 };
 

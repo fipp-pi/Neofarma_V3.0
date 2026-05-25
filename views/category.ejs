@@ -1,151 +1,220 @@
 <%- include('partials/header') %>
+<link href="/assets/css/storefront.css" rel="stylesheet">
+
+<%
+  function buildQuery(base, overrides) {
+    var o = Object.assign({}, base, overrides || {});
+    var parts = [];
+    Object.keys(o).forEach(function(k) {
+      var v = o[k];
+      if (v !== '' && v !== null && v !== undefined && v !== false) {
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(v)));
+      }
+    });
+    return parts.join('&');
+  }
+  var qsBase = {
+    q: (typeof filters !== 'undefined' && filters.q) || '',
+    lab: (typeof filters !== 'undefined' && filters.lab) || '',
+    category: (typeof filters !== 'undefined' && filters.category) || '',
+    min_price: (typeof filters !== 'undefined' && filters.min_price) || '',
+    max_price: (typeof filters !== 'undefined' && filters.max_price) || '',
+    sort: (typeof filters !== 'undefined' && filters.sort) || 'relevance',
+    promo: (typeof filters !== 'undefined' && filters.promo) || '',
+    in_stock: (typeof filters !== 'undefined' && filters.in_stock) || ''
+  };
+  var priceMinBound = Number(typeof priceBounds !== 'undefined' && priceBounds.min != null ? priceBounds.min : 0);
+  var priceMaxBound = Number(typeof priceBounds !== 'undefined' && priceBounds.max != null ? priceBounds.max : 100);
+  var sliderMin = (typeof filters !== 'undefined' && filters.min_price) || priceMinBound;
+  var sliderMax = (typeof filters !== 'undefined' && filters.max_price) || priceMaxBound;
+%>
 
 <main class="main">
   <div class="page-title light-background">
     <div class="container d-lg-flex justify-content-between align-items-center">
-      <h1 class="mb-2 mb-lg-0">Catálogo Avançado</h1>
+      <div>
+        <h1 class="mb-1">Catálogo de produtos</h1>
+        <p class="mb-0 text-muted">Filtre, compare e encontre o medicamento ou produto ideal</p>
+      </div>
       <nav class="breadcrumbs">
         <ol>
           <li><a href="/">Início</a></li>
-          <li class="current">Category</li>
+          <li class="current">Catálogo</li>
         </ol>
       </nav>
     </div>
   </div>
 
-  <section class="section">
+  <section class="section pt-4">
     <div class="container">
-      <div class="row g-4">
-        <aside class="col-lg-3">
-          <form method="GET" action="/category" class="widgets-container">
-            <div class="widget-item mb-4">
-              <h3 class="widget-title">Busca</h3>
-              <input
-                type="text"
-                class="form-control"
-                name="q"
-                value="<%= filters.q || '' %>"
-                placeholder="Nome, SKU ou laboratório"
-              >
+      <button type="button" class="btn btn-outline-primary sf-mobile-filter-btn mb-3" id="openFiltersBtn">
+        <i class="bi bi-sliders"></i> Filtros
+      </button>
+
+      <div class="sf-catalog-layout">
+        <!-- Sidebar filtros -->
+        <aside class="sf-filters" id="catalogFilters">
+          <div class="sf-filters__title">
+            Filtros
+            <button type="button" class="btn btn-sm btn-link d-lg-none" id="closeFiltersBtn" aria-label="Fechar filtros">&times;</button>
+          </div>
+
+          <form method="GET" action="/category" id="catalogFilterForm">
+            <div class="sf-filter-group">
+              <h4>Buscar</h4>
+              <input type="search" class="form-control" name="q" value="<%= filters.q || '' %>" placeholder="Nome, SKU ou laboratório">
             </div>
 
-            <div class="widget-item mb-4">
-              <h3 class="widget-title">Faixa de preço</h3>
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label small mb-1">Mín.</label>
-                  <input type="number" step="0.01" min="0" class="form-control" name="min_price" value="<%= filters.min_price %>" placeholder="0,00">
-                </div>
-                <div class="col-6">
-                  <label class="form-label small mb-1">Máx.</label>
-                  <input type="number" step="0.01" min="0" class="form-control" name="max_price" value="<%= filters.max_price %>" placeholder="0,00">
-                </div>
-              </div>
-              <div class="small text-muted mt-2">
-                Faixa disponível: R$ <%= Number(priceBounds.min || 0).toFixed(2).replace('.', ',') %> até R$ <%= Number(priceBounds.max || 0).toFixed(2).replace('.', ',') %>
-              </div>
-            </div>
-
-            <div class="widget-item mb-4">
-              <h3 class="widget-title">Categorias</h3>
-              <select class="form-select" name="category">
-                <option value="">Todas</option>
+            <% if (categories && categories.length) { %>
+            <div class="sf-filter-group">
+              <h4>Categorias</h4>
+              <div class="sf-category-pills">
+                <label class="sf-category-pill">
+                  <input type="radio" name="category" value="" <%= !filters.category ? 'checked' : '' %>> Todas
+                </label>
                 <% categories.forEach(function(c) { %>
-                  <option value="<%= c.id %>" <%= String(filters.category) === String(c.id) ? 'selected' : '' %>>
-                    <%= c.name %> (<%= c.total %>)
-                  </option>
+                <label class="sf-category-pill">
+                  <input type="radio" name="category" value="<%= c.id %>" <%= String(filters.category) === String(c.id) ? 'checked' : '' %>>
+                  <%= c.name %> (<%= c.total %>)
+                </label>
                 <% }) %>
-              </select>
+              </div>
+            </div>
+            <% } %>
+
+            <div class="sf-filter-group">
+              <h4>Preço</h4>
+              <div class="sf-price-range">
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="min_price" id="priceMinInput" value="<%= filters.min_price || '' %>" placeholder="Mín.">
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="max_price" id="priceMaxInput" value="<%= filters.max_price || '' %>" placeholder="Máx.">
+                <input type="range" id="priceRangeMin" min="<%= Math.floor(priceMinBound) %>" max="<%= Math.ceil(priceMaxBound) %>" value="<%= sliderMin %>" step="1">
+                <input type="range" id="priceRangeMax" min="<%= Math.floor(priceMinBound) %>" max="<%= Math.ceil(priceMaxBound) %>" value="<%= sliderMax %>" step="1">
+              </div>
+              <div class="sf-price-hint">
+                Faixa do catálogo: R$ <%= priceMinBound.toFixed(2).replace('.', ',') %> — R$ <%= priceMaxBound.toFixed(2).replace('.', ',') %>
+              </div>
             </div>
 
-            <div class="widget-item mb-4">
-              <h3 class="widget-title">Laboratório</h3>
-              <select class="form-select" name="lab">
+            <% if (labs && labs.length) { %>
+            <div class="sf-filter-group">
+              <h4>Laboratório / Marca</h4>
+              <select class="form-select form-select-sm" name="lab">
                 <option value="">Todos</option>
                 <% labs.forEach(function(l) { %>
-                  <option value="<%= l.name %>" <%= filters.lab === l.name ? 'selected' : '' %>>
-                    <%= l.name %> (<%= l.total %>)
-                  </option>
+                <option value="<%= l.name %>" <%= filters.lab === l.name ? 'selected' : '' %>><%= l.name %> (<%= l.total %>)</option>
                 <% }) %>
               </select>
             </div>
+            <% } %>
 
-            <div class="widget-item mb-4">
-              <h3 class="widget-title">Ordenação</h3>
-              <select class="form-select" name="sort">
+            <div class="sf-filter-group">
+              <h4>Disponibilidade</h4>
+              <label class="sf-filter-check">
+                <input type="checkbox" name="in_stock" value="1" <%= filters.in_stock === '1' ? 'checked' : '' %>>
+                Apenas com estoque
+              </label>
+              <label class="sf-filter-check">
+                <input type="checkbox" name="promo" value="1" <%= filters.promo === '1' ? 'checked' : '' %>>
+                Somente em promoção
+              </label>
+            </div>
+
+            <div class="sf-filter-group">
+              <h4>Ordenar por</h4>
+              <select class="form-select form-select-sm" name="sort">
                 <option value="relevance" <%= filters.sort === 'relevance' ? 'selected' : '' %>>Mais recentes</option>
+                <option value="bestsellers" <%= filters.sort === 'bestsellers' ? 'selected' : '' %>>Mais vendidos</option>
+                <option value="discount" <%= filters.sort === 'discount' ? 'selected' : '' %>>Maior desconto</option>
                 <option value="price_asc" <%= filters.sort === 'price_asc' ? 'selected' : '' %>>Menor preço</option>
                 <option value="price_desc" <%= filters.sort === 'price_desc' ? 'selected' : '' %>>Maior preço</option>
-                <option value="name_asc" <%= filters.sort === 'name_asc' ? 'selected' : '' %>>Nome A-Z</option>
-                <option value="name_desc" <%= filters.sort === 'name_desc' ? 'selected' : '' %>>Nome Z-A</option>
+                <option value="name_asc" <%= filters.sort === 'name_asc' ? 'selected' : '' %>>Nome A–Z</option>
+                <option value="name_desc" <%= filters.sort === 'name_desc' ? 'selected' : '' %>>Nome Z–A</option>
               </select>
             </div>
 
-            <div class="d-grid gap-2">
-              <button class="btn btn-primary" type="submit">Aplicar filtros</button>
-              <a href="/category" class="btn btn-outline-secondary">Limpar</a>
+            <div class="d-grid gap-2 mt-3">
+              <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+              <a href="/category" class="btn btn-outline-secondary">Limpar tudo</a>
             </div>
           </form>
         </aside>
 
-        <div class="col-lg-9">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0">Produtos</h4>
-            <div class="text-muted small">
-              <strong><%= pagination.total %></strong> resultado<%= pagination.total === 1 ? '' : 's' %>
+        <!-- Resultados -->
+        <div class="sf-catalog-main">
+          <div class="sf-catalog-toolbar">
+            <div>
+              <strong><%= pagination.total %></strong>
+              <span class="text-muted">produto<%= pagination.total === 1 ? '' : 's' %> encontrado<%= pagination.total === 1 ? '' : 's' %></span>
             </div>
+            <form method="GET" action="/category" class="d-flex align-items-center gap-2">
+              <input type="hidden" name="q" value="<%= filters.q || '' %>">
+              <input type="hidden" name="lab" value="<%= filters.lab || '' %>">
+              <input type="hidden" name="category" value="<%= filters.category || '' %>">
+              <input type="hidden" name="min_price" value="<%= filters.min_price || '' %>">
+              <input type="hidden" name="max_price" value="<%= filters.max_price || '' %>">
+              <% if (filters.promo === '1') { %><input type="hidden" name="promo" value="1"><% } %>
+              <% if (filters.in_stock === '1') { %><input type="hidden" name="in_stock" value="1"><% } %>
+              <label class="small text-muted mb-0">Ordenar:</label>
+              <select class="form-select form-select-sm" name="sort" style="width:auto;" onchange="this.form.submit()">
+                <option value="relevance" <%= filters.sort === 'relevance' ? 'selected' : '' %>>Recentes</option>
+                <option value="bestsellers" <%= filters.sort === 'bestsellers' ? 'selected' : '' %>>Mais vendidos</option>
+                <option value="discount" <%= filters.sort === 'discount' ? 'selected' : '' %>>Desconto</option>
+                <option value="price_asc" <%= filters.sort === 'price_asc' ? 'selected' : '' %>>Menor preço</option>
+                <option value="price_desc" <%= filters.sort === 'price_desc' ? 'selected' : '' %>>Maior preço</option>
+              </select>
+            </form>
           </div>
 
-          <div class="row g-3">
+          <% if (typeof activeFilters !== 'undefined' && activeFilters && activeFilters.length) { %>
+          <div class="sf-active-filters mb-3">
+            <% activeFilters.forEach(function(f) {
+              var cleared = Object.assign({}, qsBase);
+              cleared[f.key] = '';
+              if (f.key === 'promo' || f.key === 'in_stock') cleared[f.key] = '';
+            %>
+            <a href="/category?<%= buildQuery(cleared) %>" class="sf-active-chip" title="Remover filtro">
+              <%= f.label %> <i class="bi bi-x"></i>
+            </a>
+            <% }) %>
+            <a href="/category" class="sf-active-chip sf-active-chip--muted">Limpar todos</a>
+          </div>
+          <% } %>
+
+          <div class="sf-product-grid">
             <% if (products && products.length) { %>
               <% products.forEach(function(p) { %>
-                <div class="col-6 col-md-4">
-                  <a href="/produtos/<%= p.id %>" class="text-decoration-none text-dark">
-                    <div class="card h-100 border-0 shadow-sm">
-                      <img src="<%= p.thumb_url %>" class="card-img-top" alt="<%= p.name %>" style="aspect-ratio:1/1; object-fit:cover;">
-                      <div class="card-body">
-                        <h6 class="card-title mb-1"><%= p.name %></h6>
-                        <small class="text-muted d-block mb-2"><%= p.lab_name || 'NeoFarma' %></small>
-                        <small class="d-block mb-2 <%= p.can_buy ? 'text-success' : 'text-danger' %>">
-                          <%= p.can_buy ? ('Estoque: ' + p.available_stock) : 'Sem estoque' %>
-                        </small>
-                        <% if (p.has_promo) { %>
-                          <div><small class="text-muted text-decoration-line-through">R$ <%= p.price_display %></small></div>
-                          <strong class="text-success">R$ <%= p.promo_display %></strong>
-                        <% } else { %>
-                          <strong>R$ <%= p.price_display %></strong>
-                        <% } %>
-                        <button class="btn btn-sm btn-primary mt-2 btn-add-cart" data-id="<%= p.id %>" <%= p.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
-                      </div>
-                    </div>
-                  </a>
-                </div>
+                <%- include('partials/store-product-card', { p: p }) %>
               <% }) %>
             <% } else { %>
-              <div class="col-12">
-                <div class="alert alert-light border">Nenhum produto encontrado com os filtros selecionados.</div>
+              <div class="sf-catalog-empty">
+                <i class="bi bi-search d-block"></i>
+                <h5>Nenhum produto encontrado</h5>
+                <p class="text-muted mb-3">Tente ajustar os filtros ou buscar por outro termo.</p>
+                <a href="/category" class="btn btn-primary btn-sm">Ver catálogo completo</a>
               </div>
             <% } %>
           </div>
 
           <% if (pagination.totalPages > 1) { %>
-            <nav class="mt-4">
-              <ul class="pagination justify-content-center">
-                <% 
-                  const qsBase = 'q=' + encodeURIComponent(filters.q || '')
-                    + '&lab=' + encodeURIComponent(filters.lab || '')
-                    + '&category=' + encodeURIComponent(filters.category || '')
-                    + '&min_price=' + encodeURIComponent(filters.min_price || '')
-                    + '&max_price=' + encodeURIComponent(filters.max_price || '')
-                    + '&sort=' + encodeURIComponent(filters.sort || 'relevance');
-                %>
-                <% for (let pg = 1; pg <= pagination.totalPages; pg++) { %>
-                  <li class="page-item <%= pg === pagination.page ? 'active' : '' %>">
-                    <a class="page-link" href="/category?<%= qsBase %>&page=<%= pg %>"><%= pg %></a>
-                  </li>
-                <% } %>
-              </ul>
-            </nav>
+          <nav class="sf-pagination" aria-label="Paginação">
+            <% if (pagination.page > 1) { %>
+              <a href="/category?<%= buildQuery(qsBase, { page: pagination.page - 1 }) %>" aria-label="Anterior"><i class="bi bi-chevron-left"></i></a>
+            <% } %>
+            <% 
+              var startPg = Math.max(1, pagination.page - 2);
+              var endPg = Math.min(pagination.totalPages, pagination.page + 2);
+              for (var pg = startPg; pg <= endPg; pg++) {
+            %>
+              <% if (pg === pagination.page) { %>
+                <span class="active"><%= pg %></span>
+              <% } else { %>
+                <a href="/category?<%= buildQuery(qsBase, { page: pg }) %>"><%= pg %></a>
+              <% } %>
+            <% } %>
+            <% if (pagination.page < pagination.totalPages) { %>
+              <a href="/category?<%= buildQuery(qsBase, { page: pagination.page + 1 }) %>" aria-label="Próxima"><i class="bi bi-chevron-right"></i></a>
+            <% } %>
+          </nav>
           <% } %>
         </div>
       </div>
@@ -154,25 +223,79 @@
 </main>
 
 <script>
-  document.querySelectorAll('.btn-add-cart').forEach((btn) => {
-    btn.addEventListener('click', async (ev) => {
+(function() {
+  var filtersPanel = document.getElementById('catalogFilters');
+  var openBtn = document.getElementById('openFiltersBtn');
+  var closeBtn = document.getElementById('closeFiltersBtn');
+
+  if (openBtn && filtersPanel) {
+    openBtn.addEventListener('click', function() { filtersPanel.classList.add('is-open'); });
+  }
+  if (closeBtn && filtersPanel) {
+    closeBtn.addEventListener('click', function() { filtersPanel.classList.remove('is-open'); });
+  }
+
+  var rangeMin = document.getElementById('priceRangeMin');
+  var rangeMax = document.getElementById('priceRangeMax');
+  var inputMin = document.getElementById('priceMinInput');
+  var inputMax = document.getElementById('priceMaxInput');
+
+  function syncRangeToInputs() {
+    if (!rangeMin || !rangeMax || !inputMin || !inputMax) return;
+    var minVal = Number(rangeMin.value);
+    var maxVal = Number(rangeMax.value);
+    if (minVal > maxVal) {
+      var t = minVal; minVal = maxVal; maxVal = t;
+      rangeMin.value = minVal;
+      rangeMax.value = maxVal;
+    }
+    inputMin.value = minVal > 0 ? minVal.toFixed(2) : '';
+    inputMax.value = maxVal > 0 ? maxVal.toFixed(2) : '';
+  }
+
+  if (rangeMin) rangeMin.addEventListener('input', syncRangeToInputs);
+  if (rangeMax) rangeMax.addEventListener('input', syncRangeToInputs);
+
+  document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
+    btn.addEventListener('click', async function(ev) {
       ev.preventDefault();
-      const productId = Number(btn.getAttribute('data-id'));
-      const resp = await fetch('/api/cart/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: productId, quantity: 1 })
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        window.dispatchEvent(new Event('cart:changed'));
-        btn.textContent = 'Adicionado!';
-        setTimeout(() => { btn.textContent = 'Adicionar ao Carrinho'; }, 1000);
-      } else if (window.neofarmaToast) {
-        window.neofarmaToast(data.message || 'Erro ao adicionar no carrinho.', 'danger');
+      ev.stopPropagation();
+      if (btn.disabled) return;
+      var productId = Number(btn.getAttribute('data-id'));
+      try {
+        var resp = await fetch('/api/cart/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: productId, quantity: 1 })
+        });
+        var data = await resp.json();
+        if (data.ok) {
+          window.dispatchEvent(new Event('cart:changed'));
+          if (window.neofarmaToast) window.neofarmaToast('Produto adicionado ao carrinho.', 'success');
+        } else if (window.neofarmaToast) {
+          window.neofarmaToast(data.message || 'Erro ao adicionar.', 'danger');
+        }
+      } catch (e) {
+        if (window.neofarmaToast) window.neofarmaToast('Erro de conexão.', 'danger');
       }
     });
   });
+
+  var filterForm = document.getElementById('catalogFilterForm');
+  if (filterForm) {
+    filterForm.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        if (!cb.checked) {
+          var hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = cb.name;
+          hidden.value = '';
+          filterForm.appendChild(hidden);
+        }
+      });
+    });
+  }
+})();
 </script>
 
 <%- include('partials/footer') %>

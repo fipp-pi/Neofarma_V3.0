@@ -1,8 +1,27 @@
 const Product = require('../models/Product');
 const ProductImage = require('../models/ProductImage');
 const Customer = require('../models/Customer');
+const Promotion = require('../models/Promotion');
+const StorefrontConfig = require('../models/StorefrontConfig');
+const promotionService = require('../services/promotionService');
+const { buildHomeSectionStyles } = require('../utils/sectionColors');
 const { getValidStockMapByProductIds, getValidStockByProductId } = require('../services/inventoryService');
 const { pool } = require('../config/database');
+
+/**
+ * Fim do domingo da semana corrente — usado no cronômetro de ofertas flash da home.
+ */
+function getFlashOfferEndLabel() {
+  const now = new Date();
+  const end = new Date(now);
+  const day = now.getDay();
+  const daysUntilSunday = day === 0 ? 0 : 7 - day;
+  end.setDate(now.getDate() + daysUntilSunday);
+  const y = end.getFullYear();
+  const m = String(end.getMonth() + 1).padStart(2, '0');
+  const d = String(end.getDate()).padStart(2, '0');
+  return `${y}/${m}/${d}`;
+}
 
 /**
  * Deriva URL de miniatura para imagens processadas em WebP.
@@ -28,10 +47,11 @@ function formatZip(zip) {
  * Monta o objeto padrão de produto para os cards da vitrine.
  * Junta preço, imagem e estoque em um formato único.
  */
-function normalizeCard(product, imageUrl, stock = 0) {
+function normalizeCard(product, imageUrl, stock = 0, extra = {}) {
   const unit = Number(product.unit_price || 0);
   const promo = product.promotional_price != null ? Number(product.promotional_price) : null;
   const hasPromo = promo != null && promo > 0 && promo < unit;
+  const discountPercent = hasPromo && unit > 0 ? Math.round((1 - promo / unit) * 100) : 0;
   return {
     ...product,
     image_url: imageUrl || '/assets/img/product/product-1.webp',
@@ -39,13 +59,110 @@ function normalizeCard(product, imageUrl, stock = 0) {
     price_display: unit.toFixed(2).replace('.', ','),
     promo_display: hasPromo ? promo.toFixed(2).replace('.', ',') : null,
     has_promo: hasPromo,
+    discount_percent: discountPercent,
     available_stock: Number(stock || 0),
     can_buy: Number(stock || 0) > 0,
+    qty_sold: Number(extra.qty_sold || 0),
   };
 }
 
 /**
- * Monta vitrine de laboratórios para blocos de destaque da home.
+ * Enriquece linhas de produto com imagem principal e estoque válido (FEFO).
+ */
+async function enrichProductCards(products = [], qtySoldMap = {}) {
+  const ids = products.map((p) => p.id);
+  if (!ids.length) return [];
+  const imageRows = await ProductImage.findByProductIds(ids);
+  const firstImageByProduct = {};
+  imageRows.forEach((row) => {
+    if (!firstImageByProduct[row.product_id]) firstImageByProduct[row.product_id] = row.image_url;
+  });
+  const stockMap = await getValidStockMapByProductIds(ids);
+  return products.map((p) => normalizeCard(
+    p,
+    firstImageByProduct[p.id],
+    stockMap.get(Number(p.id)) || 0,
+    { qty_sold: qtySoldMap[p.id] || qtySoldMap[Number(p.id)] || 0 }
+  ));
+}
+
+/**
+ * Iniciais para avatar da marca/laboratório.
+ */
+function labInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'NF';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+/**
+ * Busca laboratórios com estatísticas e amostras de produtos para a home.
+ */
+async function fetchLabHighlightsForHome(limit = 6) {
+  const cap = Math.min(Math.max(Number(limit) || 6, 1), 12);
+  const [rows] = await pool.execute(
+    `SELECT l.id, l.name,
+            COUNT(DISTINCT p.id) AS product_count,
+            SUM(CASE WHEN p.promotional_price IS NOT NULL AND p.promotional_price > 0
+                      AND p.promotional_price < p.unit_price THEN 1 ELSE 0 END) AS promo_count,
+            MIN(p.unit_price) AS min_price
+     FROM labs l
+     INNER JOIN products p ON p.lab_id = l.id AND p.status = 'ACTIVE'
+     WHERE l.is_active = 1
+     GROUP BY l.id, l.name
+     HAVING product_count > 0
+     ORDER BY product_count DESC, l.name ASC
+     LIMIT ${cap}`
+  );
+  if (!rows.length) return [];
+
+  const labs = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    count: Number(r.product_count) || 0,
+    promo_count: Number(r.promo_count) || 0,
+    min_price: Number(r.min_price) || 0,
+    min_price_display: Number(r.min_price || 0).toFixed(2).replace('.', ','),
+    initials: labInitials(r.name),
+    samples: [],
+  }));
+
+  await Promise.all(labs.map(async (lab) => {
+    const [products] = await pool.execute(
+      `SELECT p.id, p.name
+       FROM products p
+       WHERE p.lab_id = ? AND p.status = 'ACTIVE'
+       ORDER BY (CASE WHEN p.promotional_price IS NOT NULL AND p.promotional_price > 0
+                      AND p.promotional_price < p.unit_price THEN 0 ELSE 1 END),
+                p.name ASC
+       LIMIT 3`,
+      [lab.id]
+    );
+    const ids = products.map((p) => p.id);
+    const imageMap = {};
+    if (ids.length) {
+      const imageRows = await ProductImage.findByProductIds(ids);
+      imageRows.forEach((row) => {
+        if (!imageMap[row.product_id]) imageMap[row.product_id] = row.image_url;
+      });
+    }
+    lab.samples = products.map((p) => {
+      const img = imageMap[p.id];
+      return {
+        id: p.id,
+        name: p.name,
+        image_url: img || '/assets/img/product/product-1.webp',
+        thumb_url: withThumb(img) || '/assets/img/product/product-1.webp',
+      };
+    });
+  }));
+
+  return labs;
+}
+
+/**
+ * Fallback: agrupa produtos já carregados por laboratório.
  */
 function buildLabHighlights(products = []) {
   const grouped = new Map();
@@ -62,7 +179,21 @@ function buildLabHighlights(products = []) {
   });
   return Array.from(grouped.values())
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-    .slice(0, 4);
+    .slice(0, 4)
+    .map((lab) => ({
+      ...lab,
+      initials: labInitials(lab.name),
+      promo_count: 0,
+      min_price_display: lab.sample && lab.sample.price_display
+        ? lab.sample.price_display
+        : null,
+      samples: lab.sample ? [{
+        id: lab.sample.id,
+        name: lab.sample.name,
+        image_url: lab.sample.image_url,
+        thumb_url: lab.sample.thumb_url || lab.sample.image_url,
+      }] : [],
+    }));
 }
 
 /**
@@ -119,6 +250,8 @@ async function listCategory(req, res, next) {
     const minPrice = Number(req.query.min_price || 0);
     const maxPrice = Number(req.query.max_price || 0);
     const sort = String(req.query.sort || 'relevance');
+    const promoOnly = String(req.query.promo || '') === '1';
+    const inStockOnly = String(req.query.in_stock || '') === '1';
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageSize = 12;
     const offset = (page - 1) * pageSize;
@@ -147,13 +280,38 @@ async function listCategory(req, res, next) {
       where.push('COALESCE(NULLIF(p.promotional_price, 0), p.unit_price) <= ?');
       params.push(maxPrice);
     }
+    if (promoOnly) {
+      where.push('p.promotional_price IS NOT NULL AND p.promotional_price > 0 AND p.promotional_price < p.unit_price');
+    }
+    if (inStockOnly) {
+      where.push(`EXISTS (
+        SELECT 1 FROM inventory_batches b
+        WHERE b.product_id = p.id
+          AND b.quantity > 0
+          AND b.expiry_date >= CURDATE()
+      )`);
+    }
 
-    // Ordenação controlada por whitelist para evitar SQL injection em ORDER BY.
+    const bestsellerOrder = sort === 'bestsellers'
+      ? `(SELECT COALESCE(SUM(oi.quantity), 0)
+          FROM order_items oi
+          INNER JOIN orders o ON o.id = oi.order_id AND o.payment_status = 'PAID'
+          WHERE oi.product_id = p.id
+            AND o.created_at >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)) DESC, p.name ASC`
+      : null;
+
     let orderBy = 'p.created_at DESC, p.id DESC';
     if (sort === 'price_asc') orderBy = 'COALESCE(NULLIF(p.promotional_price, 0), p.unit_price) ASC, p.name ASC';
     if (sort === 'price_desc') orderBy = 'COALESCE(NULLIF(p.promotional_price, 0), p.unit_price) DESC, p.name ASC';
     if (sort === 'name_asc') orderBy = 'p.name ASC';
     if (sort === 'name_desc') orderBy = 'p.name DESC';
+    if (sort === 'bestsellers') orderBy = bestsellerOrder;
+    if (sort === 'discount') {
+      orderBy = `CASE
+        WHEN p.promotional_price IS NOT NULL AND p.promotional_price > 0 AND p.promotional_price < p.unit_price
+        THEN (p.unit_price - p.promotional_price) / p.unit_price
+        ELSE 0 END DESC, p.name ASC`;
+    }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -171,25 +329,18 @@ async function listCategory(req, res, next) {
     const safeOffset = (safePage - 1) * pageSize;
 
     const [rows] = await pool.execute(
-      `SELECT DISTINCT p.*, l.name AS lab_name
+      `SELECT p.*, l.name AS lab_name
        FROM products p
        LEFT JOIN labs l ON l.id = p.lab_id
        LEFT JOIN product_categories pc ON pc.product_id = p.id
        ${whereSql}
+       GROUP BY p.id
        ORDER BY ${orderBy}
        LIMIT ${pageSize} OFFSET ${safeOffset}`,
       params
     );
 
-    // Enriquecimento da vitrine: imagem principal + estoque válido agregado.
-    const ids = rows.map((p) => p.id);
-    const imageRows = await ProductImage.findByProductIds(ids);
-    const firstImageByProduct = {};
-    imageRows.forEach((row) => {
-      if (!firstImageByProduct[row.product_id]) firstImageByProduct[row.product_id] = row.image_url;
-    });
-    const stockMap = await getValidStockMapByProductIds(ids);
-    const products = rows.map((p) => normalizeCard(p, firstImageByProduct[p.id], stockMap.get(Number(p.id)) || 0));
+    const products = await enrichProductCards(rows);
 
     const [labsRows] = await pool.execute(
       `SELECT l.name, COUNT(DISTINCT p.id) AS total
@@ -205,6 +356,7 @@ async function listCategory(req, res, next) {
        LEFT JOIN products p ON p.id = pc.product_id AND p.status = 'ACTIVE'
        WHERE c.is_active = 1
        GROUP BY c.id, c.name
+       HAVING total > 0
        ORDER BY c.name ASC`
     );
     const [priceRows] = await pool.execute(
@@ -217,9 +369,21 @@ async function listCategory(req, res, next) {
     const minBound = Number(priceRows && priceRows[0] && priceRows[0].min_price ? priceRows[0].min_price : 0);
     const maxBound = Number(priceRows && priceRows[0] && priceRows[0].max_price ? priceRows[0].max_price : 0);
 
+    const activeFilters = [];
+    if (q) activeFilters.push({ key: 'q', label: 'Busca: ' + q });
+    if (lab) activeFilters.push({ key: 'lab', label: 'Lab: ' + lab });
+    if (categoryId) {
+      const cat = (catsRows || []).find((c) => Number(c.id) === categoryId);
+      activeFilters.push({ key: 'category', label: cat ? cat.name : 'Categoria' });
+    }
+    if (promoOnly) activeFilters.push({ key: 'promo', label: 'Em promoção' });
+    if (inStockOnly) activeFilters.push({ key: 'in_stock', label: 'Com estoque' });
+    if (minPrice > 0) activeFilters.push({ key: 'min_price', label: 'Mín. R$ ' + minPrice.toFixed(2).replace('.', ',') });
+    if (maxPrice > 0) activeFilters.push({ key: 'max_price', label: 'Máx. R$ ' + maxPrice.toFixed(2).replace('.', ',') });
+
     res.render('category', {
-      title: 'Categoria - NeoFarma',
-      bodyClass: 'category-page',
+      title: 'Catálogo - NeoFarma',
+      bodyClass: 'category-page storefront-catalog',
       activeNav: 'category',
       products,
       labs: labsRows || [],
@@ -231,7 +395,10 @@ async function listCategory(req, res, next) {
         min_price: Number.isFinite(minPrice) && minPrice > 0 ? minPrice : '',
         max_price: Number.isFinite(maxPrice) && maxPrice > 0 ? maxPrice : '',
         sort,
+        promo: promoOnly ? '1' : '',
+        in_stock: inStockOnly ? '1' : '',
       },
+      activeFilters,
       priceBounds: {
         min: minBound,
         max: maxBound,
@@ -253,40 +420,99 @@ async function listCategory(req, res, next) {
  */
 async function home(req, res, next) {
   try {
-    const allActive = await Product.findAll({ status: 'ACTIVE' });
-    const ids = allActive.map((p) => p.id);
-    const imageRows = await ProductImage.findByProductIds(ids);
-    const firstImageByProduct = {};
-    imageRows.forEach((row) => {
-      if (!firstImageByProduct[row.product_id]) firstImageByProduct[row.product_id] = row.image_url;
-    });
-    const stockMap = await getValidStockMapByProductIds(ids);
-    const normalized = allActive.map((p) => normalizeCard(p, firstImageByProduct[p.id], stockMap.get(Number(p.id)) || 0));
+    await promotionService.expireOutdatedPromotions();
+    const storefront = await StorefrontConfig.getConfig();
+    const homeCfg = storefront.home;
+    const themeCfg = storefront.theme;
 
-    // Regras simples de composição dos blocos da home.
-    const emPromocao = normalized.filter((p) => p.has_promo).slice(0, 8);
-    const maisVendidos = normalized.slice(0, 4);
-    const populares = normalized.slice(4, 7);
-    const novidades = normalized.slice(7, 10);
-    const ofertas = normalized.filter((p) => p.has_promo).slice(0, 4);
-    const hero = normalized[0] || null;
-    const heroMini = normalized.slice(1, 3);
-    const labHighlights = buildLabHighlights(normalized);
-    const featuredPromo = emPromocao[0] || normalized[0] || null;
+    const promoCarouselCfg = homeCfg.promoCarousel || {};
+    const flashCfg = homeCfg.flashOffer || {};
+    const bestsellersCfg = homeCfg.bestsellers || {};
+    const categoriesCfg = homeCfg.categories || {};
+    const newArrivalsCfg = homeCfg.newArrivals || {};
+
+    const promoLimit = promoCarouselCfg.limit || 16;
+    const promoId = promoCarouselCfg.promotionId || null;
+
+    const [promoRows, recentRows, bestSellerRank, catsRows, activePromotions] = await Promise.all([
+      promotionService.findActivePromoProductRows(promoLimit, promoId),
+      Product.findRecent(newArrivalsCfg.limit || 8),
+      Product.findBestSellerIds(bestsellersCfg.limit || 12, bestsellersCfg.days || 90),
+      pool.execute(
+        `SELECT c.id, c.name, COUNT(DISTINCT p.id) AS total
+         FROM categories c
+         LEFT JOIN product_categories pc ON pc.category_id = c.id
+         LEFT JOIN products p ON p.id = pc.product_id AND p.status = 'ACTIVE'
+         WHERE c.is_active = 1
+         GROUP BY c.id, c.name
+         HAVING total > 0
+         ORDER BY total DESC, c.name ASC
+         LIMIT ${Math.min(20, categoriesCfg.limit || 8)}`
+      ).then(([rows]) => rows || []),
+      Promotion.findActiveNow(),
+    ]);
+
+    const qtySoldMap = {};
+    bestSellerRank.forEach((r) => { qtySoldMap[r.product_id] = r.qty_sold; });
+
+    let bestSellerProducts = [];
+    if (bestSellerRank.length) {
+      const ids = bestSellerRank.map((r) => r.product_id);
+      bestSellerProducts = await Product.findByIdsPreservingOrder(ids);
+    }
+    if (bestSellerProducts.length < (bestsellersCfg.limit || 8)) {
+      const fallback = recentRows.filter((p) => !bestSellerProducts.some((b) => b.id === p.id));
+      bestSellerProducts = bestSellerProducts.concat(fallback).slice(0, bestsellersCfg.limit || 12);
+    }
+
+    let flashPromoRows = promoRows;
+    if (flashCfg.promotionId) {
+      flashPromoRows = await promotionService.findActivePromoProductRows(flashCfg.limit || 4, flashCfg.promotionId);
+    }
+
+    const emPromocao = await enrichProductCards(promoRows);
+    const maisVendidos = await enrichProductCards(bestSellerProducts, qtySoldMap);
+    const novidades = await enrichProductCards(recentRows);
+    const ofertas = await enrichProductCards(flashPromoRows.slice(0, flashCfg.limit || 8));
+    const featuredPromo = emPromocao[0] || maisVendidos[0] || novidades[0] || null;
+    const hero = featuredPromo || maisVendidos[0] || null;
+    const heroMini = maisVendidos.slice(1, 3).length
+      ? maisVendidos.slice(1, 3)
+      : novidades.slice(0, 2);
+    const labLimit = (homeCfg.labHighlights || {}).limit || 6;
+    let labHighlights = await fetchLabHighlightsForHome(labLimit);
+    if (!labHighlights.length) {
+      labHighlights = buildLabHighlights(maisVendidos.concat(emPromocao));
+    }
+    const flashOfferEnd = (await promotionService.resolveFlashEndDate(homeCfg, activePromotions))
+      || getFlashOfferEndLabel();
+    const topDiscount = emPromocao.reduce((best, p) => (
+      !best || (p.discount_percent || 0) > (best.discount_percent || 0) ? p : best
+    ), null);
+
+    const promoStylesMap = {};
+    activePromotions.forEach((p) => { promoStylesMap[p.id] = p.style; });
 
     res.render('index', {
-      title: 'Neofarma Home',
-      bodyClass: 'index-page',
+      title: 'NeoFarma — Farmácia Online',
+      bodyClass: 'index-page storefront-home',
       activeNav: 'home',
       hero,
       heroMini,
       emPromocao,
       maisVendidos,
-      populares,
       novidades,
       ofertas,
       labHighlights,
       featuredPromo,
+      categories: catsRows,
+      flashOfferEnd,
+      topDiscount,
+      homeConfig: homeCfg,
+      themeConfig: themeCfg,
+      sectionStylesCss: buildHomeSectionStyles(homeCfg),
+      activePromotions,
+      promoStylesMap,
     });
   } catch (err) {
     next(err);

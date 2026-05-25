@@ -44,6 +44,40 @@ async function findByEmail(email) {
 }
 
 /**
+ * Busca usuário por CPF (apenas dígitos; ignora pontuação no banco).
+ */
+async function findByDocument(documentDigits) {
+  const digits = String(documentDigits || '').replace(/\D/g, '');
+  if (digits.length !== 11) return null;
+  const [rows] = await pool.execute(
+    `SELECT u.*, r.name AS role_name
+     FROM users u
+     LEFT JOIN roles r ON u.role_id = r.id
+     WHERE REPLACE(REPLACE(REPLACE(COALESCE(u.document, ''), '.', ''), '-', ''), ' ', '') = ?
+     LIMIT 1`,
+    [digits]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Busca usuário por telefone (compara somente dígitos).
+ */
+async function findByPhoneDigits(phoneDigits) {
+  const digits = String(phoneDigits || '').replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const [rows] = await pool.execute(
+    `SELECT u.*, r.name AS role_name
+     FROM users u
+     LEFT JOIN roles r ON u.role_id = r.id
+     WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(u.phone, ''), '(', ''), ')', ''), '-', ''), ' ', ''), '+', '') = ?
+     LIMIT 1`,
+    [digits]
+  );
+  return rows[0] || null;
+}
+
+/**
  * Lista usuários (com filtro opcional por role).
  */
 async function findAll(roleName = null) {
@@ -92,6 +126,8 @@ module.exports = {
   create,
   findById,
   findByEmail,
+  findByDocument,
+  findByPhoneDigits,
   findAll,
   updateById,
   deleteById,

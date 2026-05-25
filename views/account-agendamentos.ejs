@@ -117,14 +117,14 @@
                 <td><%= b.id %></td>
                 <td><%= b.service_name %></td>
                 <td><%= b.professional_name || '-' %></td>
-                <td><%= new Date(b.scheduled_start).toLocaleString('pt-BR') %></td>
+                <td><%= fmtDateTime(b.scheduled_start) %></td>
                 <td>
-                  <%= b.payment_method %> /
+                  <%= t('paymentMethod', b.payment_method) %> /
                   <span class="badge <%= String(b.payment_status || '').toUpperCase() === 'PAID' ? 'bg-success' : (String(b.payment_status || '').toUpperCase() === 'FAILED' ? 'bg-danger' : 'bg-warning') %>">
-                    <%= b.payment_status %>
+                    <%= t('paymentStatus', b.payment_status) %>
                   </span>
                 </td>
-                <td><span class="badge bg-primary"><%= b.status %></span></td>
+                <td><span class="badge bg-primary"><%= t('appointmentStatus', b.status) %></span></td>
                 <td class="text-end">
                   <% const canPay = (String(b.status || '').toUpperCase() === 'RESERVED' || String(b.status || '').toUpperCase() === 'PAYMENT_FAILED') && String(b.payment_status || '').toUpperCase() !== 'PAID' && String(b.payment_method || '').toUpperCase() !== 'CASH'; %>
                   <% const canReceipt = (String(b.payment_status || '').toUpperCase() === 'PAID' || String(b.payment_status || '').toUpperCase() === 'REFUNDED_PARTIAL'); %>

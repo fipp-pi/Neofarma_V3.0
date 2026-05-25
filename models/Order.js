@@ -118,9 +118,11 @@ async function findByCustomerId(customerId, limit = 30) {
        COALESCE(x.items_count, 0) AS items_count
      FROM orders o
      LEFT JOIN (
-       SELECT order_id, SUM(quantity) AS items_count
-       FROM order_items
-       GROUP BY order_id
+       SELECT order_id, SUM(qty) AS items_count FROM (
+         SELECT order_id, quantity AS qty FROM order_items
+         UNION ALL
+         SELECT order_id, quantity AS qty FROM order_pending_items
+       ) u GROUP BY order_id
      ) x ON x.order_id = o.id
      WHERE o.customer_id = ?
      ORDER BY o.created_at DESC, o.id DESC

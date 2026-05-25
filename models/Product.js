@@ -38,20 +38,82 @@ async function buildUniqueSlug(baseText, excludeId = null) {
 }
 
 /**
+ * Tipos considerados medicamentos para exigência de EAN-13 (RF_B2).
+ */
+function productTypeRequiresEan(productType, prescriptionRequired = false) {
+  if (prescriptionRequired) return true;
+  const hay = `${productType?.slug || ''} ${productType?.name || ''}`.toLowerCase();
+  return /medicament|homeopat|fitoterap|manipulad|medicin|controlad|cha-medicinal/.test(hay);
+}
+
+/**
+ * Busca produto pelo SKU (opcionalmente ignorando um id na edição).
+ */
+async function findBySku(sku, excludeId = null) {
+  const code = String(sku || '').trim();
+  if (!code) return null;
+  let sql = 'SELECT id, name, sku FROM products WHERE sku = ?';
+  const params = [code];
+  if (excludeId) {
+    sql += ' AND id <> ?';
+    params.push(excludeId);
+  }
+  sql += ' LIMIT 1';
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+}
+
+/**
+ * Busca produto pelo EAN-13 (opcionalmente ignorando um id na edição).
+ */
+async function findByEan13(ean13, excludeId = null) {
+  const code = String(ean13 || '').replace(/\D/g, '');
+  if (!code) return null;
+  let sql = 'SELECT id, name, ean13 FROM products WHERE ean13 = ?';
+  const params = [code];
+  if (excludeId) {
+    sql += ' AND id <> ?';
+    params.push(excludeId);
+  }
+  sql += ' LIMIT 1';
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+}
+
+/**
+ * Busca produto pelo GTIN-14 (opcionalmente ignorando um id na edição).
+ */
+async function findByGtin14(gtin14, excludeId = null) {
+  const code = String(gtin14 || '').replace(/\D/g, '');
+  if (!code) return null;
+  let sql = 'SELECT id, name, gtin14 FROM products WHERE gtin14 = ?';
+  const params = [code];
+  if (excludeId) {
+    sql += ' AND id <> ?';
+    params.push(excludeId);
+  }
+  sql += ' LIMIT 1';
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+}
+
+/**
  * Cria produto novo.
  */
 async function create(data) {
   const slug = await buildUniqueSlug(data.slug || data.name);
   const [result] = await pool.execute(
-    `INSERT INTO products (lab_id, main_supplier_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, gtin14, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.lab_id || null,
       data.main_supplier_id || null,
+      data.product_type_id || null,
       data.name,
       slug,
       data.sku || null,
       data.ean13 || null,
+      data.gtin14 || null,
       data.description || null,
       data.composition || null,
       data.usage_info || null,
@@ -129,7 +191,7 @@ async function updateById(id, data) {
   }
   const fields = [];
   const values = [];
-  const allowed = ['lab_id', 'main_supplier_id', 'name', 'slug', 'sku', 'ean13', 'description', 'composition', 'usage_info', 'prescription_required', 'unit_price', 'promotional_price', 'status'];
+  const allowed = ['lab_id', 'main_supplier_id', 'product_type_id', 'name', 'slug', 'sku', 'ean13', 'gtin14', 'description', 'composition', 'usage_info', 'prescription_required', 'unit_price', 'promotional_price', 'status'];
   allowed.forEach((key) => {
     if (localData[key] !== undefined) {
       fields.push(`${key} = ?`);
@@ -143,6 +205,76 @@ async function updateById(id, data) {
 }
 
 /**
+ * Produtos em promoção ativa (preço promocional menor que unitário).
+ */
+async function findOnPromotion(limit = 12) {
+  const lim = Math.min(50, Math.max(1, parseInt(limit, 10) || 12));
+  const [rows] = await pool.execute(
+    `SELECT p.*, l.name AS lab_name
+     FROM products p
+     LEFT JOIN labs l ON l.id = p.lab_id
+     WHERE p.status = 'ACTIVE'
+       AND p.promotional_price IS NOT NULL
+       AND p.promotional_price > 0
+       AND p.promotional_price < p.unit_price
+     ORDER BY (p.unit_price - p.promotional_price) / p.unit_price DESC, p.name ASC
+     LIMIT ${lim}`
+  );
+  return rows;
+}
+
+/**
+ * Produtos mais recentes do catálogo ativo.
+ */
+async function findRecent(limit = 12) {
+  const lim = Math.min(50, Math.max(1, parseInt(limit, 10) || 12));
+  const [rows] = await pool.execute(
+    `SELECT p.*, l.name AS lab_name
+     FROM products p
+     LEFT JOIN labs l ON l.id = p.lab_id
+     WHERE p.status = 'ACTIVE'
+     ORDER BY p.created_at DESC, p.id DESC
+     LIMIT ${lim}`
+  );
+  return rows;
+}
+
+/**
+ * Ranking de vendas por quantidade em pedidos pagos.
+ * @returns {Promise<Array<{ product_id: number, qty_sold: number }>>}
+ */
+async function findBestSellerIds(limit = 12, days = 90) {
+  const lim = Math.min(50, Math.max(1, parseInt(limit, 10) || 12));
+  const d = Math.min(365, Math.max(7, parseInt(days, 10) || 90));
+  const [rows] = await pool.execute(
+    `SELECT oi.product_id, SUM(oi.quantity) AS qty_sold
+     FROM order_items oi
+     INNER JOIN orders o ON o.id = oi.order_id
+     INNER JOIN products p ON p.id = oi.product_id AND p.status = 'ACTIVE'
+     WHERE o.payment_status = 'PAID'
+       AND o.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     GROUP BY oi.product_id
+     ORDER BY qty_sold DESC
+     LIMIT ${lim}`,
+    [d]
+  );
+  return (rows || []).map((r) => ({
+    product_id: Number(r.product_id),
+    qty_sold: Number(r.qty_sold || 0),
+  }));
+}
+
+/**
+ * Busca produtos ativos preservando a ordem dos ids informados.
+ */
+async function findByIdsPreservingOrder(ids = []) {
+  if (!Array.isArray(ids) || ids.length === 0) return [];
+  const rows = await findByIds(ids, { status: 'ACTIVE' });
+  const byId = new Map(rows.map((r) => [Number(r.id), r]));
+  return ids.map((id) => byId.get(Number(id))).filter(Boolean);
+}
+
+/**
  * Exclui produto pelo id.
  */
 async function deleteById(id) {
@@ -150,4 +282,38 @@ async function deleteById(id) {
   return result.affectedRows;
 }
 
-module.exports = { create, findById, findAll, findByIds, updateById, deleteById, slugify };
+/**
+ * Produtos com ao menos um lote com saldo > 0 (inclui vencidos e catálogo inativo/descontinuado).
+ * Usado em RF_F5 — descarte não depende do produto estar ACTIVE na vitrine.
+ */
+async function findForDisposal() {
+  const [rows] = await pool.execute(
+    `SELECT p.id, p.name, p.sku, p.status
+     FROM products p
+     WHERE EXISTS (
+       SELECT 1 FROM inventory_batches b
+       WHERE b.product_id = p.id AND b.quantity > 0
+     )
+     ORDER BY p.name ASC`
+  );
+  return rows;
+}
+
+module.exports = {
+  create,
+  findById,
+  findAll,
+  findByIds,
+  findByIdsPreservingOrder,
+  findOnPromotion,
+  findRecent,
+  findBestSellerIds,
+  findForDisposal,
+  findBySku,
+  findByEan13,
+  findByGtin14,
+  productTypeRequiresEan,
+  updateById,
+  deleteById,
+  slugify,
+};

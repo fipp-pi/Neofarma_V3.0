@@ -177,14 +177,26 @@ CREATE TABLE IF NOT EXISTS categories (
       ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS product_types (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(100) NOT NULL,
+  slug        VARCHAR(120) NOT NULL UNIQUE,
+  description VARCHAR(255) NULL,
+  is_active   TINYINT(1) NOT NULL DEFAULT 1,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS products (
   id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   lab_id                BIGINT UNSIGNED,
   main_supplier_id      BIGINT UNSIGNED,
+  product_type_id       BIGINT UNSIGNED NULL,
   name                  VARCHAR(200) NOT NULL,
   slug                  VARCHAR(220) NOT NULL UNIQUE,
   sku                   VARCHAR(50) UNIQUE,
   ean13                 VARCHAR(20) UNIQUE,
+  gtin14                VARCHAR(20) UNIQUE,
   description           TEXT,
   composition           TEXT,
   usage_info            TEXT,
@@ -199,6 +211,9 @@ CREATE TABLE IF NOT EXISTS products (
       ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT fk_products_supplier
     FOREIGN KEY (main_supplier_id) REFERENCES suppliers(id)
+      ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_products_product_type
+    FOREIGN KEY (product_type_id) REFERENCES product_types(id)
       ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -245,6 +260,27 @@ CREATE TABLE IF NOT EXISTS inventory_batches (
   CONSTRAINT fk_inventory_batch_product
     FOREIGN KEY (product_id) REFERENCES products(id)
       ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS inventory_disposals (
+  id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id      BIGINT UNSIGNED NOT NULL,
+  batch_id        BIGINT UNSIGNED NOT NULL,
+  quantity        INT NOT NULL,
+  reason          VARCHAR(255) NOT NULL,
+  disposed_by     BIGINT UNSIGNED NULL COMMENT 'users.id do funcionário',
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_disposals_product (product_id),
+  INDEX idx_disposals_batch (batch_id),
+  CONSTRAINT fk_disposals_product
+    FOREIGN KEY (product_id) REFERENCES products(id)
+      ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_disposals_batch
+    FOREIGN KEY (batch_id) REFERENCES inventory_batches(id)
+      ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_disposals_user
+    FOREIGN KEY (disposed_by) REFERENCES users(id)
+      ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ==============================
@@ -297,9 +333,12 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   supplier_id     BIGINT UNSIGNED NOT NULL,
   employee_id     BIGINT UNSIGNED NULL,
   order_date      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  expected_date   DATETIME,
-  status          ENUM('OPEN','RECEIVED','CANCELLED') NOT NULL DEFAULT 'OPEN',
+  expected_date   DATETIME NULL,
+  status          ENUM('DRAFT','AWAITING_DELIVERY','RECEIVED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  payment_status  ENUM('PENDING','PAID','FAILED') NOT NULL DEFAULT 'PENDING',
+  payment_method  ENUM('PIX','TRANSFER','BOLETO','CASH') NULL,
   total_amount    DECIMAL(12,2) NOT NULL DEFAULT 0,
+  notes           TEXT NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_purchase_orders_supplier
@@ -316,6 +355,9 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   product_id          BIGINT UNSIGNED NOT NULL,
   batch_id            BIGINT UNSIGNED NULL,
   quantity            INT NOT NULL,
+  quantity_received   INT NOT NULL DEFAULT 0,
+  batch_code          VARCHAR(60) NULL,
+  expiry_date         DATE NULL,
   unit_cost           DECIMAL(10,2) NOT NULL,
   total_cost          DECIMAL(12,2) NOT NULL,
   CONSTRAINT fk_po_items_order
@@ -325,7 +367,7 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     FOREIGN KEY (product_id) REFERENCES products(id)
       ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_po_items_batch
-    FOREIGN KEY (batch_id) REFERENCES product_batches(id)
+    FOREIGN KEY (batch_id) REFERENCES inventory_batches(id)
       ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -376,6 +418,23 @@ CREATE TABLE IF NOT EXISTS order_items (
   CONSTRAINT fk_order_items_batch
     FOREIGN KEY (batch_id) REFERENCES inventory_batches(id)
       ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS order_pending_items (
+  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id      BIGINT UNSIGNED NOT NULL,
+  product_id    BIGINT UNSIGNED NOT NULL,
+  quantity      INT NOT NULL,
+  unit_price    DECIMAL(12,2) NOT NULL,
+  line_total    DECIMAL(12,2) NOT NULL,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_order_pending_items_order (order_id),
+  CONSTRAINT fk_order_pending_items_order
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_order_pending_items_product
+    FOREIGN KEY (product_id) REFERENCES products(id)
+      ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -569,6 +628,7 @@ CREATE TABLE IF NOT EXISTS service_appointments (
 INSERT INTO roles (name, description) VALUES
   ('ADMIN', 'Administrador do sistema'),
   ('FUNCIONARIO', 'Funcionário da farmácia'),
+  ('ESTOQUISTA', 'Estoquista — descarte e conferência de estoque'),
   ('CLIENTE', 'Cliente da loja')
 ON DUPLICATE KEY UPDATE description = VALUES(description);
 

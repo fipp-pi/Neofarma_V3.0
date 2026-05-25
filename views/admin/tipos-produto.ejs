@@ -1,0 +1,944 @@
+<%- include('partials/header') %>
+<%
+  const tipoList = typeof list !== 'undefined' ? list : [];
+  const tipoStats = typeof stats !== 'undefined' ? stats : { total: tipoList.length, active: 0, inactive: 0 };
+%>
+<script src="/assets/js/admin-catalog-filters.js"></script>
+<div class="container admin-catalog">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
+
+  <div class="list-header mb-4">
+    <div>
+      <h2 class="neo-heading">Tipos de produto</h2>
+      <p class="text-muted mb-0">Defina as classificações dos produtos — como fitoterápico, suplemento e higiene — usadas no cadastro e na organização do catálogo.</p>
+    </div>
+  </div>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-lg-4">
+      <div class="admin-catalog__stat admin-catalog__stat--primary">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-diagram-3"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= tipoStats.total %></div><div class="admin-catalog__stat-label">Total cadastrados</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-4">
+      <div class="admin-catalog__stat admin-catalog__stat--success">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= tipoStats.active %></div><div class="admin-catalog__stat-label">Ativos</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-4">
+      <div class="admin-catalog__stat admin-catalog__stat--neutral">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-pause-circle"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= tipoStats.inactive %></div><div class="admin-catalog__stat-label">Inativos</div></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="admin-catalog__panel mb-3">
+    <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-funnel me-2"></i>Filtros avançados</h3>
+      <button type="button" class="admin-catalog__filters-toggle" id="tipoFiltersToggle" aria-expanded="true"><i class="bi bi-sliders"></i> Recolher filtros</button>
+    </div>
+    <div class="admin-catalog__panel-body" id="tipoFiltersPanel">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label" for="filtro_q">Busca geral</label>
+          <div class="admin-catalog__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" id="filtro_q" placeholder="Nome, slug ou descrição...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="filtro_slug">Slug contém</label>
+          <input type="text" class="form-control form-control-sm" id="filtro_slug" placeholder="Ex.: suplemento">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <input type="hidden" id="filtro_status" value="ALL">
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="tipoClearFilters"><i class="bi bi-x-lg me-1"></i> Limpar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="admin-catalog__tabs mb-3">
+    <button type="button" class="admin-catalog__tab is-active" id="tipoTabAll">Todos</button>
+    <button type="button" class="admin-catalog__tab" id="tipoTabActive">Ativos</button>
+    <button type="button" class="admin-catalog__tab" id="tipoTabInactive">Inativos</button>
+  </div>
+
+  <section class="admin-catalog__panel admin-catalog__panel--table">
+    <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-list-ul me-2"></i>Tipos cadastrados</h3>
+      <div class="admin-catalog__panel-actions">
+        <span class="admin-catalog__panel-meta" id="tipoResultsCount"><%= tipoList.length %> registro(s)</span>
+        <button type="button" class="btn btn-save btn-sm" onclick="abrirModalTipo()" data-bs-toggle="modal" data-bs-target="#modalTipo">
+          <i class="bi bi-plus-lg me-1"></i> Novo tipo
+        </button>
+      </div>
+    </div>
+    <div class="admin-catalog__results-bar">
+      <span>Exibindo <strong id="tipoResultsVisible"><%= tipoList.length %></strong> tipo(s).</span>
+    </div>
+    <div id="catalogTableWrap">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaTipos">
+          <thead>
+            <tr><th class="col-id">#</th><th>Nome</th><th>Slug</th><th class="col-status">Status</th><th class="col-actions text-end">Ações</th></tr>
+          </thead>
+          <tbody>
+            <% if (tipoList.length) { tipoList.forEach(function(t) {
+              var searchBlob = [t.id, t.name, t.slug, t.description].filter(Boolean).join(' ');
+            %>
+              <tr
+                data-filter-search="<%= searchBlob.toLowerCase() %>"
+                data-filter-slug="<%= (t.slug || '').toLowerCase() %>"
+                data-filter-active="<%= t.is_active ? '1' : '0' %>"
+              >
+                <td class="col-id"><%= t.id %></td>
+                <td class="fw-bold"><span class="cell-truncate-wide" title="<%= t.name %>"><%= t.name %></span></td>
+                <td><code class="small"><%= t.slug %></code></td>
+                <td class="col-status"><span class="admin-catalog__badge admin-catalog__badge--<%= t.is_active ? 'success' : 'muted' %>"><%= t.is_active ? 'Ativo' : 'Inativo' %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--3">
+                  <button type="button" class="btn-action btn-view" onclick="verTipo(<%= t.id %>)" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
+                  <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(t)) %>" onclick="editarTipo(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= t.id %>, '<%= (t.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="mensagemVazia" class="admin-catalog__empty" style="display: <%= tipoList.length ? 'none' : 'block' %>;">
+      <i class="bi bi-box-seam main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum tipo de produto cadastrado</p>
+      <button type="button" class="btn btn-save btn-sm mt-2" onclick="abrirModalTipo()" data-bs-toggle="modal" data-bs-target="#modalTipo">Cadastrar primeiro tipo</button>
+    </div>
+    <div id="mensagemVaziaFilter" class="admin-catalog__empty" style="display:none;">
+      <i class="bi bi-search main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum resultado para os filtros</p>
+      <p class="text-muted small mb-0">Ajuste a busca ou limpe os filtros.</p>
+    </div>
+  </section>
+</div>
+
+
+
+<style>
+
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+
+  .modal-cadastro .modal-body { padding: 0; }
+
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+
+  .cadastro-edit { padding: 1.5rem 1.5rem 1.25rem; }
+
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+
+  .cadastro-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; margin-bottom: 0.25rem; }
+
+  .cadastro-edit .form-control { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
+
+  .cadastro-edit .form-control:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+
+  .modal-cadastro .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
+
+  .modal-header-danger { background: #dc3545; color: #fff; }
+
+  .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+
+  .form-control.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12); }
+
+  .invalid-feedback { display: none; font-size: 0.8rem; color: #dc3545; margin-top: 0.2rem; }
+
+  .form-control.is-invalid ~ .invalid-feedback { display: block; }
+
+  #tpFormAlert:empty { display: none !important; }
+
+  .slug-status { min-width: 2.5rem; justify-content: center; background: #fff; }
+
+  .slug-hint { font-size: 0.8rem; color: #6c757d; margin-top: 0.25rem; }
+
+  .slug-hint.is-error { color: #dc3545; }
+
+  .slug-hint.is-success { color: #198754; }
+
+  .cadastro-view { padding: 1.5rem 1.5rem 1.25rem; }
+
+  .cadastro-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+
+  .cadastro-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
+
+  .cadastro-view-section { margin-bottom: 1.25rem; }
+
+  .cadastro-view-section:last-child { margin-bottom: 0; }
+
+  .cadastro-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
+
+  .cadastro-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
+
+  .cadastro-view-row:last-child { border-bottom: none; }
+
+  .cadastro-view-label { font-size: 0.85rem; color: #6c757d; min-width: 110px; flex-shrink: 0; }
+
+  .cadastro-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
+
+</style>
+
+
+
+<div class="modal fade modal-cadastro" id="modalVisualizar" tabindex="-1">
+
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i>Dados do tipo de produto</h5>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+      </div>
+
+      <div class="modal-body" id="conteudoVisualizacao">
+
+        <div class="cadastro-view"><div class="text-center text-muted py-4">Carregando...</div></div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<div class="modal fade modal-cadastro" id="modalTipo" tabindex="-1" data-bs-backdrop="static">
+
+  <div class="modal-dialog modal-dialog-centered">
+
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <h5 class="modal-title" id="modalTipoTitle"><i class="bi bi-box-seam me-2"></i>Novo tipo de produto</h5>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <input type="hidden" id="tp_id">
+
+        <div id="tpFormAlert" class="alert alert-danger py-2 px-3 small mb-0 mx-3 mt-3" role="alert" style="display:none;"></div>
+
+        <div class="cadastro-edit">
+
+          <div class="cadastro-edit-section-title">Dados do tipo</div>
+
+          <div class="mb-3">
+
+            <label for="tp_name" class="form-label field-required">Nome</label>
+
+            <input type="text" class="form-control" id="tp_name" maxlength="100" autocomplete="off">
+
+            <div class="invalid-feedback" id="tp_name_error">Informe o nome do tipo.</div>
+
+          </div>
+
+          <div class="mb-3">
+
+            <label for="tp_slug" class="form-label">Slug (URL)</label>
+
+            <div class="input-group">
+
+              <input type="text" class="form-control" id="tp_slug" placeholder="Gerado automaticamente a partir do nome" maxlength="120" autocomplete="off" aria-describedby="tp_slug_hint tp_slug_error">
+
+              <span class="input-group-text slug-status" id="tp_slug_status" aria-hidden="true"></span>
+
+            </div>
+
+            <div class="invalid-feedback" id="tp_slug_error">Slug inválido ou em uso.</div>
+
+            <div class="slug-hint" id="tp_slug_hint">Opcional. Use letras minúsculas, números e hífens. Deve ser único.</div>
+
+          </div>
+
+          <div class="mb-3">
+
+            <label for="tp_desc" class="form-label">Descrição</label>
+
+            <input type="text" class="form-control" id="tp_desc" maxlength="255" autocomplete="off">
+
+            <div class="invalid-feedback" id="tp_desc_error">Descrição muito longa.</div>
+
+          </div>
+
+          <div class="form-check">
+
+            <input class="form-check-input" type="checkbox" id="tp_active" checked>
+
+            <label class="form-check-label" for="tp_active">Ativo</label>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+
+        <button type="button" class="btn btn-save" id="btnSalvarTipo"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<div class="modal fade" id="modalExclusao" tabindex="-1">
+
+  <div class="modal-dialog modal-dialog-centered">
+
+    <div class="modal-content">
+
+      <div class="modal-header modal-header-danger">
+
+        <h5 class="modal-title"><i class="bi bi-trash-fill me-2"></i>Excluir tipo</h5>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <p class="mb-0">Tem certeza que deseja remover o tipo <strong id="exclusaoNome"></strong>?</p>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+
+        <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Sim, excluir</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<%- include('partials/footer') %>
+
+<script src="/assets/js/admin-slug.js"></script>
+
+<script>
+
+  var TP_SLUG_REGISTRY = <%- JSON.stringify(typeof slugRegistry !== 'undefined' ? slugRegistry : {}) %>;
+
+  var TP_FIELD_IDS = { name: 'tp_name', slug: 'tp_slug', description: 'tp_desc' };
+
+
+
+  function showPageFlash(message, type) {
+
+    var wrap = document.getElementById('pageFlash');
+
+    var alertEl = document.getElementById('pageFlashAlert');
+
+    var textEl = document.getElementById('pageFlashText');
+
+    if (!wrap || !alertEl || !textEl) return;
+
+    alertEl.className = 'alert alert-dismissible fade show mb-0 alert-' + (type === 'danger' ? 'danger' : 'success');
+
+    textEl.textContent = message;
+
+    wrap.style.display = 'block';
+
+  }
+
+
+
+  (function initPageFlash() {
+
+    try {
+
+      var raw = sessionStorage.getItem('tpAdminFlash');
+
+      if (!raw) return;
+
+      sessionStorage.removeItem('tpAdminFlash');
+
+      var data = JSON.parse(raw);
+
+      if (data && data.message) showPageFlash(data.message, data.type || 'success');
+
+    } catch (e) { /* ignore */ }
+
+  })();
+
+
+
+  function setTpFormAlert(message) {
+
+    var el = document.getElementById('tpFormAlert');
+
+    if (!el) return;
+
+    if (!message) { el.style.display = 'none'; el.textContent = ''; return; }
+
+    el.style.display = 'block';
+
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+
+  }
+
+
+
+  function clearFieldError(fieldId) {
+
+    var input = document.getElementById(fieldId);
+
+    var err = document.getElementById(fieldId + '_error');
+
+    if (input) input.classList.remove('is-invalid');
+
+    if (err) err.style.display = 'none';
+
+  }
+
+
+
+  function setFieldError(fieldId, message) {
+
+    var input = document.getElementById(fieldId);
+
+    var err = document.getElementById(fieldId + '_error');
+
+    if (input) input.classList.add('is-invalid');
+
+    if (err && message) { err.textContent = message; err.style.display = 'block'; }
+
+  }
+
+
+
+  function clearTpValidation() {
+
+    setTpFormAlert('');
+
+    Object.keys(TP_FIELD_IDS).forEach(function (k) { clearFieldError(TP_FIELD_IDS[k]); });
+
+  }
+
+
+
+  function applyServerFieldErrors(fields) {
+
+    if (!fields || typeof fields !== 'object') return;
+
+    Object.keys(fields).forEach(function (key) {
+
+      var fieldId = TP_FIELD_IDS[key] || key;
+
+      setFieldError(fieldId, fields[key]);
+
+    });
+
+  }
+
+
+
+  var tpSlugField = window.NeofarmaSlugField ? NeofarmaSlugField.attach({
+
+    scope: 'product_type',
+
+    localSlugs: TP_SLUG_REGISTRY,
+
+    slugInputId: 'tp_slug',
+
+    nameInputId: 'tp_name',
+
+    statusId: 'tp_slug_status',
+
+    hintId: 'tp_slug_hint',
+
+    errorId: 'tp_slug_error',
+
+    getEditId: function () {
+
+      var id = document.getElementById('tp_id').value;
+
+      return id ? parseInt(id, 10) : null;
+
+    },
+
+    onStatusChange: function (st) {
+
+      var hint = document.getElementById('tp_slug_hint');
+
+      if (!hint) return;
+
+      hint.classList.remove('is-error', 'is-success');
+
+      if (st.status === 'available') hint.classList.add('is-success');
+
+      if (st.status === 'taken' || st.status === 'invalid') hint.classList.add('is-error');
+
+    }
+
+  }) : null;
+
+
+
+  function validateTpFormClient() {
+
+    clearTpValidation();
+
+    var errors = {};
+
+    var name = document.getElementById('tp_name').value.trim();
+
+    var slugInput = document.getElementById('tp_slug').value.trim().toLowerCase();
+
+    var slug = slugInput || (window.NeofarmaSlugField ? NeofarmaSlugField.slugify(name) : name);
+
+    var description = document.getElementById('tp_desc').value.trim();
+
+
+
+    if (!name) errors.name = 'Informe o nome do tipo de produto.';
+
+    else if (name.length < 2) errors.name = 'O nome deve ter pelo menos 2 caracteres.';
+
+
+
+    if (slugInput && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugInput)) {
+
+      errors.slug = 'Use apenas letras minúsculas, números e hífens no slug.';
+
+    } else if (slug.length < 2) {
+
+      errors.slug = 'O slug deve ter pelo menos 2 caracteres.';
+
+    }
+
+
+
+    if (description.length > 255) errors.description = 'A descrição deve ter no máximo 255 caracteres.';
+
+
+
+    var keys = Object.keys(errors);
+
+    if (keys.length) {
+
+      applyServerFieldErrors(errors);
+
+      setTpFormAlert('Revise os campos destacados em vermelho antes de continuar.');
+
+      document.getElementById(TP_FIELD_IDS[keys[0]]).focus();
+
+      return false;
+
+    }
+
+    return true;
+
+  }
+
+
+
+  Object.keys(TP_FIELD_IDS).forEach(function (k) {
+
+    if (k === 'slug') return;
+
+    var el = document.getElementById(TP_FIELD_IDS[k]);
+
+    if (!el) return;
+
+    el.addEventListener('input', function () { clearFieldError(TP_FIELD_IDS[k]); setTpFormAlert(''); });
+
+  });
+
+
+
+  function filtrarTabela() {
+    if (window.__tipoFilters) window.__tipoFilters.apply();
+  }
+
+  if (window.NeoFarmaCatalogFilters) {
+    window.__tipoFilters = NeoFarmaCatalogFilters.init({
+      tableBodySelector: '#tabelaTipos tbody tr',
+      resultsId: 'tipoResultsCount',
+      emptyFilterId: 'mensagemVaziaFilter',
+      tableWrapId: 'catalogTableWrap',
+      clearBtnId: 'tipoClearFilters',
+      filtersToggleId: 'tipoFiltersToggle',
+      filtersPanelId: 'tipoFiltersPanel',
+      inputs: { q: 'filtro_q', slug: 'filtro_slug', status: 'filtro_status' },
+      tabs: [
+        { id: 'tipoTabAll', targetInput: 'filtro_status', value: 'ALL' },
+        { id: 'tipoTabActive', targetInput: 'filtro_status', value: '1' },
+        { id: 'tipoTabInactive', targetInput: 'filtro_status', value: '0' },
+      ],
+      matchRow: function (tr, v) {
+        var F = NeoFarmaCatalogFilters;
+        if (!F.textMatch(tr, v.q)) return false;
+        if (v.slug && F.norm(tr.getAttribute('data-filter-slug')).indexOf(F.norm(v.slug)) === -1) return false;
+        if (v.status === '1' && tr.getAttribute('data-filter-active') !== '1') return false;
+        if (v.status === '0' && tr.getAttribute('data-filter-active') !== '0') return false;
+        return true;
+      },
+      onApply: function (visible) {
+        var el = document.getElementById('tipoResultsVisible');
+        if (el) el.textContent = visible;
+      },
+    });
+  }
+
+
+
+  function abrirModalTipo() {
+
+    clearTpValidation();
+
+    if (tpSlugField) tpSlugField.reset('');
+
+    document.getElementById('tp_id').value = '';
+
+    document.getElementById('tp_name').value = '';
+
+    document.getElementById('tp_slug').value = '';
+
+    document.getElementById('tp_desc').value = '';
+
+    document.getElementById('tp_active').checked = true;
+
+    document.getElementById('modalTipoTitle').innerHTML = '<i class="bi bi-box-seam me-2"></i>Novo tipo de produto';
+
+  }
+
+
+
+  function verTipo(id) {
+
+    var tr = [].find.call(document.querySelectorAll('#tabelaTipos tbody tr'), function (row) {
+
+      return parseInt(row.cells[0].textContent, 10) === id;
+
+    });
+
+    if (!tr) return;
+
+    var editBtn = tr.querySelector('.btn-edit');
+
+    if (!editBtn) return;
+
+    try { var item = JSON.parse(decodeURIComponent(editBtn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+
+    var nome = item.name || '';
+
+    var slug = item.slug || '-';
+
+    var ativo = item.is_active !== 0 && item.is_active !== false ? 'Sim' : 'Não';
+
+    var desc = item.description || '-';
+
+    var inicial = nome ? nome.charAt(0).toUpperCase() : '?';
+
+    var html = '<div class="cadastro-view">' +
+
+      '<div class="cadastro-view-avatar">' + inicial + '</div>' +
+
+      '<div class="cadastro-view-nome">' + nome + '</div>' +
+
+      '<div class="cadastro-view-section">' +
+
+        '<div class="cadastro-view-section-title">Dados</div>' +
+
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Slug</span><span class="cadastro-view-value">' + slug + '</span></div>' +
+
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Ativo</span><span class="cadastro-view-value">' + ativo + '</span></div>' +
+
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Descrição</span><span class="cadastro-view-value">' + desc + '</span></div>' +
+
+      '</div></div>';
+
+    document.getElementById('conteudoVisualizacao').innerHTML = html;
+
+    new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
+
+  }
+
+
+
+  function editarTipo(btn) {
+
+    try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+
+    clearTpValidation();
+
+    document.getElementById('tp_id').value = item.id || '';
+
+    document.getElementById('tp_name').value = item.name || '';
+
+    document.getElementById('tp_slug').value = item.slug || '';
+
+    document.getElementById('tp_desc').value = item.description || '';
+
+    document.getElementById('tp_active').checked = item.is_active !== 0 && item.is_active !== false;
+
+    if (tpSlugField) tpSlugField.reset(item.slug || '');
+
+    document.getElementById('modalTipoTitle').innerHTML = '<i class="bi bi-box-seam me-2"></i>Editar tipo de produto';
+
+    new bootstrap.Modal(document.getElementById('modalTipo')).show();
+
+  }
+
+
+
+  var exclusaoId = null;
+
+  function abrirModalExclusao(id, nome) {
+
+    exclusaoId = id;
+
+    document.getElementById('exclusaoNome').textContent = nome || ('#' + id);
+
+    new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+
+  }
+
+
+
+  document.getElementById('btnConfirmarExclusao').addEventListener('click', function () {
+
+    if (!exclusaoId) return;
+
+    var id = exclusaoId;
+
+    exclusaoId = null;
+
+    var btn = document.getElementById('btnConfirmarExclusao');
+
+    btn.disabled = true;
+
+    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
+
+    fetch('/admin/tipos-produto/' + id, { method: 'DELETE' })
+
+      .then(function (r) { return r.json(); })
+
+      .then(function (d) {
+
+        btn.disabled = false;
+
+        if (d.ok) {
+
+          sessionStorage.setItem('tpAdminFlash', JSON.stringify({ type: 'success', message: d.message || 'Tipo removido com sucesso.' }));
+
+          location.reload();
+
+        } else {
+
+          window.neofarmaToast(d.message || 'Não foi possível excluir.', 'danger');
+
+        }
+
+      })
+
+      .catch(function () {
+
+        btn.disabled = false;
+
+        window.neofarmaToast('Erro ao excluir tipo.', 'danger');
+
+      });
+
+  });
+
+
+
+  document.getElementById('btnSalvarTipo').addEventListener('click', function () {
+
+    if (!validateTpFormClient()) {
+
+      if (window.neofarmaToast) window.neofarmaToast('Preencha os campos obrigatórios.', 'warning');
+
+      return;
+
+    }
+
+
+
+    var proceedSave = function () {
+
+      var id = document.getElementById('tp_id').value;
+
+      var slugVal = document.getElementById('tp_slug').value.trim().toLowerCase();
+
+      var body = {
+
+        name: document.getElementById('tp_name').value.trim(),
+
+        slug: slugVal || null,
+
+        description: document.getElementById('tp_desc').value.trim() || null,
+
+        is_active: document.getElementById('tp_active').checked
+
+      };
+
+      if (id) body.id = parseInt(id, 10);
+
+      var btn = document.getElementById('btnSalvarTipo');
+
+      btn.disabled = true;
+
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+
+      fetch('/admin/tipos-produto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+        .then(function (r) {
+
+          return r.text().then(function (txt) {
+
+            var data = {};
+
+            try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+
+            if (!r.ok) {
+
+              var err = new Error((data && data.message) || 'Erro ao salvar tipo.');
+
+              err.payload = data;
+
+              throw err;
+
+            }
+
+            return data;
+
+          });
+
+        })
+
+        .then(function (d) {
+
+          btn.disabled = false;
+
+          btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+
+          if (d.ok) {
+
+            bootstrap.Modal.getInstance(document.getElementById('modalTipo')).hide();
+
+            sessionStorage.setItem('tpAdminFlash', JSON.stringify({
+
+              type: 'success',
+
+              message: d.message || ('Tipo "' + (d.name || body.name) + '" salvo com sucesso.')
+
+            }));
+
+            location.reload();
+
+          } else {
+
+            applyServerFieldErrors(d.fields);
+
+            setTpFormAlert(d.message || 'Não foi possível salvar.');
+
+            window.neofarmaToast(d.message || 'Não foi possível salvar.', 'danger');
+
+          }
+
+        })
+
+        .catch(function (err) {
+
+          btn.disabled = false;
+
+          btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+
+          if (err.payload && err.payload.fields) applyServerFieldErrors(err.payload.fields);
+
+          setTpFormAlert((err && err.message) || 'Erro ao salvar.');
+
+          window.neofarmaToast((err && err.message) || 'Erro de conexão. Tente novamente.', 'danger');
+
+        });
+
+    };
+
+
+
+    if (tpSlugField) {
+
+      tpSlugField.ensureAvailable().then(function (result) {
+
+        if (!result.ok) {
+
+          applyServerFieldErrors(result.fields || { slug: result.message });
+
+          setTpFormAlert('Revise o slug antes de continuar.');
+
+          document.getElementById('tp_slug').focus();
+
+          return;
+
+        }
+
+        proceedSave();
+
+      });
+
+      return;
+
+    }
+
+    proceedSave();
+
+  });
+
+</script>
+

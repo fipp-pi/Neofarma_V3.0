@@ -4,6 +4,8 @@ const ServiceProfessional = require('../models/ServiceProfessional');
 const { pool } = require('../config/database');
 const Customer = require('../models/Customer');
 const Scheduling = require('../services/appointmentSchedulingService');
+const displayLabels = require('../utils/displayLabels');
+const { formatDateTimeSecBr } = require('../utils/dateFormat');
 
 /**
  * Formata número para mostrar como valor monetário na interface.
@@ -36,12 +38,20 @@ function buildPaymentRef(id) {
 async function renderPage(req, res, next) {
   try {
     await ServiceAppointment.expirePendingReservations();
-    const services = await HealthService.findAll(false);
-    const professionals = await ServiceProfessional.findAll(false);
-    const holidays = await ServiceAppointment.listHolidays(true);
     const statusFilter = String(req.query.status || 'ALL').toUpperCase();
-    const appointments = await ServiceAppointment.listAll({ status: statusFilter });
-    const summary = appointments.reduce((acc, a) => {
+    const allowedViews = ['agenda', 'servicos', 'profissionais', 'config'];
+    let activeView = String(req.query.view || 'agenda').toLowerCase();
+    if (!allowedViews.includes(activeView)) activeView = 'agenda';
+
+    const [services, professionals, holidays, appointments, allAppointments] = await Promise.all([
+      HealthService.findAll(false),
+      ServiceProfessional.findAll(false),
+      ServiceAppointment.listHolidays(true),
+      ServiceAppointment.listAll({ status: statusFilter }),
+      ServiceAppointment.listAll({ status: 'ALL' }),
+    ]);
+
+    const summary = allAppointments.reduce((acc, a) => {
       acc.total += 1;
       if (a.status === 'RESERVED' || a.status === 'PAYMENT_FAILED') acc.reserved += 1;
       if (a.status === 'CONFIRMED') acc.confirmed += 1;
@@ -66,7 +76,14 @@ async function renderPage(req, res, next) {
       professionals,
       holidays,
       statusFilter,
+      activeView,
       summary,
+      stats: {
+        servicesCount: Array.isArray(services) ? services.length : 0,
+        professionalsCount: Array.isArray(professionals) ? professionals.length : 0,
+        holidaysCount: Array.isArray(holidays) ? holidays.length : 0,
+        filteredAppointments: Array.isArray(appointments) ? appointments.length : 0,
+      },
       toMoney,
       minBookingDate,
       maxBookingDate,
@@ -92,17 +109,24 @@ async function renderCashDeskPage(req, res, next) {
     const from = String(req.query.from || '').trim();
     const to = String(req.query.to || '').trim();
     const professional_id = Number(req.query.professional_id || 0);
+    const payment_method = String(req.query.payment_method || 'ALL').trim().toUpperCase();
     const professionals = await ServiceProfessional.findAll(true);
-    const rows = await ServiceAppointment.listCashPending({ from, to, professional_id });
+    const rows = await ServiceAppointment.listCashPending({ from, to, professional_id, payment_method });
     const totalPending = rows.reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
+    const summary = rows.reduce((acc, r) => {
+      const key = String(r.payment_method || 'CASH').toUpperCase();
+      acc.byMethod[key] = (acc.byMethod[key] || 0) + 1;
+      return acc;
+    }, { count: rows.length, totalAmount: totalPending, byMethod: {} });
     res.render('admin/agendamentos-caixa', {
       title: 'Caixa de Serviços - Admin',
       bodyClass: 'admin-page',
-      activeAdmin: 'agendamentos_servicos',
+      activeAdmin: 'agendamentos_caixa',
       rows,
       professionals,
-      filters: { from, to, professional_id },
+      filters: { from, to, professional_id, payment_method },
       totalPending,
+      summary,
     });
   } catch (err) {
     next(err);
@@ -117,13 +141,15 @@ async function exportCashDeskCsv(req, res, next) {
     const from = String(req.query.from || '').trim();
     const to = String(req.query.to || '').trim();
     const professional_id = Number(req.query.professional_id || 0);
-    const rows = await ServiceAppointment.listCashPending({ from, to, professional_id });
+    const payment_method = String(req.query.payment_method || 'ALL').trim().toUpperCase();
+    const rows = await ServiceAppointment.listCashPending({ from, to, professional_id, payment_method });
     const header = [
       'agendamento_id',
       'data_hora',
       'cliente',
       'servico',
       'profissional',
+      'forma_pagamento',
       'valor_total',
       'modalidade',
       'status',
@@ -133,14 +159,15 @@ async function exportCashDeskCsv(req, res, next) {
     rows.forEach((r) => {
       lines.push([
         r.id,
-        r.scheduled_start ? String(r.scheduled_start).slice(0, 19).replace('T', ' ') : '',
+        formatDateTimeSecBr(r.scheduled_start),
         `"${String(r.customer_name || '').replace(/"/g, '""')}"`,
         `"${String(r.service_name || '').replace(/"/g, '""')}"`,
         `"${String(r.professional_name || '').replace(/"/g, '""')}"`,
+        displayLabels.paymentMethod(r.payment_method),
         Number(r.total_amount || 0).toFixed(2),
-        r.modality || '',
-        r.status || '',
-        r.payment_status || '',
+        displayLabels.modality(r.modality),
+        displayLabels.appointmentStatus(r.status),
+        displayLabels.paymentStatus(r.payment_status),
       ].join(';'));
     });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -444,6 +471,7 @@ async function reserveSlot(req, res, next) {
     const travelFee = calcTravelFee(modality, b.zip_code);
     const total = Number((Number(service.price) + travelFee).toFixed(2));
     const tempRef = `TMP-${Date.now()}`;
+    const isOnlineBooking = bookingChannel === 'CUSTOMER_ONLINE';
     const addressText = modality === 'HOME'
       ? `${String(b.street || '').trim()}, ${String(b.number || '').trim()}${b.complement ? ' - ' + String(b.complement).trim() : ''} - ${String(b.district || '').trim()} - ${String(b.city || '').trim()}/${String(b.state || '').trim()}`
       : null;
@@ -463,27 +491,29 @@ async function reserveSlot(req, res, next) {
       scheduled_end: endAt,
       payment_method: paymentMethod,
       booking_channel: bookingChannel,
-      hold_minutes: paymentMethod === 'CASH' ? 0 : 10,
-      status: paymentMethod === 'CASH' ? 'CONFIRMED' : 'RESERVED',
-      payment_status: paymentMethod === 'CASH' ? 'PENDING' : 'PENDING',
+      hold_minutes: isOnlineBooking ? 10 : 0,
+      status: isOnlineBooking ? 'RESERVED' : 'CONFIRMED',
+      payment_status: 'PENDING',
       payment_ref: tempRef,
     });
-    if (paymentMethod === 'CASH') {
+    const totals = { service: Number(service.price), travel: travelFee, total };
+    if (isOnlineBooking) {
       return res.status(201).json({
         ok: true,
         id: appointmentId,
-        expires_in_minutes: 0,
-        totals: { service: Number(service.price), travel: travelFee, total },
-        message: 'Agendamento confirmado. Pagamento em dinheiro será realizado presencialmente.',
+        payment_link: `/admin/agendamentos-servicos?pay=${appointmentId}`,
+        expires_in_minutes: 10,
+        totals,
+        message: 'Reserva online criada por 10 minutos. Confirme o pagamento para efetivar o agendamento.',
       });
     }
+    const payLabels = { CASH: 'dinheiro', PIX: 'PIX', CREDIT_CARD: 'cartão de crédito', DEBIT_CARD: 'cartão de débito' };
     return res.status(201).json({
       ok: true,
       id: appointmentId,
-      payment_link: `/admin/agendamentos-servicos?pay=${appointmentId}`,
-      expires_in_minutes: 10,
-      totals: { service: Number(service.price), travel: travelFee, total },
-      message: 'Reserva criada por 10 minutos. Prosseguir para pagamento.',
+      expires_in_minutes: 0,
+      totals,
+      message: `Agendamento confirmado. Pagamento previsto em ${payLabels[paymentMethod] || paymentMethod} — registre o recebimento quando o cliente pagar.`,
     });
   } catch (err) {
     next(err);

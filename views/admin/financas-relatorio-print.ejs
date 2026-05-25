@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= reportMeta.title %> — NeoFarma</title>
+  <style>
+    :root { --brand: #0d9488; --ink: #1a2332; --muted: #5c6670; --line: #e5e9ef; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; color: var(--ink); margin: 0; padding: 24px 32px; font-size: 11px; line-height: 1.45; }
+    .print-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--brand); padding-bottom: 16px; margin-bottom: 20px; }
+    .print-header__brand img { height: 52px; width: auto; }
+    .print-header__brand h1 { margin: 8px 0 0; font-size: 18px; color: var(--brand); letter-spacing: 0.02em; }
+    .print-header__brand p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+    .print-header__meta { text-align: right; font-size: 10px; color: var(--muted); }
+    .print-header__meta strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 4px; }
+    .print-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .print-kpi { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #f8fafb; }
+    .print-kpi__label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .print-kpi__value { font-size: 15px; font-weight: 700; margin-top: 2px; color: var(--ink); }
+    .print-filters { font-size: 10px; color: var(--muted); margin-bottom: 16px; padding: 8px 12px; background: #f4f6f8; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th { background: var(--brand); color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: 0.03em; padding: 8px 10px; text-align: left; }
+    td { border-bottom: 1px solid var(--line); padding: 7px 10px; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .text-end { text-align: right; }
+    .text-muted { color: var(--muted); font-size: 9px; }
+    .print-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 9px; color: var(--muted); display: flex; justify-content: space-between; }
+    .print-section-title { font-size: 12px; font-weight: 700; margin: 18px 0 8px; color: var(--ink); }
+    @media print {
+      body { padding: 12mm 15mm; }
+      .no-print { display: none !important; }
+      tr { page-break-inside: avoid; }
+    }
+    .print-toolbar { position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 99; }
+    .print-toolbar button { padding: 8px 14px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 12px; }
+    .print-toolbar .btn-print { background: var(--brand); color: #fff; }
+    .print-toolbar .btn-close { background: #eef1f4; color: var(--ink); }
+  </style>
+</head>
+<body>
+  <div class="print-toolbar no-print">
+    <button type="button" class="btn-print" onclick="window.print()">Salvar como PDF / Imprimir</button>
+    <button type="button" class="btn-close" onclick="window.close()">Fechar</button>
+  </div>
+
+  <%
+    function fmt(v) {
+      return Number(v || 0).toFixed(2).replace('.', ',');
+    }
+    const rep = filters.report;
+    const genStr = typeof generatedAt !== 'undefined' && generatedAt ? fmtDateTime(generatedAt) : '';
+  %>
+
+  <header class="print-header">
+    <div class="print-header__brand">
+      <img src="/assets/img/other/logo-neofarma.png" alt="NeoFarma">
+      <h1>Relatório Gerencial</h1>
+      <p>Farmácia de manipulação e serviços de saúde · Documento confidencial</p>
+    </div>
+    <div class="print-header__meta">
+      <strong><%= reportMeta.title %></strong>
+      <div><%= reportMeta.subtitle %></div>
+      <div style="margin-top:8px;">Emitido em <%= genStr %></div>
+    </div>
+  </header>
+
+  <div class="print-filters"><strong>Filtros aplicados:</strong> <%= filterDescription %></div>
+
+  <% if (summary && Object.keys(summary).length) { %>
+  <div class="print-summary">
+    <% if (rep === 'overview') { %>
+      <div class="print-kpi"><div class="print-kpi__label">Receita paga</div><div class="print-kpi__value">R$ <%= fmt(summary.revenue_paid) %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Transações</div><div class="print-kpi__value"><%= summary.total_transactions || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Pendentes</div><div class="print-kpi__value"><%= summary.pending_count || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Falhas</div><div class="print-kpi__value"><%= summary.failed_count || 0 %></div></div>
+    <% } else if (rep === 'products') { %>
+      <div class="print-kpi"><div class="print-kpi__label">Produtos listados</div><div class="print-kpi__value"><%= summary.count || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Unidades vendidas</div><div class="print-kpi__value"><%= summary.total_qty || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Receita total</div><div class="print-kpi__value">R$ <%= fmt(summary.total_revenue) %></div></div>
+    <% } else if (rep === 'sales') { %>
+      <div class="print-kpi"><div class="print-kpi__label">Linhas</div><div class="print-kpi__value"><%= summary.count || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Pedidos distintos</div><div class="print-kpi__value"><%= summary.orders || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Valor total</div><div class="print-kpi__value">R$ <%= fmt(summary.total_value) %></div></div>
+    <% } else if (rep === 'customers') { %>
+      <div class="print-kpi"><div class="print-kpi__label">Clientes</div><div class="print-kpi__value"><%= summary.count || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Inadimplentes</div><div class="print-kpi__value"><%= summary.delinquent || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Gasto acumulado</div><div class="print-kpi__value">R$ <%= fmt(summary.total_spent) %></div></div>
+    <% } else if (rep === 'services') { %>
+      <div class="print-kpi"><div class="print-kpi__label">Agendamentos</div><div class="print-kpi__value"><%= summary.count || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Pagos</div><div class="print-kpi__value"><%= summary.paid || 0 %></div></div>
+      <div class="print-kpi"><div class="print-kpi__label">Receita</div><div class="print-kpi__value">R$ <%= fmt(summary.total_amount) %></div></div>
+    <% } %>
+  </div>
+  <% } %>
+
+  <% if (rep === 'overview') { %>
+    <div class="print-section-title">Receita por método de pagamento</div>
+    <table>
+      <thead><tr><th>Método</th><th class="text-end">Receita (R$)</th></tr></thead>
+      <tbody>
+        <tr><td>PIX</td><td class="text-end"><%= fmt(revenueByMethod.PIX) %></td></tr>
+        <tr><td>Boleto</td><td class="text-end"><%= fmt(revenueByMethod.BOLETO) %></td></tr>
+        <tr><td>Cartão de crédito</td><td class="text-end"><%= fmt(revenueByMethod.CREDIT_CARD) %></td></tr>
+        <tr><td>Cartão de débito</td><td class="text-end"><%= fmt(revenueByMethod.DEBIT_CARD) %></td></tr>
+        <tr><td>Dinheiro</td><td class="text-end"><%= fmt(revenueByMethod.CASH) %></td></tr>
+      </tbody>
+    </table>
+    <div class="print-section-title">Receita diária</div>
+    <table>
+      <thead><tr><th>Dia</th><th>Transações</th><th class="text-end">Receita (R$)</th></tr></thead>
+      <tbody>
+        <% (revenueByDay || []).forEach(function(r) { %>
+          <tr><td><%= r.day %></td><td><%= r.orders_count || 0 %></td><td class="text-end"><%= fmt(r.revenue) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div class="print-section-title">Produtos mais vendidos</div>
+    <table>
+      <thead><tr><th>Produto</th><th>SKU</th><th>Qtd</th><th class="text-end">Receita (R$)</th></tr></thead>
+      <tbody>
+        <% (mostSold || []).forEach(function(p) { %>
+          <tr><td><%= p.product_name %></td><td><%= p.sku || '—' %></td><td><%= p.qty_sold %></td><td class="text-end"><%= fmt(p.revenue) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <% if (rep === 'products') { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th><th>SKU</th><th>Tipo</th><th>Laboratório</th><th>Categorias</th>
+          <th>Status</th><th class="text-end">Preço</th><th class="text-end">Qtd</th><th class="text-end">Receita</th><th class="text-end">Ticket médio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (productReport || []).forEach(function(p) { %>
+          <tr>
+            <td><%= p.product_name %></td>
+            <td><%= p.sku || '—' %></td>
+            <td><%= p.type_name || '—' %></td>
+            <td><%= p.lab_name || '—' %></td>
+            <td><%= p.categories || '—' %></td>
+            <td><%= t('productStatus', p.product_status) %></td>
+            <td class="text-end"><%= fmt(p.unit_price) %></td>
+            <td class="text-end"><%= p.qty_sold %></td>
+            <td class="text-end"><%= fmt(p.revenue) %></td>
+            <td class="text-end"><%= fmt(p.avg_ticket) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <% if (rep === 'sales') { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Pedido</th><th>Data</th><th>Cliente</th><th>Produto</th><th>Categoria</th>
+          <th class="text-end">Qtd</th><th class="text-end">Valor</th><th>Pagamento</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (salesReport || []).forEach(function(r) { %>
+          <tr>
+            <td>#<%= r.order_id %></td>
+            <td><%= fmtDateTime(r.created_at) %></td>
+            <td><%= r.customer_name %></td>
+            <td><%= r.product_name %><% if (r.sku) { %><div class="text-muted"><%= r.sku %></div><% } %></td>
+            <td><%= r.category_name || '—' %></td>
+            <td class="text-end"><%= r.quantity %></td>
+            <td class="text-end"><%= fmt(r.line_total) %></td>
+            <td><%= t('paymentMethod', r.payment_method) %></td>
+            <td><%= t('orderStatus', r.order_status) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <% if (rep === 'customers') { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th><th>Documento</th><th>Tipo</th><th>Cidade</th><th>Telefone</th>
+          <th class="text-end">Pedidos pagos</th><th class="text-end">Total gasto</th><th>Inadimplência</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (customerReport || []).forEach(function(c) { %>
+          <tr>
+            <td><%= c.full_name %><div class="text-muted"><%= c.email %></div></td>
+            <td><%= c.document || '—' %></td>
+            <td><%= t('personType', c.person_type) %></td>
+            <td><%= c.city || '—' %></td>
+            <td><%= c.phone || '—' %></td>
+            <td class="text-end"><%= c.paid_orders %></td>
+            <td class="text-end"><%= fmt(c.total_spent) %></td>
+            <td><%= Number(c.delinquent_flags) > 0 ? 'Sim (' + c.delinquent_flags + ')' : 'Não' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <% if (rep === 'services') { %>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Agendamento</th><th>Serviço</th><th>Profissional</th><th>Cliente</th>
+          <th>Modalidade</th><th>Canal</th><th>Status</th><th>Pagamento</th><th class="text-end">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (serviceReport || []).forEach(function(s) { %>
+          <tr>
+            <td><%= s.id %></td>
+            <td><%= fmtDateTime(s.scheduled_start) %></td>
+            <td><%= s.service_name %></td>
+            <td><%= s.professional_name || '—' %></td>
+            <td><%= s.customer_name || '—' %></td>
+            <td><%= t('modality', s.modality) %></td>
+            <td><%= t('bookingChannel', s.booking_channel) %></td>
+            <td><%= t('appointmentStatus', s.status) %></td>
+            <td><%= t('paymentStatus', s.payment_status) %> / <%= t('paymentMethod', s.payment_method) %></td>
+            <td class="text-end"><%= fmt(s.total_amount) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <footer class="print-footer">
+    <span>NeoFarma — Sistema de gestão farmacêutica</span>
+    <span>Página gerada automaticamente · <%= genStr %></span>
+  </footer>
+
+  <% if (autoPrint) { %>
+  <script>window.addEventListener('load', function() { setTimeout(function() { window.print(); }, 400); });</script>
+  <% } %>
+</body>
+</html>

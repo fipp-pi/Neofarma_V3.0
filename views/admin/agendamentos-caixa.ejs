@@ -1,99 +1,374 @@
 <%- include('partials/header') %>
-<div class="container-fluid">
-  <div class="list-header mb-3">
-    <div>
-      <h2 class="neo-heading">Caixa de Serviços (Dinheiro)</h2>
-      <p class="text-muted mb-0">Recebimentos pendentes de agendamentos em dinheiro.</p>
-    </div>
-    <div>
-      <a href="/admin/agendamentos-servicos" class="btn btn-outline-secondary btn-sm">Voltar aos agendamentos</a>
+
+<%
+  const rowsList = typeof rows !== 'undefined' ? rows : [];
+  const filtersData = typeof filters !== 'undefined' ? filters : {};
+  const summaryData = typeof summary !== 'undefined' ? summary : { count: 0, totalAmount: 0, byMethod: {} };
+  const methodFilter = String(filtersData.payment_method || 'ALL').toUpperCase();
+  const PAY_METHOD_LABELS = { CASH: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão crédito', DEBIT_CARD: 'Cartão débito' };
+  const PAY_METHOD_ICONS = { CASH: 'bi-cash-coin', PIX: 'bi-qr-code-scan', CREDIT_CARD: 'bi-credit-card-2-front', DEBIT_CARD: 'bi-credit-card' };
+  const STATUS_LABELS = { CONFIRMED: 'Confirmado', IN_PROGRESS: 'Em atendimento', COMPLETED: 'Concluído' };
+  const STATUS_BADGE = { CONFIRMED: 'info', IN_PROGRESS: 'primary', COMPLETED: 'success' };
+  const methodTabs = [
+    { v: 'ALL', l: 'Todas', icon: 'bi-grid' },
+    { v: 'CASH', l: 'Dinheiro', icon: 'bi-cash-coin' },
+    { v: 'PIX', l: 'PIX', icon: 'bi-qr-code-scan' },
+    { v: 'CREDIT_CARD', l: 'Cartão crédito', icon: 'bi-credit-card-2-front' },
+    { v: 'DEBIT_CARD', l: 'Cartão débito', icon: 'bi-credit-card' },
+  ];
+  function caixaUrl(extra) {
+    const q = new URLSearchParams();
+    if (filtersData.from) q.set('from', filtersData.from);
+    if (filtersData.to) q.set('to', filtersData.to);
+    if (Number(filtersData.professional_id || 0) > 0) q.set('professional_id', filtersData.professional_id);
+    const mf = (extra && extra.payment_method) ? extra.payment_method : methodFilter;
+    if (mf && mf !== 'ALL') q.set('payment_method', mf);
+    const s = q.toString();
+    return '/admin/agendamentos-servicos/caixa' + (s ? '?' + s : '');
+  }
+  function fmtMoney(v) {
+    return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
+  }
+%>
+
+<div class="container admin-caixa">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     </div>
   </div>
 
-  <div class="card p-3 mb-3">
-    <form class="row g-2" method="GET" action="/admin/agendamentos-servicos/caixa">
-      <div class="col-md-3">
-        <label class="form-label small">De</label>
-        <input type="date" class="form-control" name="from" value="<%= filters.from || '' %>">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small">Até</label>
-        <input type="date" class="form-control" name="to" value="<%= filters.to || '' %>">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small">Profissional</label>
-        <select class="form-select" name="professional_id">
-          <option value="0">Todos</option>
-          <% (professionals || []).forEach(function(p){ %>
-            <option value="<%= p.id %>" <%= Number(filters.professional_id || 0) === Number(p.id) ? 'selected' : '' %>><%= p.full_name %></option>
-          <% }) %>
-        </select>
-      </div>
-      <div class="col-md-2 d-flex align-items-end gap-2">
-        <button class="btn btn-primary w-100" type="submit">Filtrar</button>
-      </div>
-    </form>
-    <div class="mt-2">
+  <div class="list-header mb-4">
+    <div>
+      <h2 class="neo-heading">Caixa de serviços</h2>
+      <p class="text-muted mb-0">Registre recebimentos presenciais de agendamentos confirmados — dinheiro, PIX ou cartão — e mantenha o fluxo financeiro em dia.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="/admin/agendamentos-servicos" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-calendar2-check me-1"></i> Voltar aos agendamentos
+      </a>
       <a
-        class="btn btn-sm btn-outline-primary"
-        href="/admin/agendamentos-servicos/caixa/export.csv?from=<%= encodeURIComponent(filters.from || '') %>&to=<%= encodeURIComponent(filters.to || '') %>&professional_id=<%= encodeURIComponent(filters.professional_id || 0) %>"
+        class="btn btn-outline-primary btn-sm"
+        href="/admin/agendamentos-servicos/caixa/export.csv?from=<%= encodeURIComponent(filtersData.from || '') %>&to=<%= encodeURIComponent(filtersData.to || '') %>&professional_id=<%= encodeURIComponent(filtersData.professional_id || 0) %>&payment_method=<%= encodeURIComponent(methodFilter) %>"
       >
         <i class="bi bi-download me-1"></i> Exportar CSV
       </a>
     </div>
   </div>
 
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h6 class="mb-0">Pendências</h6>
-    <div class="badge bg-warning text-dark">Total pendente: R$ <%= Number(totalPending || 0).toFixed(2).replace('.', ',') %></div>
+  <div class="admin-caixa__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-caixa__stat admin-caixa__stat--warning">
+        <span class="admin-caixa__stat-icon"><i class="bi bi-hourglass-split"></i></span>
+        <div>
+          <div class="admin-caixa__stat-value"><%= summaryData.count || 0 %></div>
+          <div class="admin-caixa__stat-label">Pendências no filtro</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-caixa__stat admin-caixa__stat--primary">
+        <span class="admin-caixa__stat-icon"><i class="bi bi-cash-stack"></i></span>
+        <div>
+          <div class="admin-caixa__stat-value admin-caixa__stat-value--money"><%= fmtMoney(totalPending) %></div>
+          <div class="admin-caixa__stat-label">Valor total pendente</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-caixa__stat admin-caixa__stat--info">
+        <span class="admin-caixa__stat-icon"><i class="bi bi-cash-coin"></i></span>
+        <div>
+          <div class="admin-caixa__stat-value"><%= summaryData.byMethod.CASH || 0 %></div>
+          <div class="admin-caixa__stat-label">Aguardando dinheiro</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-caixa__stat admin-caixa__stat--success">
+        <span class="admin-caixa__stat-icon"><i class="bi bi-qr-code-scan"></i></span>
+        <div>
+          <div class="admin-caixa__stat-value"><%= (summaryData.byMethod.PIX || 0) + (summaryData.byMethod.CREDIT_CARD || 0) + (summaryData.byMethod.DEBIT_CARD || 0) %></div>
+          <div class="admin-caixa__stat-label">PIX / cartão</div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-custom align-middle">
-      <thead>
-        <tr>
-          <th>#</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Data</th><th>Valor</th><th class="text-end">Ação</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% (rows || []).forEach(function(r){ %>
-          <tr>
-            <td><%= r.id %></td>
-            <td><%= r.customer_name %></td>
-            <td><%= r.service_name %></td>
-            <td><%= r.professional_name || '-' %></td>
-            <td><%= new Date(r.scheduled_start).toLocaleString('pt-BR') %></td>
-            <td>R$ <%= Number(r.total_amount || 0).toFixed(2).replace('.', ',') %></td>
-            <td class="text-end">
-              <button type="button" class="btn btn-sm btn-success" onclick="receberDinheiro(<%= r.id %>)">Confirmar recebimento</button>
-            </td>
-          </tr>
-        <% }) %>
-        <% if (!rows || !rows.length) { %>
-          <tr><td colspan="7" class="text-muted">Nenhum recebimento pendente para os filtros aplicados.</td></tr>
-        <% } %>
-      </tbody>
-    </table>
+  <% if ((summaryData.count || 0) > 0) { %>
+  <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-exclamation-circle me-1"></i> Recebimentos pendentes:</strong>
+      <%= summaryData.count %> agendamento(s) aguardam confirmação de pagamento presencial.
+    </div>
+    <span class="admin-caixa__alert-total"><%= fmtMoney(totalPending) %></span>
   </div>
+  <% } %>
+
+  <section class="admin-caixa__panel admin-caixa__panel--filters mb-4">
+    <div class="admin-caixa__panel-head">
+      <h3 class="admin-caixa__panel-title"><i class="bi bi-funnel me-2"></i>Filtros</h3>
+    </div>
+    <div class="admin-caixa__panel-body">
+      <form class="row g-3 align-items-end" method="GET" action="/admin/agendamentos-servicos/caixa" id="formCaixaFiltros">
+        <input type="hidden" name="payment_method" value="<%= methodFilter %>">
+        <div class="col-md-3">
+          <label class="form-label" for="caixa_from">Período — de</label>
+          <input type="date" class="form-control" id="caixa_from" name="from" value="<%= filtersData.from || '' %>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="caixa_to">Até</label>
+          <input type="date" class="form-control" id="caixa_to" name="to" value="<%= filtersData.to || '' %>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="caixa_professional">Profissional</label>
+          <select class="form-select" id="caixa_professional" name="professional_id">
+            <option value="0">Todos os profissionais</option>
+            <% (professionals || []).forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= Number(filtersData.professional_id || 0) === Number(p.id) ? 'selected' : '' %>><%= p.full_name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+          <button class="btn btn-primary flex-grow-1" type="submit"><i class="bi bi-search me-1"></i> Filtrar</button>
+          <a href="/admin/agendamentos-servicos/caixa" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="admin-caixa__tabs mb-3">
+    <% methodTabs.forEach(function (t) { %>
+      <a href="<%= caixaUrl({ payment_method: t.v }) %>" class="admin-caixa__tab <%= methodFilter === t.v ? 'is-active' : '' %>">
+        <i class="bi <%= t.icon %> me-1"></i><%= t.l %>
+      </a>
+    <% }); %>
+  </div>
+
+  <section class="admin-caixa__panel admin-caixa__panel--table">
+    <div class="admin-caixa__panel-head admin-caixa__panel-head--table">
+      <h3 class="admin-caixa__panel-title"><i class="bi bi-receipt me-2"></i>Recebimentos pendentes</h3>
+      <div class="search-box admin-caixa__search">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control form-control-sm" id="buscaCaixa" placeholder="Buscar cliente, serviço ou nº..." onkeyup="filtrarCaixa()">
+      </div>
+    </div>
+
+    <% if (!rowsList.length) { %>
+      <div class="admin-caixa__empty">
+        <i class="bi bi-check2-circle"></i>
+        <p class="mb-1 fw-semibold">Nenhum recebimento pendente</p>
+        <p class="text-muted small mb-0">Não há pagamentos presenciais aguardando baixa para os filtros selecionados.</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0" id="tabelaCaixa">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Serviço</th>
+              <th>Profissional</th>
+              <th>Data / hora</th>
+              <th>Forma</th>
+              <th>Status</th>
+              <th class="text-end">Valor</th>
+              <th class="text-end col-actions">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rowsList.forEach(function(r){
+              var methodKey = String(r.payment_method || 'CASH').toUpperCase();
+              var methodLabel = t('paymentMethod', methodKey);
+              var methodIcon = PAY_METHOD_ICONS[methodKey] || 'bi-wallet2';
+              var stKey = String(r.status || '').toUpperCase();
+              var stLabel = t('appointmentStatus', stKey);
+              var stBadge = tApptBadge(stKey);
+              var modalityLabel = t('modality', r.modality);
+            %>
+              <tr data-search="<%= [r.id, r.customer_name, r.customer_email, r.service_name, r.professional_name, methodLabel, stLabel, modalityLabel].filter(Boolean).join(' ').toLowerCase() %>">
+                <td><span class="text-muted">#<%= r.id %></span></td>
+                <td>
+                  <div class="fw-semibold"><%= r.customer_name %></div>
+                  <% if (r.customer_email) { %><div class="small text-muted"><%= r.customer_email %></div><% } %>
+                </td>
+                <td>
+                  <div><%= r.service_name %></div>
+                  <span class="admin-caixa__badge admin-caixa__badge--muted mt-1"><%= modalityLabel %></span>
+                </td>
+                <td><%= r.professional_name || '—' %></td>
+                <td><%= fmtDateTime(r.scheduled_start) %></td>
+                <td>
+                  <span class="admin-caixa__pay-method"><i class="bi <%= methodIcon %> me-1"></i><%= methodLabel %></span>
+                </td>
+                <td><span class="admin-caixa__badge admin-caixa__badge--<%= stBadge %>"><%= stLabel %></span></td>
+                <td class="text-end fw-semibold"><%= fmtMoney(r.total_amount) %></td>
+                <td class="text-end col-actions">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-success admin-caixa__btn-receive"
+                    data-id="<%= r.id %>"
+                    data-method="<%= methodKey %>"
+                    data-label="<%= methodLabel %>"
+                    data-amount="<%= fmtMoney(r.total_amount) %>"
+                  >
+                    <i class="bi bi-check-lg me-1"></i> Confirmar
+                  </button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
 </div>
+
+<style>
+  .admin-caixa__stats { margin-top: 0.25rem; }
+  .admin-caixa__stat {
+    display: flex; align-items: center; gap: 0.85rem; padding: 1rem 1.1rem;
+    border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); background: #fff;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.04); min-height: 88px; color: inherit;
+  }
+  .admin-caixa__stat-icon {
+    width: 44px; height: 44px; border-radius: 12px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;
+  }
+  .admin-caixa__stat--warning .admin-caixa__stat-icon { background: #fff8e6; color: #997404; }
+  .admin-caixa__stat--primary .admin-caixa__stat-icon { background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); }
+  .admin-caixa__stat--info .admin-caixa__stat-icon { background: #e7f1ff; color: #0d6efd; }
+  .admin-caixa__stat--success .admin-caixa__stat-icon { background: #e8f6ee; color: #198754; }
+  .admin-caixa__stat-value { font-size: 1.45rem; font-weight: 700; color: var(--heading-color); line-height: 1.1; }
+  .admin-caixa__stat-value--money { font-size: 1.15rem; }
+  .admin-caixa__stat-label { font-size: 0.8rem; color: #6c757d; margin-top: 0.15rem; }
+  .admin-caixa__alert-total { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+
+  .admin-caixa__panel {
+    background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.04); overflow: hidden;
+  }
+  .admin-caixa__panel--table { overflow: visible; }
+  .admin-caixa__panel-head {
+    padding: 0.95rem 1.15rem; border-bottom: 1px solid rgba(0,0,0,0.06);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), #fff 92%) 0%, #fff 100%);
+  }
+  .admin-caixa__panel-head--table {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem;
+  }
+  .admin-caixa__panel-title { margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--heading-color); }
+  .admin-caixa__panel-body { padding: 1.15rem; }
+  .admin-caixa__panel-body .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; }
+
+  .admin-caixa__tabs { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .admin-caixa__tab {
+    display: inline-flex; align-items: center; padding: 0.4rem 0.75rem; border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.08); background: #fff; color: #495057; font-size: 0.8rem;
+    font-weight: 600; text-decoration: none;
+  }
+  .admin-caixa__tab:hover { border-color: color-mix(in srgb, var(--accent-color), transparent 70%); color: var(--accent-color); }
+  .admin-caixa__tab.is-active { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); }
+
+  .admin-caixa__search { min-width: min(100%, 260px); }
+  .admin-caixa__search .form-control { padding-left: 2rem; border-radius: 8px; }
+  .admin-caixa__panel .table-custom th { font-size: 0.72rem; padding: 0.85rem 1rem; }
+  .admin-caixa__panel .table-custom td { padding: 0.85rem 1rem; font-size: 0.88rem; vertical-align: middle; }
+
+  .admin-caixa__badge {
+    display: inline-block; font-size: 0.72rem; font-weight: 700; border-radius: 999px;
+    padding: 0.22rem 0.55rem; white-space: nowrap;
+  }
+  .admin-caixa__badge--success { background: #d1e7dd; color: #0f5132; }
+  .admin-caixa__badge--warning { background: #fff3cd; color: #664d03; }
+  .admin-caixa__badge--info { background: #dbeafe; color: #0a58ca; }
+  .admin-caixa__badge--primary { background: color-mix(in srgb, var(--accent-color), transparent 86%); color: var(--accent-color); }
+  .admin-caixa__badge--muted { background: #eef1f4; color: #5c6670; }
+
+  .admin-caixa__pay-method { display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: 600; color: #495057; }
+  .admin-caixa__btn-receive { white-space: nowrap; }
+
+  .admin-caixa__empty {
+    text-align: center; padding: 3rem 1.5rem; color: #6c757d;
+  }
+  .admin-caixa__empty i { font-size: 2.5rem; color: #198754; display: block; margin-bottom: 0.75rem; opacity: 0.85; }
+</style>
+
 <script>
-  function toast(msg, type) {
-    if (typeof window.neofarmaToast === 'function') return window.neofarmaToast(msg, type);
-    console.log((type || 'info') + ': ' + msg);
-  }
-  async function receberDinheiro(id) {
-    const ok = (typeof window.neofarmaConfirm === 'function')
-      ? await window.neofarmaConfirm({ title: 'Confirmar recebimento', message: 'Confirmar pagamento em dinheiro deste agendamento?' })
-      : true;
-    if (!ok) return;
-    const resp = await fetch('/admin/agendamentos-servicos/' + id + '/confirmar-pagamento', { method: 'POST' });
-    const data = await resp.json();
-    if (data.ok) {
-      toast(data.message || 'Recebimento confirmado.', 'success');
-      setTimeout(function(){ location.reload(); }, 600);
-    } else {
-      toast(data.message || 'Falha ao confirmar recebimento.', 'danger');
+  (function () {
+    function toast(msg, type) {
+      if (typeof window.neofarmaToast === 'function') return window.neofarmaToast(msg, type);
+      console.log((type || 'info') + ': ' + msg);
     }
-  }
+
+    function showPageFlash(message, type) {
+      var wrap = document.getElementById('pageFlash');
+      var alertEl = document.getElementById('pageFlashAlert');
+      var textEl = document.getElementById('pageFlashText');
+      if (!wrap || !alertEl || !textEl) return;
+      alertEl.className = 'alert alert-' + (type || 'success') + ' alert-dismissible fade show mb-0';
+      textEl.textContent = message;
+      wrap.style.display = '';
+    }
+
+    try {
+      var raw = sessionStorage.getItem('caixaAdminFlash');
+      if (raw) {
+        sessionStorage.removeItem('caixaAdminFlash');
+        var flash = JSON.parse(raw);
+        if (flash && flash.message) showPageFlash(flash.message, flash.type || 'success');
+      }
+    } catch (_) {}
+
+    window.filtrarCaixa = function () {
+      var term = (document.getElementById('buscaCaixa').value || '').toLowerCase().trim();
+      document.querySelectorAll('#tabelaCaixa tbody tr').forEach(function (row) {
+        var hay = row.getAttribute('data-search') || '';
+        row.style.display = !term || hay.indexOf(term) !== -1 ? '' : 'none';
+      });
+    };
+
+    async function confirmarRecebimento(id, paymentMethod, methodLabel, amountLabel) {
+      var msg = 'Confirmar recebimento de ' + amountLabel + ' via ' + methodLabel + '?';
+      var ok = (typeof window.neofarmaConfirm === 'function')
+        ? await window.neofarmaConfirm({ title: 'Registrar recebimento', message: msg, confirmText: 'Confirmar', confirmClass: 'btn-success' })
+        : window.confirm(msg);
+      if (!ok) return;
+
+      var btn = document.querySelector('.admin-caixa__btn-receive[data-id="' + id + '"]');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processando…'; }
+
+      try {
+        var resp = await fetch('/admin/agendamentos-servicos/' + id + '/confirmar-pagamento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payment_method: paymentMethod }),
+        });
+        var data = await resp.json();
+        if (data.ok) {
+          sessionStorage.setItem('caixaAdminFlash', JSON.stringify({ message: data.message || 'Recebimento confirmado.', type: 'success' }));
+          window.location.reload();
+        } else {
+          toast(data.message || 'Falha ao confirmar recebimento.', 'danger');
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Confirmar'; }
+        }
+      } catch (e) {
+        toast('Erro de comunicação. Tente novamente.', 'danger');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Confirmar'; }
+      }
+    }
+
+    document.querySelectorAll('.admin-caixa__btn-receive').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        confirmarRecebimento(
+          btn.getAttribute('data-id'),
+          btn.getAttribute('data-method'),
+          btn.getAttribute('data-label'),
+          btn.getAttribute('data-amount')
+        );
+      });
+    });
+  })();
 </script>
+
 <%- include('partials/footer') %>

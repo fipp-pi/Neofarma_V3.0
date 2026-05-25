@@ -32,7 +32,7 @@
           </div>
           <div class="col-md-6 text-md-end">
             <div class="text-muted small">Data de emissão</div>
-            <div><strong><%= new Date().toLocaleString('pt-BR') %></strong></div>
+            <div><strong><%= fmtDateTime(new Date()) %></strong></div>
           </div>
 
           <div class="col-md-6 mt-2">
@@ -48,16 +48,16 @@
 
           <div class="col-md-4 mt-2">
             <div class="text-muted small">Agendado para</div>
-            <div><strong><%= new Date(appointment.scheduled_start).toLocaleString('pt-BR') %></strong></div>
+            <div><strong><%= fmtDateTime(appointment.scheduled_start) %></strong></div>
           </div>
           <div class="col-md-4 mt-2">
             <div class="text-muted small">Forma de pagamento</div>
-            <div><strong><%= appointment.payment_method || '-' %></strong></div>
+            <div><strong><%= t('paymentMethod', appointment.payment_method) %></strong></div>
           </div>
           <div class="col-md-4 mt-2">
             <div class="text-muted small">Status do pagamento</div>
             <div>
-              <span class="badge <%= String(appointment.payment_status || '').toUpperCase() === 'PAID' ? 'bg-success' : 'bg-info text-dark' %>"><%= appointment.payment_status %></span>
+              <span class="badge <%= String(appointment.payment_status || '').toUpperCase() === 'PAID' ? 'bg-success' : 'bg-info text-dark' %>"><%= t('paymentStatus', appointment.payment_status) %></span>
               <% if (String(appointment.payment_ref || '').trim()) { %>
                 <span class="badge bg-secondary">Ref: <%= appointment.payment_ref %></span>
               <% } %>

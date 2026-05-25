@@ -1,7 +1,55 @@
 <%- include('partials/header') %>
 
+<%
+  var statsData = typeof stats !== 'undefined' ? stats : { ordersTotal: 0, ordersPending: 0, ordersDelivered: 0, totalSpent: 0, addressesCount: 0, appointmentsUpcoming: 0, loyaltyPoints: 0 };
+  var recentOrdersList = typeof recentOrders !== 'undefined' ? recentOrders : [];
+  var upcomingList = typeof upcomingAppointments !== 'undefined' ? upcomingAppointments : [];
+  var nameStr = (profile.full_name || 'Cliente').trim();
+  var nameParts = nameStr.split(/\s+/).filter(Boolean);
+  var initials = nameParts.slice(0, 2).map(function(n) { return n.charAt(0); }).join('').toUpperCase() || 'C';
+  var memberSince = profile.user_created_at || profile.customer_created_at;
+  var lp = statsData.loyaltyPoints || 0;
+  var tierLabel = lp >= 500 ? 'Cliente Premium' : (lp >= 100 ? 'Cliente Fiel' : 'Membro NeoFarma');
+  var tierIcon = lp >= 500 ? 'bi-gem' : (lp >= 100 ? 'bi-star-fill' : 'bi-award');
+  var defaultAddr = null;
+  if (typeof addresses !== 'undefined' && addresses.length) {
+    defaultAddr = addresses.find(function(a) { return a.is_default; }) || addresses[0];
+  }
+  function fmtMoney(v) { return Number(v || 0).toFixed(2).replace('.', ','); }
+  function fmtCpf(doc) {
+    if (!doc) return '—';
+    var d = String(doc).replace(/\D/g, '');
+    if (d.length !== 11) return doc;
+    return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9);
+  }
+  function fmtPhoneDisplay(p) {
+    if (!p) return '—';
+    var d = String(p).replace(/\D/g, '');
+    if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 3) + ' ' + d.slice(3, 7) + '-' + d.slice(7);
+    if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return p;
+  }
+  function orderStatusClass(st, pay) {
+    st = String(st || '').toUpperCase();
+    pay = String(pay || '').toUpperCase();
+    if (st === 'CANCELLED') return 'cancelled';
+    if (st === 'DELIVERED') return 'delivered';
+    if (['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].indexOf(st) >= 0) return 'shipped';
+    if (pay === 'PENDING') return 'processing';
+    return 'processing';
+  }
+  function orderFilterKey(o) {
+    var st = String(o.order_status || '').toUpperCase();
+    var pay = String(o.pay_status || '').toUpperCase();
+    if (st === 'CANCELLED') return 'cancelled';
+    if (st === 'DELIVERED') return 'delivered';
+    if (pay === 'PENDING') return 'pending';
+    if (pay === 'PAID' && st !== 'DELIVERED' && st !== 'CANCELLED') return 'active';
+    return 'all';
+  }
+%>
+
 <style>
-  /* Alinha botões da conta com a cor de destaque do site (--accent-color) */
   .account .content-area .section-header .header-actions .btn-primary,
   .account .content-area .settings-section .form-buttons .btn-primary {
     background-color: var(--accent-color);
@@ -20,11 +68,11 @@
 
   <div class="page-title light-background">
     <div class="container d-lg-flex justify-content-between align-items-center">
-      <h1 class="mb-2 mb-lg-0">Conta</h1>
+      <h1 class="mb-2 mb-lg-0">Minha Conta</h1>
       <nav class="breadcrumbs">
         <ol>
           <li><a href="/">Início</a></li>
-          <li class="current">Conta</li>
+          <li class="current">Minha Conta</li>
         </ol>
       </nav>
     </div>
@@ -36,161 +84,312 @@
       <div class="mobile-menu d-lg-none mb-4">
         <button class="mobile-menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#profileMenu">
           <i class="bi bi-grid"></i>
-          <span>Menu</span>
+          <span>Menu da conta</span>
         </button>
       </div>
 
       <div class="row g-4">
-        <!-- Menu lateral do perfil -->
         <div class="col-lg-3">
           <div class="profile-menu collapse d-lg-block" id="profileMenu">
             <div class="user-info" data-aos="fade-right">
+              <div class="user-avatar-initials" aria-hidden="true"><%= initials %></div>
               <h4><%= profile.full_name || 'Usuário' %></h4>
               <div class="user-status">
-                <i class="bi bi-award"></i>
-                <span>Membro</span>
+                <i class="bi <%= tierIcon %>"></i>
+                <span><%= tierLabel %></span>
               </div>
+              <% if (memberSince) { %>
+              <div class="loyalty-chip">
+                <i class="bi bi-calendar3"></i>
+                <span>Desde <%= fmtDate(memberSince) %></span>
+              </div>
+              <% } %>
+              <% if (lp > 0) { %>
+              <div class="loyalty-chip mt-1">
+                <i class="bi bi-coin"></i>
+                <span><%= lp %> pontos de fidelidade</span>
+              </div>
+              <% } %>
             </div>
 
             <nav class="menu-nav">
               <ul class="nav flex-column" role="tablist">
                 <li class="nav-item">
-                  <a class="nav-link" data-bs-toggle="tab" href="#orders">
+                  <a class="nav-link active" data-bs-toggle="tab" href="#overview" data-tab="overview">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Visão geral</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" data-bs-toggle="tab" href="#orders" data-tab="orders">
                     <i class="bi bi-box-seam"></i>
-                    <span>Meus Pedidos</span>
-                    <span class="badge"><%= typeof ordersCount !== 'undefined' ? ordersCount : 0 %></span>
+                    <span>Meus pedidos</span>
+                    <span class="badge"><%= statsData.ordersTotal %></span>
                   </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link" data-bs-toggle="tab" href="#wishlist">
-                    <i class="bi bi-heart"></i>
-                    <span>Favoritos</span>
-                    <span class="badge">0</span>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" data-bs-toggle="tab" href="#wallet">
-                    <i class="bi bi-wallet2"></i>
-                    <span>Métodos de Pagamento</span>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" data-bs-toggle="tab" href="#reviews">
-                    <i class="bi bi-star"></i>
-                    <span>Minhas Análises</span>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" data-bs-toggle="tab" href="#addresses">
+                  <a class="nav-link" data-bs-toggle="tab" href="#addresses" data-tab="addresses">
                     <i class="bi bi-geo-alt"></i>
-                    <span>Endereço</span>
+                    <span>Endereços</span>
+                    <span class="badge"><%= statsData.addressesCount %></span>
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link" href="/account/agendamentos">
                     <i class="bi bi-calendar2-check"></i>
-                    <span>Meus Agendamentos</span>
+                    <span>Agendamentos</span>
+                    <% if (statsData.appointmentsUpcoming > 0) { %>
+                    <span class="badge"><%= statsData.appointmentsUpcoming %></span>
+                    <% } %>
                   </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link active" data-bs-toggle="tab" href="#settings">
-                    <i class="bi bi-gear"></i>
-                    <span>Config. de Conta</span>
+                  <a class="nav-link" data-bs-toggle="tab" href="#profile" data-tab="profile">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Dados e segurança</span>
                   </a>
                 </li>
               </ul>
 
               <div class="menu-footer">
                 <a href="/contact" class="help-link">
-                  <i class="bi bi-question-circle"></i>
-                  <span>Central de Ajuda</span>
+                  <i class="bi bi-headset"></i>
+                  <span>Central de ajuda</span>
                 </a>
                 <a href="/logout" class="logout-link">
                   <i class="bi bi-box-arrow-right"></i>
-                  <span>Sair</span>
+                  <span>Sair da conta</span>
                 </a>
               </div>
             </nav>
           </div>
         </div>
 
-        <!-- Área de conteúdo (abas) -->
         <div class="col-lg-9">
           <div class="content-area">
             <div class="tab-content">
-              <!-- Meus Pedidos -->
+
+              <!-- Visão geral -->
+              <div class="tab-pane fade show active" id="overview">
+                <div class="account-hub-welcome" data-aos="fade-up">
+                  <h2>Olá, <%= nameParts[0] || 'Cliente' %>!</h2>
+                  <p>Gerencie seus pedidos, endereços e serviços de saúde em um só lugar.</p>
+                </div>
+
+                <div class="account-kpi-grid" data-aos="fade-up" data-aos-delay="50">
+                  <div class="account-kpi-card">
+                    <div class="kpi-icon"><i class="bi bi-bag-check"></i></div>
+                    <div class="kpi-body">
+                      <div class="kpi-value"><%= statsData.ordersTotal %></div>
+                      <div class="kpi-label">Pedidos realizados</div>
+                    </div>
+                  </div>
+                  <div class="account-kpi-card">
+                    <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+                    <div class="kpi-body">
+                      <div class="kpi-value"><%= statsData.ordersPending %></div>
+                      <div class="kpi-label">Aguardando pagamento</div>
+                    </div>
+                  </div>
+                  <div class="account-kpi-card">
+                    <div class="kpi-icon"><i class="bi bi-truck"></i></div>
+                    <div class="kpi-body">
+                      <div class="kpi-value"><%= statsData.ordersDelivered %></div>
+                      <div class="kpi-label">Pedidos entregues</div>
+                    </div>
+                  </div>
+                  <div class="account-kpi-card">
+                    <div class="kpi-icon"><i class="bi bi-currency-dollar"></i></div>
+                    <div class="kpi-body">
+                      <div class="kpi-value">R$ <%= fmtMoney(statsData.totalSpent) %></div>
+                      <div class="kpi-label">Total em compras</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="account-quick-actions" data-aos="fade-up" data-aos-delay="100">
+                  <a href="/produtos" class="account-quick-action">
+                    <i class="bi bi-capsule"></i>
+                    <span>Comprar produtos</span>
+                  </a>
+                  <a href="/account/agendamentos" class="account-quick-action">
+                    <i class="bi bi-heart-pulse"></i>
+                    <span>Agendar serviço</span>
+                  </a>
+                  <a href="/cart" class="account-quick-action">
+                    <i class="bi bi-cart3"></i>
+                    <span>Ver carrinho</span>
+                  </a>
+                  <a href="#" class="account-quick-action" data-goto-tab="orders">
+                    <i class="bi bi-receipt"></i>
+                    <span>Histórico de pedidos</span>
+                  </a>
+                </div>
+
+                <div class="account-overview-grid" data-aos="fade-up" data-aos-delay="150">
+                  <div class="account-panel">
+                    <div class="panel-header">
+                      <h3><i class="bi bi-clock-history me-2"></i>Pedidos recentes</h3>
+                      <a href="#" class="small text-decoration-none" data-goto-tab="orders">Ver todos</a>
+                    </div>
+                    <div class="panel-body">
+                      <% if (recentOrdersList.length) { %>
+                      <div class="account-mini-list">
+                        <% recentOrdersList.forEach(function(order) { %>
+                        <div class="mini-item">
+                          <div>
+                            <strong>Pedido #<%= order.id %></strong>
+                            <div class="small text-muted"><%= fmtDate(order.created_at) %> · <%= order.items_count || 0 %> item(ns)</div>
+                          </div>
+                          <div class="text-end">
+                            <span class="badge bg-<%= order.status_ui.badge %>"><%= order.status_ui.label %></span>
+                            <div class="small fw-semibold mt-1">R$ <%= fmtMoney(order.total) %></div>
+                          </div>
+                        </div>
+                        <% }) %>
+                      </div>
+                      <% } else { %>
+                      <div class="account-empty-state">
+                        <i class="bi bi-bag"></i>
+                        <p class="mb-2">Você ainda não fez nenhum pedido.</p>
+                        <a href="/produtos" class="btn btn-sm btn-primary">Explorar produtos</a>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <div class="account-panel">
+                    <div class="panel-header">
+                      <h3><i class="bi bi-calendar-event me-2"></i>Próximos agendamentos</h3>
+                      <a href="/account/agendamentos" class="small text-decoration-none">Gerenciar</a>
+                    </div>
+                    <div class="panel-body">
+                      <% if (upcomingList.length) { %>
+                      <div class="account-mini-list">
+                        <% upcomingList.forEach(function(appt) { %>
+                        <div class="mini-item">
+                          <div>
+                            <strong><%= appt.service_name || 'Serviço' %></strong>
+                            <div class="small text-muted">
+                              <%= fmtDateTime(appt.scheduled_start) %>
+                              <% if (appt.professional_name) { %> · <%= appt.professional_name %><% } %>
+                            </div>
+                          </div>
+                          <span class="badge bg-primary"><%= t('appointmentStatus', appt.status) %></span>
+                        </div>
+                        <% }) %>
+                      </div>
+                      <% } else { %>
+                      <div class="account-empty-state">
+                        <i class="bi bi-calendar2-plus"></i>
+                        <p class="mb-2">Nenhum agendamento próximo.</p>
+                        <a href="/account/agendamentos" class="btn btn-sm btn-outline-primary">Agendar agora</a>
+                      </div>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+
+                <% if (defaultAddr) {
+                  var zipOv = defaultAddr.zip_code ? (String(defaultAddr.zip_code).length === 8 ? String(defaultAddr.zip_code).slice(0, 5) + '-' + String(defaultAddr.zip_code).slice(5) : defaultAddr.zip_code) : '';
+                %>
+                <div class="account-panel" data-aos="fade-up" data-aos-delay="200">
+                  <div class="panel-header">
+                    <h3><i class="bi bi-house-door me-2"></i>Endereço principal</h3>
+                    <a href="#" class="small text-decoration-none" data-goto-tab="addresses">Editar</a>
+                  </div>
+                  <div class="panel-body">
+                    <p class="mb-0 text-muted">
+                      <%= defaultAddr.street || '' %>, <%= defaultAddr.number || '' %>
+                      <% if (defaultAddr.complement) { %> — <%= defaultAddr.complement %><% } %><br>
+                      <%= defaultAddr.district || '' %> · <%= defaultAddr.city || '' %>/<%= defaultAddr.state || '' %> · CEP <%= zipOv %>
+                    </p>
+                  </div>
+                </div>
+                <% } %>
+              </div>
+
+              <!-- Meus pedidos -->
               <div class="tab-pane fade" id="orders">
                 <div class="section-header" data-aos="fade-up">
-                  <h2>Meus Pedidos</h2>
+                  <h2>Meus pedidos</h2>
+                  <div class="header-actions">
+                    <div class="search-box">
+                      <i class="bi bi-search"></i>
+                      <input type="search" id="orderSearchInput" placeholder="Buscar por nº do pedido..." autocomplete="off">
+                    </div>
+                  </div>
                 </div>
-                <div class="orders-grid">
+
+                <div class="order-filter-pills" id="orderFilterPills" data-aos="fade-up">
+                  <button type="button" class="filter-pill active" data-filter="all">Todos</button>
+                  <button type="button" class="filter-pill" data-filter="pending">Aguardando pagamento</button>
+                  <button type="button" class="filter-pill" data-filter="active">Em andamento</button>
+                  <button type="button" class="filter-pill" data-filter="delivered">Entregues</button>
+                  <button type="button" class="filter-pill" data-filter="cancelled">Cancelados</button>
+                </div>
+
+                <div class="orders-grid" id="ordersGrid">
                   <% if (typeof orders !== 'undefined' && orders.length) { %>
-                    <% orders.forEach(function(order) { %>
-                      <div class="card mb-3 border-0 shadow-sm" data-aos="fade-up">
-                        <div class="card-body">
-                          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                            <div>
-                              <h6 class="mb-1">Pedido #<%= order.id %></h6>
-                              <small class="text-muted">
-                                <%= new Date(order.created_at).toLocaleDateString('pt-BR') %> -
-                                <%= order.items_count || 0 %> item(ns)
-                              </small>
-                            </div>
-                            <span class="badge bg-<%= order.status_ui.badge %>"><%= order.status_ui.label %></span>
+                    <% orders.forEach(function(order) {
+                      var fKey = orderFilterKey(order);
+                      var stClass = orderStatusClass(order.order_status, order.pay_status);
+                    %>
+                    <div class="order-card" data-aos="fade-up"
+                         data-order-id="<%= order.id %>"
+                         data-filter="<%= fKey %>"
+                         data-order-status="<%= order.order_status %>"
+                         data-pay-status="<%= order.pay_status %>">
+                      <div class="order-header">
+                        <div class="order-id">
+                          <span class="label">Pedido</span>
+                          <span class="value">#<%= order.id %></span>
+                        </div>
+                        <div class="order-date"><%= fmtDate(order.created_at) %></div>
+                      </div>
+                      <div class="order-content">
+                        <div class="order-info">
+                          <div class="info-row">
+                            <span>Itens</span>
+                            <span><%= order.items_count || 0 %> produto(s)</span>
                           </div>
-                          <div class="d-flex justify-content-between align-items-center mt-3">
-                            <div>
-                              <small class="text-muted d-block">Pagamento: <%= order.payment_method %> / <%= order.payment_status %></small>
-                              <strong>Total: R$ <%= Number(order.total || 0).toFixed(2).replace('.', ',') %></strong>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2 justify-content-end">
-                              <% if (order.can_cancel) { %>
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-order" data-order-id="<%= order.id %>">
-                                  Cancelar pedido
-                                </button>
-                              <% } %>
-                              <a class="btn btn-sm btn-outline-primary" href="/order-confirmation?order=<%= order.id %>">
-                                Ver detalhes
-                              </a>
-                            </div>
+                          <div class="info-row">
+                            <span>Pagamento</span>
+                            <span><%= t('paymentMethod', order.payment_method) %> · <%= t('paymentStatus', order.payment_status) %></span>
+                          </div>
+                          <div class="info-row">
+                            <span>Status</span>
+                            <span class="status <%= stClass %>"><%= order.status_ui.label %></span>
+                          </div>
+                          <div class="info-row">
+                            <span>Total</span>
+                            <span class="price">R$ <%= fmtMoney(order.total) %></span>
                           </div>
                         </div>
                       </div>
+                      <div class="order-footer d-flex flex-wrap gap-2 justify-content-end">
+                        <a class="btn-details" href="/order-confirmation?order=<%= order.id %>">Ver detalhes</a>
+                        <% if (order.can_cancel) { %>
+                        <button type="button" class="btn-cancel btn-cancel-order" data-order-id="<%= order.id %>">Cancelar pedido</button>
+                        <% } %>
+                      </div>
+                    </div>
                     <% }) %>
                   <% } else { %>
-                    <p class="text-muted">Você ainda não fez nenhum pedido.</p>
+                    <div class="account-empty-state" id="ordersEmptyState">
+                      <i class="bi bi-box-seam"></i>
+                      <p class="mb-2">Você ainda não fez nenhum pedido.</p>
+                      <a href="/produtos" class="btn btn-primary">Começar a comprar</a>
+                    </div>
                   <% } %>
                 </div>
+                <p class="text-muted d-none" id="ordersNoMatch">Nenhum pedido encontrado para este filtro.</p>
               </div>
 
-              <!-- Favoritos -->
-              <div class="tab-pane fade" id="wishlist">
-                <div class="section-header" data-aos="fade-up">
-                  <h2>Meus Favoritos</h2>
-                </div>
-                <p class="text-muted">Nenhum item nos favoritos.</p>
-              </div>
-
-              <!-- Métodos de Pagamento -->
-              <div class="tab-pane fade" id="wallet">
-                <div class="section-header" data-aos="fade-up">
-                  <h2>Métodos de Pagamento</h2>
-                </div>
-                <p class="text-muted">Nenhum método de pagamento cadastrado.</p>
-              </div>
-
-              <!-- Minhas Análises -->
-              <div class="tab-pane fade" id="reviews">
-                <div class="section-header" data-aos="fade-up">
-                  <h2>Minhas Análises</h2>
-                </div>
-                <p class="text-muted">Você ainda não escreveu análises.</p>
-              </div>
-
-              <!-- Endereço -->
+              <!-- Endereços -->
               <div class="tab-pane fade" id="addresses">
                 <div class="section-header" data-aos="fade-up">
-                  <h2>Meus Endereços</h2>
+                  <h2>Meus endereços</h2>
                   <div class="header-actions">
                     <button type="button" class="btn btn-primary" id="btnNovoEndereco">
                       <i class="bi bi-plus-lg"></i> Novo endereço
@@ -198,10 +397,15 @@
                   </div>
                 </div>
 
+                <div class="account-tip-card" data-aos="fade-up">
+                  <i class="bi bi-truck"></i>
+                  <p>Cadastre endereços para agilizar checkout e entregas. O endereço padrão é usado automaticamente nas compras.</p>
+                </div>
+
                 <div class="addresses-grid" id="addressesList">
                   <% if (typeof addresses !== 'undefined' && addresses.length) { %>
                     <% addresses.forEach(function(addr) {
-                      var zip = addr.zip_code ? (String(addr.zip_code).length === 8 ? String(addr.zip_code).slice(0,5) + '-' + String(addr.zip_code).slice(5) : addr.zip_code) : '';
+                      var zip = addr.zip_code ? (String(addr.zip_code).length === 8 ? String(addr.zip_code).slice(0, 5) + '-' + String(addr.zip_code).slice(5) : addr.zip_code) : '';
                     %>
                   <div class="address-card <%= addr.is_default ? 'default' : '' %>" data-address-id="<%= addr.address_id %>" data-aos="fade-up">
                     <div class="card-header">
@@ -210,8 +414,8 @@
                     </div>
                     <div class="card-body">
                       <p class="address-text">
-                        <%= addr.street || '' %> <%= addr.number || '' %><% if (addr.complement) { %><br><%= addr.complement %><% } %>
-                        <br><%= addr.district || '' %> - <%= addr.city || '' %>, <%= addr.state || '' %> <%= zip %>
+                        <%= addr.street || '' %>, <%= addr.number || '' %><% if (addr.complement) { %><br><%= addr.complement %><% } %>
+                        <br><%= addr.district || '' %> — <%= addr.city || '' %>/<%= addr.state || '' %> · CEP <%= zip %>
                         <br><%= addr.country || 'Brasil' %>
                       </p>
                     </div>
@@ -229,11 +433,14 @@
                   </div>
                   <% }); %>
                   <% } else { %>
-                  <p class="text-muted">Nenhum endereço cadastrado. Adicione um acima.</p>
+                  <div class="account-empty-state">
+                    <i class="bi bi-geo-alt"></i>
+                    <p class="mb-2">Nenhum endereço cadastrado.</p>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnNovoEnderecoEmpty">Adicionar endereço</button>
+                  </div>
                   <% } %>
                 </div>
 
-                <!-- Formulário adicionar/editar endereço (oculto por padrão) -->
                 <div class="settings-section mt-4" id="formAddressWrap" style="display: none;">
                   <h3 id="formAddressTitle">Novo endereço</h3>
                   <form id="formAddress" class="settings-form">
@@ -241,7 +448,7 @@
                     <div class="row g-3">
                       <div class="col-md-4">
                         <label for="addr_cep" class="form-label">CEP</label>
-                        <input type="text" class="form-control" id="addr_cep" name="cep" maxlength="9">
+                        <input type="text" class="form-control" id="addr_cep" name="cep" maxlength="9" placeholder="00000-000">
                         <small id="erroCepAddr" class="text-danger" style="display:none;"></small>
                       </div>
                       <div class="col-md-8">
@@ -254,7 +461,7 @@
                       </div>
                       <div class="col-md-4">
                         <label for="addr_complement" class="form-label">Complemento</label>
-                        <input type="text" class="form-control" id="addr_complement" name="complement">
+                        <input type="text" class="form-control" id="addr_complement" name="complement" placeholder="Apto, bloco...">
                       </div>
                       <div class="col-md-4">
                         <label for="addr_district" class="form-label">Bairro</label>
@@ -288,15 +495,20 @@
                 </div>
               </div>
 
-              <!-- Config. de Conta -->
-              <div class="tab-pane fade show active" id="settings">
+              <!-- Dados e segurança -->
+              <div class="tab-pane fade" id="profile">
                 <div class="section-header" data-aos="fade-up">
-                  <h2>Config. de Conta</h2>
+                  <h2>Dados e segurança</h2>
                 </div>
 
                 <div class="settings-content">
+                  <div class="account-tip-card" data-aos="fade-up">
+                    <i class="bi bi-shield-check"></i>
+                    <p>Mantenha seus dados atualizados para receber notificações de pedidos e facilitar o atendimento farmacêutico.</p>
+                  </div>
+
                   <div class="settings-section" data-aos="fade-up">
-                    <h3>Informações Pessoais</h3>
+                    <h3>Informações pessoais</h3>
                     <form id="formAccount" class="settings-form" novalidate>
                       <div class="row g-3">
                         <div class="col-md-12">
@@ -304,20 +516,21 @@
                           <input type="text" class="form-control" id="full_name" name="full_name" required minlength="3" value="<%= profile.full_name || '' %>">
                         </div>
                         <div class="col-md-6">
-                          <label for="email" class="form-label">Email</label>
+                          <label for="email" class="form-label">E-mail</label>
                           <input type="email" class="form-control" id="email" name="email" required value="<%= profile.email || '' %>">
                         </div>
                         <div class="col-md-6">
                           <label for="account_phone" class="form-label">Telefone</label>
-                          <input type="tel" class="form-control" id="account_phone" name="phone" maxlength="18" value="<%= profile.phone || '' %>">
+                          <input type="tel" class="form-control" id="account_phone" name="phone" maxlength="18" value="<%= fmtPhoneDisplay(profile.phone) %>">
                         </div>
                         <div class="col-md-6">
                           <label for="document" class="form-label">CPF</label>
-                          <input type="text" class="form-control" id="document" name="document" maxlength="14" value="<%= profile.document || '' %>">
+                          <input type="text" class="form-control" id="document" name="document" maxlength="14" value="<%= fmtCpf(profile.document) %>" readonly>
+                          <small class="text-muted">O CPF não pode ser alterado. Entre em contato com o suporte se necessário.</small>
                         </div>
                         <div class="col-md-6">
                           <label for="birth_date" class="form-label">Data de nascimento</label>
-                          <input type="date" class="form-control" id="birth_date" name="birth_date" value="<%= profile.birth_date ? (typeof profile.birth_date === 'string' ? profile.birth_date.slice(0,10) : profile.birth_date.toISOString().slice(0,10)) : '' %>">
+                          <input type="date" class="form-control" id="birth_date" name="birth_date" value="<%= fmtDateInput(profile.birth_date) %>">
                         </div>
                         <div class="col-md-12">
                           <label for="country" class="form-label">País</label>
@@ -333,7 +546,7 @@
                       <div id="msgErroAccount" class="alert alert-danger d-none mt-3"></div>
                       <div id="msgOkAccount" class="alert alert-success d-none mt-3"></div>
                       <div class="form-buttons mt-4">
-                        <button type="submit" class="btn-save" id="btnSalvar">Salvar Alterações</button>
+                        <button type="submit" class="btn-save" id="btnSalvar">Salvar alterações</button>
                       </div>
                     </form>
                   </div>
@@ -365,13 +578,15 @@
                   </div>
 
                   <div class="settings-section danger-zone" data-aos="fade-up" data-aos-delay="200">
-                    <h3>Deletar Conta</h3>
+                    <h3>Encerrar conta</h3>
                     <div class="danger-zone-content">
-                      <p>Uma vez que deletar sua conta, não poderá recuperá-la. Entre em contato com o suporte se precisar.</p>
+                      <p>Para solicitar a exclusão da sua conta e dos seus dados, entre em contato com nossa central de ajuda. Nossa equipe orientará o processo conforme a LGPD.</p>
+                      <a href="/contact" class="btn btn-outline-danger btn-sm mt-2">Falar com o suporte</a>
                     </div>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         </div>
@@ -379,7 +594,6 @@
     </div>
   </section>
 
-  <!-- Modal cancelamento de pedido (sem confirm() / alert()) -->
   <div class="modal fade" id="modalCancelPedido" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -405,11 +619,78 @@
 
 <script>
 (function() {
+  // Navegação por abas (?tab= ou #hash)
+  function activateTab(tabId) {
+    if (!tabId) return;
+    var link = document.querySelector('.menu-nav [href="#' + tabId + '"]');
+    if (link && window.bootstrap && window.bootstrap.Tab) {
+      new window.bootstrap.Tab(link).show();
+    }
+  }
+
+  var params = new URLSearchParams(window.location.search);
+  var tabFromQuery = params.get('tab');
+  var tabFromHash = (window.location.hash || '').replace('#', '');
+  activateTab(tabFromQuery || tabFromHash || '');
+
+  document.querySelectorAll('[data-goto-tab]').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      activateTab(this.getAttribute('data-goto-tab'));
+    });
+  });
+
+  document.querySelectorAll('.menu-nav [data-bs-toggle="tab"]').forEach(function(link) {
+    link.addEventListener('shown.bs.tab', function() {
+      var tab = this.getAttribute('data-tab') || (this.getAttribute('href') || '').replace('#', '');
+      if (tab && history.replaceState) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        url.hash = '';
+        history.replaceState(null, '', url.pathname + url.search);
+      }
+    });
+  });
+
+  // Filtros e busca de pedidos
+  var currentFilter = 'all';
+  var orderSearchInput = document.getElementById('orderSearchInput');
+  var ordersNoMatch = document.getElementById('ordersNoMatch');
+
+  function applyOrderFilters() {
+    var query = (orderSearchInput && orderSearchInput.value || '').trim().toLowerCase();
+    var cards = document.querySelectorAll('#ordersGrid .order-card');
+    var visible = 0;
+    cards.forEach(function(card) {
+      var matchFilter = currentFilter === 'all' || card.getAttribute('data-filter') === currentFilter;
+      var id = String(card.getAttribute('data-order-id') || '');
+      var matchSearch = !query || id.indexOf(query.replace(/\D/g, '')) >= 0;
+      var show = matchFilter && matchSearch;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    if (ordersNoMatch) {
+      ordersNoMatch.classList.toggle('d-none', visible > 0 || !cards.length);
+    }
+  }
+
+  document.querySelectorAll('#orderFilterPills .filter-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      document.querySelectorAll('#orderFilterPills .filter-pill').forEach(function(p) { p.classList.remove('active'); });
+      this.classList.add('active');
+      currentFilter = this.getAttribute('data-filter') || 'all';
+      applyOrderFilters();
+    });
+  });
+
+  if (orderSearchInput) {
+    orderSearchInput.addEventListener('input', applyOrderFilters);
+  }
+
   var form = document.getElementById('formAccount');
   var btn = document.getElementById('btnSalvar');
   var msgErro = document.getElementById('msgErroAccount');
   var msgOk = document.getElementById('msgOkAccount');
-  if (!form) return;
 
   var phoneInput = document.getElementById('account_phone');
   if (phoneInput) {
@@ -425,62 +706,64 @@
     });
   }
 
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    msgErro.classList.add('d-none');
-    msgOk.classList.add('d-none');
-    btn.disabled = true;
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      msgErro.classList.add('d-none');
+      msgOk.classList.add('d-none');
+      btn.disabled = true;
 
-    var fd = new FormData(form);
-    var body = {
-      full_name: fd.get('full_name') || '',
-      email: (fd.get('email') || '').trim().toLowerCase(),
-      document: fd.get('document') || null,
-      phone: fd.get('phone') || null,
-      birth_date: fd.get('birth_date') || null,
-      country: fd.get('country') || null
-    };
+      var fd = new FormData(form);
+      var body = {
+        full_name: fd.get('full_name') || '',
+        email: (fd.get('email') || '').trim().toLowerCase(),
+        document: fd.get('document') || null,
+        phone: fd.get('phone') || null,
+        birth_date: fd.get('birth_date') || null,
+        country: fd.get('country') || null
+      };
 
-    fetch('/account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
-    .then(function(result) {
-      btn.disabled = false;
-      if (result.status === 401 && result.data.redirect) {
-        window.location.href = result.data.redirect;
-        return;
-      }
-      if (result.data.ok) {
-        msgOk.textContent = result.data.message || 'Dados salvos.';
-        msgOk.classList.remove('d-none');
-        msgErro.classList.add('d-none');
-      } else {
-        msgErro.textContent = result.data.message || 'Erro ao salvar.';
+      fetch('/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
+      .then(function(result) {
+        btn.disabled = false;
+        if (result.status === 401 && result.data.redirect) {
+          window.location.href = result.data.redirect;
+          return;
+        }
+        if (result.data.ok) {
+          msgOk.textContent = result.data.message || 'Dados salvos.';
+          msgOk.classList.remove('d-none');
+          msgErro.classList.add('d-none');
+        } else {
+          msgErro.textContent = result.data.message || 'Erro ao salvar.';
+          msgErro.classList.remove('d-none');
+          msgOk.classList.add('d-none');
+        }
+      })
+      .catch(function() {
+        btn.disabled = false;
+        msgErro.textContent = 'Erro de conexão. Tente novamente.';
         msgErro.classList.remove('d-none');
-        msgOk.classList.add('d-none');
-      }
-    })
-    .catch(function() {
-      btn.disabled = false;
-      msgErro.textContent = 'Erro de conexão. Tente novamente.';
-      msgErro.classList.remove('d-none');
+      });
     });
-  });
+  }
 
-  // ---- Aba Endereço: adicionar / editar / remover / definir padrão ----
   var formAddressWrap = document.getElementById('formAddressWrap');
   var formAddress = document.getElementById('formAddress');
   var formAddressTitle = document.getElementById('formAddressTitle');
   var addressIdInput = document.getElementById('addressId');
   var btnNovoEndereco = document.getElementById('btnNovoEndereco');
+  var btnNovoEnderecoEmpty = document.getElementById('btnNovoEnderecoEmpty');
   var btnCancelarAddr = document.getElementById('btnCancelarAddr');
   var msgErroAddr = document.getElementById('msgErroAddr');
   var msgOkAddr = document.getElementById('msgOkAddr');
-
   var btnSalvarAddr = document.getElementById('btnSalvarAddr');
+
   function showAddressForm(editId) {
     if (editId) {
       formAddressTitle.textContent = 'Editar endereço';
@@ -495,6 +778,7 @@
     msgErroAddr.classList.add('d-none');
     msgOkAddr.classList.add('d-none');
     formAddressWrap.style.display = 'block';
+    formAddressWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function hideAddressForm() {
@@ -502,15 +786,12 @@
     addressIdInput.value = '';
   }
 
-  if (btnNovoEndereco) {
-    btnNovoEndereco.addEventListener('click', function() { showAddressForm(null); });
-  }
-  if (btnCancelarAddr) {
-    btnCancelarAddr.addEventListener('click', hideAddressForm);
-  }
+  if (btnNovoEndereco) btnNovoEndereco.addEventListener('click', function() { showAddressForm(null); });
+  if (btnNovoEnderecoEmpty) btnNovoEnderecoEmpty.addEventListener('click', function() { showAddressForm(null); });
+  if (btnCancelarAddr) btnCancelarAddr.addEventListener('click', hideAddressForm);
 
-  document.querySelectorAll('.btn-edit-addr').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-edit-addr').forEach(function(btnEl) {
+    btnEl.addEventListener('click', function() {
       var id = this.getAttribute('data-id');
       document.getElementById('addr_cep').value = this.getAttribute('data-zip') || '';
       document.getElementById('addr_street').value = this.getAttribute('data-street') || '';
@@ -524,8 +805,8 @@
     });
   });
 
-  document.querySelectorAll('.btn-remove-addr').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-remove-addr').forEach(function(btnEl) {
+    btnEl.addEventListener('click', function() {
       var id = this.getAttribute('data-id');
       window.neofarmaConfirm({
         title: 'Remover endereço',
@@ -543,8 +824,8 @@
     });
   });
 
-  document.querySelectorAll('.btn-set-default-addr').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-set-default-addr').forEach(function(btnEl) {
+    btnEl.addEventListener('click', function() {
       var id = this.getAttribute('data-id');
       fetch('/account/address/' + id + '/default', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } })
         .then(function(r) { return r.json(); })
@@ -579,7 +860,6 @@
     });
   }
 
-  // ---- Alterar senha ----
   var formAlterarSenha = document.getElementById('formAlterarSenha');
   var msgErroSenha = document.getElementById('msgErroSenha');
   var msgOkSenha = document.getElementById('msgOkSenha');
@@ -692,10 +972,10 @@
   var modalCancelPedidoMsg = document.getElementById('modalCancelPedidoMsg');
   var modalCancelPedidoConfirmBtn = document.getElementById('modalCancelPedidoConfirmBtn');
   var modalCancelPedido = null;
-  var pendingCancel = null; // { orderId, btn }
+  var pendingCancel = null;
 
-  function openCancelModal(orderId, btn) {
-    pendingCancel = { orderId: orderId, btn: btn || null };
+  function openCancelModal(orderId, btnEl) {
+    pendingCancel = { orderId: orderId, btn: btnEl || null };
     if (modalCancelPedidoMsg) modalCancelPedidoMsg.textContent = 'Deseja cancelar o pedido #' + orderId + '?';
     if (!modalCancelPedido && window.bootstrap && window.bootstrap.Modal && modalCancelPedidoEl) {
       modalCancelPedido = new window.bootstrap.Modal(modalCancelPedidoEl);
@@ -707,10 +987,10 @@
     modalCancelPedidoConfirmBtn.addEventListener('click', function() {
       if (!pendingCancel || !pendingCancel.orderId) return;
       var orderId = pendingCancel.orderId;
-      var btn = pendingCancel.btn;
+      var btnEl = pendingCancel.btn;
 
       modalCancelPedidoConfirmBtn.disabled = true;
-      if (btn) btn.disabled = true;
+      if (btnEl) btnEl.disabled = true;
 
       fetch('/account/orders/' + encodeURIComponent(orderId) + '/cancel', {
         method: 'POST',
@@ -734,7 +1014,7 @@
         })
         .finally(function() {
           modalCancelPedidoConfirmBtn.disabled = false;
-          if (btn) btn.disabled = false;
+          if (btnEl) btnEl.disabled = false;
           pendingCancel = null;
           if (modalCancelPedido) modalCancelPedido.hide();
         });
@@ -742,11 +1022,11 @@
   }
 
   document.addEventListener('click', function(ev) {
-    var btn = ev.target && ev.target.closest && ev.target.closest('.btn-cancel-order');
-    if (!btn) return;
-    var id = btn.getAttribute('data-order-id');
+    var btnEl = ev.target && ev.target.closest && ev.target.closest('.btn-cancel-order');
+    if (!btnEl) return;
+    var id = btnEl.getAttribute('data-order-id');
     if (!id) return;
-    openCancelModal(id, btn);
+    openCancelModal(id, btnEl);
   });
 })();
 </script>

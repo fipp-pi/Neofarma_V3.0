@@ -5,14 +5,33 @@
  * @see docs/code-commenting.md
  */
 const FinanceAdmin = require('../models/FinanceAdmin');
+const Category = require('../models/Category');
+const ProductType = require('../models/ProductType');
+const HealthService = require('../models/HealthService');
+const ServiceProfessional = require('../models/ServiceProfessional');
+const Customer = require('../models/Customer');
+const Product = require('../models/Product');
+const Lab = require('../models/Lab');
+const financeReportService = require('../services/financeReportService');
 
 /**
  * GET /admin/financas — resumo (30 dias) + gráficos de status e receita por método.
  */
 async function renderFinanceDashboard(req, res, next) {
   try {
-    const summary = await FinanceAdmin.getFinanceSummary({ days: 30 });
-    const revenueByMethod = await FinanceAdmin.getRevenueByPaymentMethod({ days: 30 });
+    const from = req.query.from ? String(req.query.from).trim() : null;
+    const to = req.query.to ? String(req.query.to).trim() : null;
+    const daysRaw = parseInt(req.query.days, 10);
+    const days = from && to ? null : (Number.isFinite(daysRaw) && daysRaw > 0 ? daysRaw : 30);
+    const periodOpts = from && to ? { from, to } : { days };
+
+    const [summary, revenueByMethod, revenueByDay, mostSold, recentReceipts] = await Promise.all([
+      FinanceAdmin.getFinanceSummary(periodOpts),
+      FinanceAdmin.getRevenueByPaymentMethod(periodOpts),
+      FinanceAdmin.getRevenueByDay({ ...periodOpts, limitDays: 14 }),
+      FinanceAdmin.getMostSoldProducts({ ...periodOpts, limit: 5 }),
+      FinanceAdmin.listRecentReceipts({ ...periodOpts, limit: 8 }),
+    ]);
 
     res.render('admin/financas-dashboard', {
       title: 'Finanças - Admin - NeoFarma',
@@ -20,6 +39,10 @@ async function renderFinanceDashboard(req, res, next) {
       activeAdmin: 'financas',
       summary,
       revenueByMethod,
+      revenueByDay,
+      mostSold,
+      recentReceipts,
+      filters: { from: from || '', to: to || '', days: days || 30 },
     });
   } catch (err) {
     next(err);
@@ -27,25 +50,95 @@ async function renderFinanceDashboard(req, res, next) {
 }
 
 /**
- * GET /admin/financas/relatorios — tabelas detalhadas com filtro de período (query `from` / `to`).
+ * GET /admin/financas/relatorios — relatórios gerenciais com filtros avançados e exportação.
  */
 async function renderFinanceReportsPage(req, res, next) {
   try {
-    const from = req.query.from || null;
-    const to = req.query.to || null;
+    const filters = financeReportService.parseFilters(req.query);
+    const reportData = await financeReportService.loadReportData(filters);
+    const qs = financeReportService.buildQueryString(filters);
 
-    const revenueByMethod = await FinanceAdmin.getRevenueByPaymentMethod({ from, to, days: 30 });
-    const mostSold = await FinanceAdmin.getMostSoldProducts({ limit: 10, from, to, days: 30 });
-    const revenueByDay = await FinanceAdmin.getRevenueByDay({ from, to, days: 30, limitDays: 14 });
+    const [categories, productTypes, labs, customers, products, professionals, services] = await Promise.all([
+      Category.findAll(true),
+      ProductType.findAll(true),
+      Lab.findAll(true),
+      Customer.findAll(),
+      Product.findAll({}),
+      ServiceProfessional.findAll ? ServiceProfessional.findAll() : Promise.resolve([]),
+      HealthService.findAll ? HealthService.findAll(true) : Promise.resolve([]),
+    ]);
 
     res.render('admin/financas-relatorios', {
       title: 'Finanças - Relatórios - Admin - NeoFarma',
       bodyClass: 'admin-page',
       activeAdmin: 'financas',
-      filters: { from, to },
-      revenueByMethod,
-      mostSold,
-      revenueByDay,
+      filters,
+      reportMeta: financeReportService.REPORT_META[filters.report],
+      reportMetaAll: financeReportService.REPORT_META,
+      filterDescription: financeReportService.describeFilters(filters),
+      exportCsvUrl: `/admin/financas/relatorios/export.csv${qs}`,
+      exportPrintUrl: `/admin/financas/relatorios/imprimir${qs}`,
+      categories: categories || [],
+      productTypes: productTypes || [],
+      labs: labs || [],
+      customers: customers || [],
+      products: products || [],
+      professionals: professionals || [],
+      services: services || [],
+      summary: reportData.summary || {},
+      revenueByMethod: reportData.revenueByMethod || {},
+      mostSold: reportData.mostSold || [],
+      revenueByDay: reportData.revenueByDay || [],
+      productReport: reportData.productReport || [],
+      salesReport: reportData.salesReport || [],
+      customerReport: reportData.customerReport || [],
+      serviceReport: reportData.serviceReport || [],
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /admin/financas/relatorios/export.csv — exportação CSV (UTF-8 BOM, separador ;).
+ */
+async function exportFinanceReportCsv(req, res, next) {
+  try {
+    const filters = financeReportService.parseFilters(req.query);
+    const reportData = await financeReportService.loadReportData(filters);
+    const slug = filters.report === 'overview' ? 'panorama' : filters.report;
+    const csv = financeReportService.getCsvForReport(filters, reportData);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="neofarma-relatorio-${slug}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /admin/financas/relatorios/imprimir — layout para impressão / salvar como PDF.
+ */
+async function exportFinanceReportPrint(req, res, next) {
+  try {
+    const filters = financeReportService.parseFilters(req.query);
+    const reportData = await financeReportService.loadReportData(filters);
+    const meta = financeReportService.REPORT_META[filters.report];
+    res.render('admin/financas-relatorio-print', {
+      layout: false,
+      filters,
+      reportMeta: meta,
+      filterDescription: financeReportService.describeFilters(filters),
+      summary: reportData.summary || {},
+      revenueByMethod: reportData.revenueByMethod || {},
+      mostSold: reportData.mostSold || [],
+      revenueByDay: reportData.revenueByDay || [],
+      productReport: reportData.productReport || [],
+      salesReport: reportData.salesReport || [],
+      customerReport: reportData.customerReport || [],
+      serviceReport: reportData.serviceReport || [],
+      generatedAt: new Date(),
+      autoPrint: req.query.autoprint === '1',
     });
   } catch (err) {
     next(err);
@@ -172,6 +265,8 @@ async function apiListOrdersFinance(req, res, next) {
 module.exports = {
   renderFinanceDashboard,
   renderFinanceReportsPage,
+  exportFinanceReportCsv,
+  exportFinanceReportPrint,
   renderFinanceReceiptsPage,
   renderFinanceOrdersPage,
   apiMarkPayment,

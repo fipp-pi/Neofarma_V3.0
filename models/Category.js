@@ -1,18 +1,5 @@
 const { pool } = require('../config/database');
-
-/**
- * Transforma texto em "slug" (formato de URL).
- */
-function slugify(text) {
-  return (text || '')
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+const { slugify } = require('../util/slug');
 
 /**
  * Cria categoria nova no banco.
@@ -72,6 +59,31 @@ async function updateById(id, data) {
 }
 
 /**
+ * Busca categoria pelo slug (opcionalmente ignorando um id na edição).
+ */
+async function findBySlug(slug, excludeId = null) {
+  const code = String(slug || '').trim().toLowerCase();
+  if (!code) return null;
+  let sql = 'SELECT id, name, slug FROM categories WHERE slug = ?';
+  const params = [code];
+  if (excludeId) {
+    sql += ' AND id <> ?';
+    params.push(excludeId);
+  }
+  sql += ' LIMIT 1';
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+}
+
+/**
+ * Verifica se a categoria possui subcategorias.
+ */
+async function hasChildren(id) {
+  const [rows] = await pool.execute('SELECT id FROM categories WHERE parent_id = ? LIMIT 1', [id]);
+  return rows.length > 0;
+}
+
+/**
  * Remove categoria pelo id.
  */
 async function deleteById(id) {
@@ -79,4 +91,13 @@ async function deleteById(id) {
   return result.affectedRows;
 }
 
-module.exports = { create, findById, findAll, updateById, deleteById, slugify };
+module.exports = {
+  create,
+  findById,
+  findAll,
+  findBySlug,
+  hasChildren,
+  updateById,
+  deleteById,
+  slugify,
+};

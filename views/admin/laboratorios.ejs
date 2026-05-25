@@ -1,64 +1,178 @@
 <%- include('partials/header') %>
-<div class="container">
-  <div class="list-header">
-    <div>
-      <h2 class="neo-heading">Laboratórios</h2>
-      <p class="text-muted mb-0">Cadastre os laboratórios fabricantes dos produtos.</p>
-    </div>
-    <div class="d-flex align-items-center gap-3">
-      <div class="search-box">
-        <i class="bi bi-search"></i>
-        <input type="text" class="form-control" id="buscaInput" placeholder="Buscar..." onkeyup="filtrarTabela()">
-      </div>
-      <button type="button" class="btn btn-success d-flex align-items-center" onclick="abrirModalLab()" data-bs-toggle="modal" data-bs-target="#modalEditar">
-        <i class="bi bi-plus-lg me-2"></i> Novo
-      </button>
+<%
+  const labList = typeof list !== 'undefined' ? list : [];
+  const labStats = typeof stats !== 'undefined' ? stats : { total: labList.length, active: 0, inactive: 0, withCity: 0, withEmail: 0 };
+  const labStates = [];
+  labList.forEach(function (item) {
+    var uf = String(item.state || '').trim().toUpperCase();
+    if (uf && labStates.indexOf(uf) === -1) labStates.push(uf);
+  });
+  labStates.sort();
+%>
+<script src="/assets/js/admin-catalog-filters.js"></script>
+<div class="container admin-catalog">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     </div>
   </div>
 
-  <div class="table-container">
-    <div class="table-responsive">
-      <table class="table table-hover table-custom align-middle" id="tabelaLab">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Nome</th>
-            <th>CNPJ</th>
-            <th>E-mail</th>
-            <th>Telefone</th>
-            <th>Cidade</th>
-            <th>Ativo</th>
-            <th class="text-end">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (list && list.length) { list.forEach(function(item) {
-            var cnpjFmt = item.cnpj && item.cnpj.length === 14 ? item.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (item.cnpj || '-');
-          %>
-            <tr>
-              <td><%= item.id %></td>
-              <td class="fw-bold"><%= item.name %></td>
-              <td><%= cnpjFmt %></td>
-              <td><%= item.email || '-' %></td>
-              <td><%= item.phone || '-' %></td>
-              <td><%= item.city || '-' %></td>
-              <td><%= item.is_active ? 'Sim' : 'Não' %></td>
-              <td class="text-end">
-                <button type="button" class="btn-action btn-view" onclick="verLab(<%= item.id %>)" title="Ver"><i class="bi bi-eye"></i></button>
-                <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarLab(this)" title="Editar"><i class="bi bi-pencil"></i></button>
-                <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
-              </td>
-            </tr>
-          <% }); } %>
-        </tbody>
-      </table>
-    </div>
-    <div id="mensagemVazia" class="text-center py-5" style="display: <%= (list && list.length) ? 'none' : 'block' %>;">
-      <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
-      <p class="text-muted mt-2">Nenhum laboratório cadastrado.</p>
-      <button type="button" class="btn btn-outline-success btn-sm mt-2" onclick="abrirModalLab()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeiro laboratório</button>
+  <div class="list-header mb-4">
+    <div>
+      <h2 class="neo-heading">Laboratórios</h2>
+      <p class="text-muted mb-0">Cadastre os laboratórios fabricantes vinculados aos produtos comercializados pela farmácia.</p>
     </div>
   </div>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--primary">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-building"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= labStats.total %></div><div class="admin-catalog__stat-label">Total cadastrados</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--success">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= labStats.active %></div><div class="admin-catalog__stat-label">Ativos</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--info">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-geo-alt"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= labStats.withCity %></div><div class="admin-catalog__stat-label">Com cidade</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--neutral">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-envelope"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= labStats.withEmail %></div><div class="admin-catalog__stat-label">Com e-mail</div></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="admin-catalog__panel mb-3">
+    <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-funnel me-2"></i>Filtros avançados</h3>
+      <button type="button" class="admin-catalog__filters-toggle" id="labFiltersToggle" aria-expanded="true"><i class="bi bi-sliders"></i> Recolher filtros</button>
+    </div>
+    <div class="admin-catalog__panel-body" id="labFiltersPanel">
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <label class="form-label" for="filtro_q">Busca geral</label>
+          <div class="admin-catalog__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" id="filtro_q" placeholder="Nome, CNPJ, e-mail, telefone, cidade...">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_uf">UF</label>
+          <select class="form-select form-select-sm" id="filtro_uf">
+            <option value="ALL">Todas</option>
+            <% labStates.forEach(function(uf){ %><option value="<%= uf %>"><%= uf %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_city">Cidade contém</label>
+          <input type="text" class="form-control form-control-sm" id="filtro_city" placeholder="Ex.: São Paulo">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_has">Completude</label>
+          <select class="form-select form-select-sm" id="filtro_has">
+            <option value="ALL">Qualquer</option>
+            <option value="email">Com e-mail</option>
+            <option value="phone">Com telefone</option>
+            <option value="address">Com endereço</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <input type="hidden" id="filtro_status" value="ALL">
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="labClearFilters"><i class="bi bi-x-lg me-1"></i> Limpar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="admin-catalog__tabs mb-3">
+    <button type="button" class="admin-catalog__tab is-active" id="labTabAll">Todos</button>
+    <button type="button" class="admin-catalog__tab" id="labTabActive">Ativos</button>
+    <button type="button" class="admin-catalog__tab" id="labTabInactive">Inativos</button>
+  </div>
+
+  <section class="admin-catalog__panel admin-catalog__panel--table">
+    <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-list-ul me-2"></i>Laboratórios cadastrados</h3>
+      <div class="admin-catalog__panel-actions">
+        <span class="admin-catalog__panel-meta" id="labResultsCount"><%= labList.length %> registro(s)</span>
+        <button type="button" class="btn btn-save btn-sm" onclick="abrirModalLab()" data-bs-toggle="modal" data-bs-target="#modalEditar">
+          <i class="bi bi-plus-lg me-1"></i> Novo laboratório
+        </button>
+      </div>
+    </div>
+    <div class="admin-catalog__results-bar">
+      <span>Exibindo <strong id="labResultsVisible"><%= labList.length %></strong> laboratório(s).</span>
+    </div>
+    <div id="catalogTableWrap">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaLab">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Nome</th>
+              <th>CNPJ</th>
+              <th>E-mail</th>
+              <th>Telefone</th>
+              <th>Cidade / UF</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (labList.length) { labList.forEach(function(item) {
+              var cnpjFmt = item.cnpj && item.cnpj.length === 14 ? item.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (item.cnpj || '-');
+              var searchBlob = [item.id, item.name, item.cnpj, cnpjFmt, item.email, item.phone, item.city, item.state, item.district, item.street].filter(Boolean).join(' ');
+            %>
+              <tr
+                data-filter-search="<%= searchBlob.toLowerCase() %>"
+                data-filter-active="<%= item.is_active ? '1' : '0' %>"
+                data-filter-uf="<%= (item.state || '').toUpperCase() %>"
+                data-filter-city="<%= (item.city || '').toLowerCase() %>"
+                data-filter-has-email="<%= item.email ? '1' : '0' %>"
+                data-filter-has-phone="<%= item.phone ? '1' : '0' %>"
+                data-filter-has-address="<%= (item.street && item.city) ? '1' : '0' %>"
+              >
+                <td class="col-id"><%= item.id %></td>
+                <td class="fw-bold"><span class="cell-truncate-wide" title="<%= item.name %>"><%= item.name %></span></td>
+                <td><%= cnpjFmt %></td>
+                <td><span class="cell-truncate" title="<%= item.email || '' %>"><%= item.email || '—' %></span></td>
+                <td><%= item.phone || '—' %></td>
+                <td><span class="cell-truncate" title="<%= [item.city, item.state].filter(Boolean).join(' - ') %>"><%= item.city || '—' %><% if (item.state) { %> <span class="text-muted small">/<%= item.state %></span><% } %></span></td>
+                <td class="col-status"><span class="admin-catalog__badge admin-catalog__badge--<%= item.is_active ? 'success' : 'muted' %>"><%= item.is_active ? 'Ativo' : 'Inativo' %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--3">
+                  <button type="button" class="btn-action btn-view" onclick="verLab(<%= item.id %>)" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
+                  <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarLab(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="mensagemVazia" class="admin-catalog__empty" style="display: <%= labList.length ? 'none' : 'block' %>;">
+      <i class="bi bi-building main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum laboratório cadastrado</p>
+      <button type="button" class="btn btn-save btn-sm mt-2" onclick="abrirModalLab()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeiro laboratório</button>
+    </div>
+    <div id="mensagemVaziaFilter" class="admin-catalog__empty" style="display:none;">
+      <i class="bi bi-search main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum resultado para os filtros</p>
+      <p class="text-muted small mb-0">Tente outros critérios ou limpe os filtros.</p>
+    </div>
+  </section>
 </div>
 
 <style>
@@ -89,6 +203,12 @@
   .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
   .modal-header-danger { background: #dc3545; color: #fff; }
   .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+  .form-control.is-invalid, .form-select.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12); }
+  .invalid-feedback { display: none; font-size: 0.8rem; color: #dc3545; margin-top: 0.2rem; }
+  .form-control.is-invalid ~ .invalid-feedback,
+  .form-select.is-invalid ~ .invalid-feedback { display: block; }
+  #labFormAlert:empty { display: none !important; }
 </style>
 
 <!-- Modal Ver -->
@@ -118,26 +238,30 @@
       <div class="modal-body">
         <input type="hidden" id="lab_id">
         <input type="hidden" id="lab_address_id">
+        <div id="labFormAlert" class="alert alert-danger py-2 px-3 small mb-0 mx-3 mt-3" role="alert" style="display:none;"></div>
         <div class="cadastro-edit">
           <div class="cadastro-edit-section">
             <div class="cadastro-edit-section-title">Dados do laboratório</div>
             <div class="row g-3">
               <div class="col-12">
-                <label for="lab_name" class="form-label">Nome *</label>
-                <input type="text" class="form-control" id="lab_name" required placeholder="Nome do laboratório">
+                <label for="lab_name" class="form-label field-required">Nome</label>
+                <input type="text" class="form-control" id="lab_name" placeholder="Nome do laboratório" autocomplete="off">
+                <div class="invalid-feedback" id="lab_name_error">Informe o nome do laboratório.</div>
               </div>
               <div class="col-md-6">
-                <label for="lab_cnpj" class="form-label">CNPJ</label>
-                <input type="text" class="form-control" id="lab_cnpj" placeholder="00.000.000/0000-00" maxlength="18" aria-describedby="lab_cnpj_feedback">
-                <div class="invalid-feedback d-block" id="lab_cnpj_feedback" role="alert" style="display: none;"></div>
+                <label for="lab_cnpj" class="form-label field-required">CNPJ</label>
+                <input type="text" class="form-control" id="lab_cnpj" placeholder="00.000.000/0000-00" maxlength="18" autocomplete="off">
+                <div class="invalid-feedback" id="lab_cnpj_error">Informe o CNPJ do laboratório.</div>
               </div>
               <div class="col-md-6">
-                <label for="lab_email" class="form-label">E-mail</label>
-                <input type="email" class="form-control" id="lab_email" placeholder="email@exemplo.com">
+                <label for="lab_email" class="form-label field-required">E-mail</label>
+                <input type="email" class="form-control" id="lab_email" placeholder="email@exemplo.com" autocomplete="off">
+                <div class="invalid-feedback" id="lab_email_error">Informe o e-mail de contato.</div>
               </div>
               <div class="col-md-6">
-                <label for="lab_phone" class="form-label">Telefone</label>
-                <input type="text" class="form-control" id="lab_phone" placeholder="Telefone">
+                <label for="lab_phone" class="form-label field-required">Telefone</label>
+                <input type="text" class="form-control" id="lab_phone" placeholder="(00) 00000-0000" autocomplete="off">
+                <div class="invalid-feedback" id="lab_phone_error">Informe o telefone de contato.</div>
               </div>
               <div class="col-12">
                 <div class="form-check">
@@ -149,35 +273,40 @@
           </div>
           <div class="cadastro-edit-section">
             <div class="cadastro-edit-section-title">Endereço (opcional)</div>
+            <p class="text-muted small mb-2">Se preencher qualquer campo de endereço, CEP, logradouro, número, cidade e UF passam a ser obrigatórios.</p>
             <div class="row g-3">
               <div class="col-md-3">
                 <label for="lab_zip_code" class="form-label">CEP</label>
-                <input type="text" class="form-control" id="lab_zip_code" placeholder="00000-000" maxlength="9" title="Digite o CEP para preencher o endereço automaticamente" aria-describedby="lab_zip_code_feedback">
-                <div class="invalid-feedback d-block" id="lab_zip_code_feedback" role="alert" style="display: none;"></div>
+                <input type="text" class="form-control" id="lab_zip_code" placeholder="00000-000" maxlength="9" title="Digite o CEP para preencher o endereço automaticamente" autocomplete="off">
+                <div class="invalid-feedback" id="lab_zip_code_error">Informe um CEP válido.</div>
               </div>
               <div class="col-md-9">
                 <label for="lab_street" class="form-label">Logradouro</label>
-                <input type="text" class="form-control" id="lab_street" placeholder="Preenchido pelo CEP">
+                <input type="text" class="form-control" id="lab_street" placeholder="Preenchido pelo CEP" autocomplete="off">
+                <div class="invalid-feedback" id="lab_street_error">Informe o logradouro.</div>
               </div>
               <div class="col-4">
                 <label for="lab_number" class="form-label">Número</label>
-                <input type="text" class="form-control" id="lab_number" placeholder="Número">
+                <input type="text" class="form-control" id="lab_number" placeholder="Número" autocomplete="off">
+                <div class="invalid-feedback" id="lab_number_error">Informe o número.</div>
               </div>
               <div class="col-4">
                 <label for="lab_complement" class="form-label">Complemento</label>
-                <input type="text" class="form-control" id="lab_complement" placeholder="Complemento">
+                <input type="text" class="form-control" id="lab_complement" placeholder="Complemento" autocomplete="off">
               </div>
               <div class="col-4">
                 <label for="lab_district" class="form-label">Bairro</label>
-                <input type="text" class="form-control" id="lab_district" placeholder="Preenchido pelo CEP">
+                <input type="text" class="form-control" id="lab_district" placeholder="Preenchido pelo CEP" autocomplete="off">
               </div>
               <div class="col-5">
                 <label for="lab_city" class="form-label">Cidade</label>
-                <input type="text" class="form-control" id="lab_city" placeholder="Preenchido pelo CEP">
+                <input type="text" class="form-control" id="lab_city" placeholder="Preenchido pelo CEP" autocomplete="off">
+                <div class="invalid-feedback" id="lab_city_error">Informe a cidade.</div>
               </div>
               <div class="col-2">
                 <label for="lab_state" class="form-label">UF</label>
-                <input type="text" class="form-control" id="lab_state" placeholder="UF" maxlength="2">
+                <input type="text" class="form-control" id="lab_state" placeholder="UF" maxlength="2" autocomplete="off">
+                <div class="invalid-feedback" id="lab_state_error">Informe a UF.</div>
               </div>
             </div>
           </div>
@@ -212,66 +341,204 @@
 
 <%- include('partials/footer') %>
 <script>
+  var LAB_FIELD_IDS = {
+    name: 'lab_name',
+    cnpj: 'lab_cnpj',
+    email: 'lab_email',
+    phone: 'lab_phone',
+    zip_code: 'lab_zip_code',
+    street: 'lab_street',
+    number: 'lab_number',
+    city: 'lab_city',
+    state: 'lab_state'
+  };
+
+  function showPageFlash(message, type) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-dismissible fade show mb-0 alert-' + (type === 'danger' ? 'danger' : 'success');
+    textEl.textContent = message;
+    wrap.style.display = 'block';
+  }
+
+  (function initPageFlash() {
+    try {
+      var raw = sessionStorage.getItem('labAdminFlash');
+      if (!raw) return;
+      sessionStorage.removeItem('labAdminFlash');
+      var data = JSON.parse(raw);
+      if (data && data.message) showPageFlash(data.message, data.type || 'success');
+    } catch (e) { /* ignore */ }
+  })();
+
+  function setLabFormAlert(message) {
+    var el = document.getElementById('labFormAlert');
+    if (!el) return;
+    if (!message) {
+      el.style.display = 'none';
+      el.textContent = '';
+      return;
+    }
+    el.style.display = 'block';
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+  }
+
+  function clearFieldError(fieldId) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.remove('is-invalid');
+    if (err) err.style.display = 'none';
+  }
+
+  function setFieldError(fieldId, message) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.add('is-invalid');
+    if (err && message) {
+      err.textContent = message;
+      err.style.display = 'block';
+    }
+  }
+
+  function clearLabValidation() {
+    setLabFormAlert('');
+    Object.keys(LAB_FIELD_IDS).forEach(function(k) { clearFieldError(LAB_FIELD_IDS[k]); });
+  }
+
+  function applyServerFieldErrors(fields) {
+    if (!fields || typeof fields !== 'object') return;
+    Object.keys(fields).forEach(function(key) {
+      var fieldId = LAB_FIELD_IDS[key] || key;
+      setFieldError(fieldId, fields[key]);
+    });
+  }
+
   function formatCNPJ(v) {
     var d = (v || '').replace(/[^0-9]/g, '');
     if (d.length <= 2) return d;
-    if (d.length <= 5) return d.slice(0,2) + '.' + d.slice(2);
-    if (d.length <= 8) return d.slice(0,2) + '.' + d.slice(2,5) + '.' + d.slice(5);
-    if (d.length <= 12) return d.slice(0,2) + '.' + d.slice(2,5) + '.' + d.slice(5,8) + '/' + d.slice(8);
-    return d.slice(0,2) + '.' + d.slice(2,5) + '.' + d.slice(5,8) + '/' + d.slice(8,12) + '-' + d.slice(12,14);
+    if (d.length <= 5) return d.slice(0, 2) + '.' + d.slice(2);
+    if (d.length <= 8) return d.slice(0, 2) + '.' + d.slice(2, 5) + '.' + d.slice(5);
+    if (d.length <= 12) return d.slice(0, 2) + '.' + d.slice(2, 5) + '.' + d.slice(5, 8) + '/' + d.slice(8);
+    return d.slice(0, 2) + '.' + d.slice(2, 5) + '.' + d.slice(5, 8) + '/' + d.slice(8, 12) + '-' + d.slice(12, 14);
   }
   function stripCNPJ(v) { return (v || '').replace(/[^0-9]/g, ''); }
-  function calcularDVsCNPJ(base12) {
-    if (!base12 || base12.length !== 12) return null;
-    var w1 = [5,4,3,2,9,8,7,6,5,4,3,2], w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
-    var i, sum = 0; for (i = 0; i < 12; i++) sum += parseInt(base12[i],10) * w1[i];
-    var d1 = (sum % 11) < 2 ? 0 : 11 - (sum % 11);
-    sum = 0; for (i = 0; i < 12; i++) sum += parseInt(base12[i],10) * w2[i]; sum += d1 * w2[12];
-    var d2 = (sum % 11) < 2 ? 0 : 11 - (sum % 11);
-    return String(d1) + String(d2);
-  }
   function validarCNPJ(digits) {
     if (digits.length !== 14) return false;
     if (/^(\d)\1+$/.test(digits)) return false;
-    var w1 = [5,4,3,2,9,8,7,6,5,4,3,2], w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
-    var i, sum = 0; for (i = 0; i < 12; i++) sum += parseInt(digits[i],10) * w1[i];
-    var d1 = (sum % 11) < 2 ? 0 : 11 - (sum % 11); if (d1 !== parseInt(digits[12],10)) return false;
-    sum = 0; for (i = 0; i < 13; i++) sum += parseInt(digits[i],10) * w2[i];
-    var d2 = (sum % 11) < 2 ? 0 : 11 - (sum % 11); if (d2 !== parseInt(digits[13],10)) return false;
-    return true;
+    var w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2], w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    var i, sum = 0;
+    for (i = 0; i < 12; i++) sum += parseInt(digits[i], 10) * w1[i];
+    var d1 = (sum % 11) < 2 ? 0 : 11 - (sum % 11);
+    if (d1 !== parseInt(digits[12], 10)) return false;
+    sum = 0;
+    for (i = 0; i < 13; i++) sum += parseInt(digits[i], 10) * w2[i];
+    var d2 = (sum % 11) < 2 ? 0 : 11 - (sum % 11);
+    return d2 === parseInt(digits[13], 10);
   }
-  document.getElementById('lab_cnpj').addEventListener('input', function() {
-    this.value = formatCNPJ(this.value);
-    this.classList.remove('is-invalid');
-    document.getElementById('lab_cnpj_feedback').style.display = 'none';
-  });
-  document.getElementById('lab_cnpj').addEventListener('focus', function() {
-    this.classList.remove('is-invalid');
-    document.getElementById('lab_cnpj_feedback').style.display = 'none';
-  });
+
   function formatCEP(v) {
     var d = (v || '').replace(/\D/g, '');
     if (d.length <= 5) return d;
     return d.slice(0, 5) + '-' + d.slice(5, 8);
   }
+
+  function formatPhone(v) {
+    var d = (v || '').replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 2) return d.length ? '(' + d : '';
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  }
+
+  function hasAddressPartial() {
+    return ['lab_street', 'lab_number', 'lab_city', 'lab_state', 'lab_zip_code', 'lab_district', 'lab_complement'].some(function(id) {
+      return (document.getElementById(id).value || '').trim().length > 0;
+    });
+  }
+
+  function validateLabFormClient() {
+    clearLabValidation();
+    var errors = {};
+    var name = document.getElementById('lab_name').value.trim();
+    var cnpjDigits = stripCNPJ(document.getElementById('lab_cnpj').value);
+    var email = document.getElementById('lab_email').value.trim();
+    var phoneDigits = document.getElementById('lab_phone').value.replace(/\D/g, '');
+    var phoneDisplay = document.getElementById('lab_phone').value.trim();
+    var zipDigits = document.getElementById('lab_zip_code').value.replace(/\D/g, '');
+    var street = document.getElementById('lab_street').value.trim();
+    var number = document.getElementById('lab_number').value.trim();
+    var city = document.getElementById('lab_city').value.trim();
+    var state = document.getElementById('lab_state').value.trim().toUpperCase();
+    document.getElementById('lab_state').value = state;
+
+    if (!name) errors.name = 'Informe o nome do laboratório.';
+    else if (name.length < 2) errors.name = 'O nome deve ter pelo menos 2 caracteres.';
+
+    if (!cnpjDigits) errors.cnpj = 'Informe o CNPJ do laboratório.';
+    else if (cnpjDigits.length !== 14) errors.cnpj = 'O CNPJ deve conter 14 dígitos.';
+    else if (!validarCNPJ(cnpjDigits)) errors.cnpj = 'CNPJ inválido — verifique os dígitos verificadores.';
+
+    if (!email) errors.email = 'Informe o e-mail de contato.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Informe um e-mail válido.';
+
+    if (!phoneDisplay) errors.phone = 'Informe o telefone de contato.';
+    else if (phoneDigits.length < 10) errors.phone = 'Informe um telefone válido (mínimo 10 dígitos).';
+
+    if (hasAddressPartial()) {
+      if (zipDigits.length !== 8) errors.zip_code = 'Informe um CEP válido (8 dígitos).';
+      if (!street) errors.street = 'Informe o logradouro.';
+      if (!number) errors.number = 'Informe o número.';
+      if (!city) errors.city = 'Informe a cidade.';
+      if (!state || state.length !== 2) errors.state = 'Informe a UF com 2 letras.';
+    } else if (zipDigits.length > 0 && zipDigits.length !== 8) {
+      errors.zip_code = 'Informe um CEP válido (8 dígitos).';
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      applyServerFieldErrors(errors);
+      setLabFormAlert('Revise os campos destacados em vermelho antes de continuar.');
+      var first = LAB_FIELD_IDS[keys[0]] || keys[0];
+      var firstEl = document.getElementById(first);
+      if (firstEl) firstEl.focus();
+      return false;
+    }
+    return true;
+  }
+
+  Object.keys(LAB_FIELD_IDS).forEach(function(k) {
+    var el = document.getElementById(LAB_FIELD_IDS[k]);
+    if (!el) return;
+    el.addEventListener('input', function() {
+      clearFieldError(LAB_FIELD_IDS[k]);
+      setLabFormAlert('');
+    });
+    el.addEventListener('change', function() {
+      clearFieldError(LAB_FIELD_IDS[k]);
+      setLabFormAlert('');
+    });
+  });
+
+  document.getElementById('lab_cnpj').addEventListener('input', function() {
+    this.value = formatCNPJ(this.value);
+  });
+  document.getElementById('lab_phone').addEventListener('input', function() {
+    this.value = formatPhone(this.value);
+  });
+  document.getElementById('lab_state').addEventListener('input', function() {
+    this.value = this.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
+  });
+
   var labCepBuscando = false;
-  function mostrarErroCepLab(msg) {
-    var inp = document.getElementById('lab_zip_code');
-    var fb = document.getElementById('lab_zip_code_feedback');
-    inp.classList.add('is-invalid');
-    fb.textContent = msg;
-    fb.style.display = 'block';
-  }
-  function limparErroCepLab() {
-    document.getElementById('lab_zip_code').classList.remove('is-invalid');
-    document.getElementById('lab_zip_code_feedback').style.display = 'none';
-  }
   function buscarCepLab() {
-    var cep = (document.getElementById('lab_zip_code').value || '').replace(/\D/g, '');
-    if (cep.length !== 8) { limparErroCepLab(); return; }
+    var cepEl = document.getElementById('lab_zip_code');
+    var cep = (cepEl.value || '').replace(/\D/g, '');
+    if (cep.length !== 8) return;
     if (labCepBuscando) return;
     labCepBuscando = true;
-    limparErroCepLab();
+    clearFieldError('lab_zip_code');
     var street = document.getElementById('lab_street');
     var district = document.getElementById('lab_district');
     var city = document.getElementById('lab_city');
@@ -291,13 +558,14 @@
         state.disabled = false;
         street.placeholder = 'Preenchido pelo CEP';
         if (data.erro) {
-          mostrarErroCepLab('CEP não encontrado.');
+          setFieldError('lab_zip_code', 'CEP não encontrado.');
           return;
         }
         if (data.logradouro) street.value = data.logradouro;
         if (data.bairro) district.value = data.bairro;
         if (data.localidade) city.value = data.localidade;
         if (data.uf) state.value = data.uf;
+        ['lab_street', 'lab_city', 'lab_state'].forEach(function(fid) { clearFieldError(fid); });
       })
       .catch(function() {
         labCepBuscando = false;
@@ -306,41 +574,69 @@
         city.disabled = false;
         state.disabled = false;
         street.placeholder = 'Preenchido pelo CEP';
-        mostrarErroCepLab('Erro ao buscar CEP. Tente novamente.');
+        setFieldError('lab_zip_code', 'Erro ao buscar CEP. Tente novamente.');
       });
   }
   document.getElementById('lab_zip_code').addEventListener('input', function() {
     this.value = formatCEP(this.value);
-    limparErroCepLab();
   });
   document.getElementById('lab_zip_code').addEventListener('blur', function() {
     if (this.value.replace(/\D/g, '').length === 8) buscarCepLab();
   });
-  document.getElementById('lab_zip_code').addEventListener('focus', function() {
-    limparErroCepLab();
-  });
+
   function filtrarTabela() {
-    var q = (document.getElementById('buscaInput').value || '').toLowerCase();
-    document.querySelectorAll('#tabelaLab tbody tr').forEach(function(tr) {
-      tr.style.display = tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+    if (window.__labFilters) window.__labFilters.apply();
+  }
+
+  if (window.NeoFarmaCatalogFilters) {
+    window.__labFilters = NeoFarmaCatalogFilters.init({
+      tableBodySelector: '#tabelaLab tbody tr',
+      resultsId: 'labResultsCount',
+      emptyFilterId: 'mensagemVaziaFilter',
+      tableWrapId: 'catalogTableWrap',
+      clearBtnId: 'labClearFilters',
+      filtersToggleId: 'labFiltersToggle',
+      filtersPanelId: 'labFiltersPanel',
+      inputs: { q: 'filtro_q', uf: 'filtro_uf', city: 'filtro_city', has: 'filtro_has', status: 'filtro_status' },
+      tabs: [
+        { id: 'labTabAll', targetInput: 'filtro_status', value: 'ALL' },
+        { id: 'labTabActive', targetInput: 'filtro_status', value: '1' },
+        { id: 'labTabInactive', targetInput: 'filtro_status', value: '0' },
+      ],
+      matchRow: function (tr, v) {
+        var F = NeoFarmaCatalogFilters;
+        if (!F.textMatch(tr, v.q)) return false;
+        if (v.status === '1' && tr.getAttribute('data-filter-active') !== '1') return false;
+        if (v.status === '0' && tr.getAttribute('data-filter-active') !== '0') return false;
+        if (v.uf && v.uf !== 'ALL' && tr.getAttribute('data-filter-uf') !== v.uf) return false;
+        if (v.city && F.norm(tr.getAttribute('data-filter-city')).indexOf(F.norm(v.city)) === -1) return false;
+        if (v.has === 'email' && tr.getAttribute('data-filter-has-email') !== '1') return false;
+        if (v.has === 'phone' && tr.getAttribute('data-filter-has-phone') !== '1') return false;
+        if (v.has === 'address' && tr.getAttribute('data-filter-has-address') !== '1') return false;
+        return true;
+      },
+      onApply: function (visible) {
+        var el = document.getElementById('labResultsVisible');
+        if (el) el.textContent = visible;
+      },
     });
   }
+
   function abrirModalLab() {
+    clearLabValidation();
     document.getElementById('lab_id').value = '';
     document.getElementById('lab_address_id').value = '';
     document.getElementById('lab_name').value = '';
     document.getElementById('lab_cnpj').value = '';
-    document.getElementById('lab_cnpj').classList.remove('is-invalid');
-    document.getElementById('lab_cnpj_feedback').style.display = 'none';
     document.getElementById('lab_email').value = '';
     document.getElementById('lab_phone').value = '';
     document.getElementById('lab_is_active').checked = true;
-    ['lab_street','lab_number','lab_complement','lab_district','lab_city','lab_state','lab_zip_code'].forEach(function(id){ document.getElementById(id).value = ''; });
+    ['lab_street', 'lab_number', 'lab_complement', 'lab_district', 'lab_city', 'lab_state', 'lab_zip_code'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
     document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Novo laboratório';
-    document.getElementById('lab_cnpj').classList.remove('is-invalid');
-    document.getElementById('lab_cnpj_feedback').style.display = 'none';
-    limparErroCepLab();
   }
+
   function verLab(id) {
     var tr = [].find.call(document.querySelectorAll('#tabelaLab tbody tr'), function(r) { return parseInt(r.cells[0].textContent, 10) === id; });
     if (!tr) return;
@@ -357,23 +653,25 @@
       '<div class="cadastro-view-section">' +
         '<div class="cadastro-view-section-title">Dados</div>' +
         '<div class="cadastro-view-row"><span class="cadastro-view-label">CNPJ</span><span class="cadastro-view-value">' + (cnpj === '-' ? '-' : cnpj) + '</span></div>' +
-        '<div class="cadastro-view-row"><span class="cadastro-view-label">E-mail</span><span class="cadastro-view-value"><i class="bi bi-envelope"></i>' + (email === '-' ? '-' : email) + '</span></div>' +
-        '<div class="cadastro-view-row"><span class="cadastro-view-label">Telefone</span><span class="cadastro-view-value"><i class="bi bi-telephone"></i>' + (phone === '-' ? '-' : phone) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">E-mail</span><span class="cadastro-view-value"><i class="bi bi-envelope"></i> ' + (email === '-' ? '-' : email) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Telefone</span><span class="cadastro-view-value"><i class="bi bi-telephone"></i> ' + (phone === '-' ? '-' : phone) + '</span></div>' +
         '<div class="cadastro-view-row"><span class="cadastro-view-label">Ativo</span><span class="cadastro-view-value">' + ativo + '</span></div>' +
         '<div class="cadastro-view-row"><span class="cadastro-view-label">Cidade</span><span class="cadastro-view-value">' + (city === '-' ? '-' : city) + '</span></div>' +
       '</div></div>';
     document.getElementById('conteudoVisualizacao').innerHTML = html;
     new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
   }
+
   function editarLab(btn) {
     try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+    clearLabValidation();
     document.getElementById('lab_id').value = item.id || '';
     document.getElementById('lab_address_id').value = item.address_id || '';
     document.getElementById('lab_name').value = item.name || '';
     var cnpj = item.cnpj || '';
     document.getElementById('lab_cnpj').value = cnpj.length === 14 ? formatCNPJ(cnpj) : cnpj;
     document.getElementById('lab_email').value = item.email || '';
-    document.getElementById('lab_phone').value = item.phone || '';
+    document.getElementById('lab_phone').value = item.phone ? formatPhone(item.phone) : '';
     document.getElementById('lab_is_active').checked = item.is_active !== 0 && item.is_active !== false;
     document.getElementById('lab_street').value = item.street || '';
     document.getElementById('lab_number').value = item.number || '';
@@ -381,51 +679,69 @@
     document.getElementById('lab_district').value = item.district || '';
     document.getElementById('lab_city').value = item.city || '';
     document.getElementById('lab_state').value = item.state || '';
-    document.getElementById('lab_zip_code').value = (function(z) { if (!z) return ''; var d = String(z).replace(/\D/g, ''); return d.length === 8 ? d.slice(0,5) + '-' + d.slice(5) : z; })(item.zip_code);
+    document.getElementById('lab_zip_code').value = (function(z) {
+      if (!z) return '';
+      var d = String(z).replace(/\D/g, '');
+      return d.length === 8 ? d.slice(0, 5) + '-' + d.slice(5) : z;
+    })(item.zip_code);
     document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar laboratório';
-    document.getElementById('lab_cnpj').classList.remove('is-invalid');
-    document.getElementById('lab_cnpj_feedback').style.display = 'none';
-    limparErroCepLab();
     new bootstrap.Modal(document.getElementById('modalEditar')).show();
   }
+
   var exclusaoId = null;
   function abrirModalExclusao(id, nome) {
     exclusaoId = id;
     document.getElementById('exclusaoNome').textContent = nome || ('#' + id);
     new bootstrap.Modal(document.getElementById('modalExclusao')).show();
   }
+
   document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
     if (!exclusaoId) return;
     var id = exclusaoId;
     exclusaoId = null;
+    var btn = document.getElementById('btnConfirmarExclusao');
+    btn.disabled = true;
     bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
-    fetch('/admin/laboratorios/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) location.reload(); else window.neofarmaToast(d.message, 'danger');
-    }).catch(function() { window.neofarmaToast('Erro ao excluir.', 'danger'); });
+    fetch('/admin/laboratorios/' + id, { method: 'DELETE' })
+      .then(function(r) {
+        return r.text().then(function(txt) {
+          var data = {};
+          try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+          if (!r.ok) {
+            var err = new Error((data && data.message) || 'Erro ao excluir laboratório.');
+            err.payload = data;
+            throw err;
+          }
+          return data;
+        });
+      })
+      .then(function(d) {
+        btn.disabled = false;
+        if (d.ok) {
+          sessionStorage.setItem('labAdminFlash', JSON.stringify({ type: 'success', message: d.message || 'Laboratório removido com sucesso.' }));
+          location.reload();
+        } else {
+          window.neofarmaToast(d.message || 'Não foi possível excluir.', 'danger');
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        window.neofarmaToast((err && err.message) || 'Erro ao excluir laboratório.', 'danger');
+      });
   });
+
   document.getElementById('btnSalvarLab').addEventListener('click', function() {
-    var id = document.getElementById('lab_id').value;
-    var name = document.getElementById('lab_name').value.trim();
-    if (!name) { window.neofarmaToast('Nome é obrigatório.', 'danger'); return; }
-    var cnpjVal = document.getElementById('lab_cnpj').value;
-    var cnpjDigits = stripCNPJ(cnpjVal);
-    if (cnpjDigits.length > 0 && cnpjDigits.length !== 14) { window.neofarmaToast('CNPJ deve ter 14 dígitos.', 'danger'); return; }
-    if (cnpjDigits.length === 14 && !validarCNPJ(cnpjDigits)) {
-      var inp = document.getElementById('lab_cnpj');
-      var fb = document.getElementById('lab_cnpj_feedback');
-      inp.classList.add('is-invalid');
-      fb.textContent = 'CNPJ inválido.';
-      fb.style.display = 'block';
-      inp.focus();
+    if (!validateLabFormClient()) {
+      if (window.neofarmaToast) window.neofarmaToast('Preencha os campos obrigatórios.', 'warning');
       return;
     }
-    document.getElementById('lab_cnpj').classList.remove('is-invalid');
-    document.getElementById('lab_cnpj_feedback').style.display = 'none';
+    var id = document.getElementById('lab_id').value;
+    var cnpjDigits = stripCNPJ(document.getElementById('lab_cnpj').value);
     var body = {
-      name: name,
-      cnpj: cnpjDigits.length === 14 ? cnpjDigits : null,
-      email: document.getElementById('lab_email').value.trim() || null,
-      phone: document.getElementById('lab_phone').value.trim() || null,
+      name: document.getElementById('lab_name').value.trim(),
+      cnpj: cnpjDigits,
+      email: document.getElementById('lab_email').value.trim(),
+      phone: document.getElementById('lab_phone').value.trim(),
       is_active: document.getElementById('lab_is_active').checked,
       address_id: document.getElementById('lab_address_id').value || null,
       street: document.getElementById('lab_street').value.trim() || null,
@@ -433,7 +749,7 @@
       complement: document.getElementById('lab_complement').value.trim() || null,
       district: document.getElementById('lab_district').value.trim() || null,
       city: document.getElementById('lab_city').value.trim() || null,
-      state: document.getElementById('lab_state').value.trim() || null,
+      state: document.getElementById('lab_state').value.trim().toUpperCase() || null,
       zip_code: document.getElementById('lab_zip_code').value.trim() || null
     };
     if (id) body.id = parseInt(id, 10);
@@ -441,13 +757,41 @@
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
     fetch('/admin/laboratorios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        return r.text().then(function(txt) {
+          var data = {};
+          try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+          if (!r.ok) {
+            var err = new Error((data && data.message) || 'Erro ao salvar laboratório.');
+            err.payload = data;
+            err.status = r.status;
+            throw err;
+          }
+          return data;
+        });
+      })
       .then(function(d) {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
-        if (d.ok) { bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide(); location.reload(); }
-        else window.neofarmaToast(d.message, 'danger');
+        if (d.ok) {
+          bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
+          sessionStorage.setItem('labAdminFlash', JSON.stringify({
+            type: 'success',
+            message: d.message || ('Laboratório "' + (d.name || body.name) + '" salvo com sucesso.')
+          }));
+          location.reload();
+        } else {
+          applyServerFieldErrors(d.fields);
+          setLabFormAlert(d.message || 'Não foi possível salvar.');
+          if (window.neofarmaToast) window.neofarmaToast(d.message || 'Não foi possível salvar.', 'danger');
+        }
       })
-      .catch(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar'; window.neofarmaToast('Erro ao salvar.', 'danger'); });
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+        if (err.payload && err.payload.fields) applyServerFieldErrors(err.payload.fields);
+        setLabFormAlert((err && err.message) || 'Erro ao salvar.');
+        if (window.neofarmaToast) window.neofarmaToast((err && err.message) || 'Erro de conexão. Tente novamente.', 'danger');
+      });
   });
 </script>

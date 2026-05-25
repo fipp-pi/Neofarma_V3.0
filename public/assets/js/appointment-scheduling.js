@@ -9,6 +9,7 @@
   }
 
   function toLocalDateString(date) {
+    if (window.NeoDates && NeoDates.toDateInput) return NeoDates.toDateInput(date);
     var d = date instanceof Date ? date : new Date(date);
     if (Number.isNaN(d.getTime())) return '';
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -101,12 +102,28 @@
     if (hidden) hidden.value = this._selectedSlot;
   };
 
+  AppointmentSlotPicker.prototype._clearSlotValidationError = function () {
+    var err = document.getElementById(this.prefix + '_scheduled_start_error');
+    if (err) err.style.display = 'none';
+  };
+
+  AppointmentSlotPicker.prototype._onSlotSelected = function (label) {
+    this._clearSlotValidationError();
+    var hint = this._el('slot_hint');
+    if (!hint) return;
+    if (label) {
+      hint.textContent = 'Horário selecionado: ' + label;
+      hint.className = 'small text-success mt-1';
+    }
+  };
+
   AppointmentSlotPicker.prototype.renderSlots = function (slots, message) {
     var host = this._el('slot_buttons');
     var hint = this._el('slot_hint');
     if (!host) return;
     host.innerHTML = '';
     this.setScheduledStart('');
+    this._clearSlotValidationError();
 
     if (!slots || !slots.length) {
       if (hint) {
@@ -115,7 +132,10 @@
       }
       return;
     }
-    if (hint) hint.textContent = 'Selecione um horário disponível:';
+    if (hint) {
+      hint.textContent = 'Clique em um horário abaixo.';
+      hint.className = 'small text-muted mt-1';
+    }
 
     var self = this;
     slots.forEach(function (slot) {
@@ -130,6 +150,7 @@
         });
         btn.classList.add('active');
         self.setScheduledStart(slot.value);
+        self._onSlotSelected(slot.label);
       });
       host.appendChild(btn);
     });
@@ -211,6 +232,7 @@
           var match = (data.slots || []).find(function (s) { return s.value === preset.value; });
           if (match) {
             self.setScheduledStart(match.value);
+            self._onSlotSelected(match.label);
             Array.prototype.forEach.call(host.querySelectorAll('button'), function (b) {
               if (b.dataset.value === match.value) b.classList.add('active');
             });
@@ -229,12 +251,13 @@
     var dateStr = toLocalDateString(d);
     var dateEl = this._el('scheduled_date');
     if (dateEl) dateEl.value = dateStr;
-    this.setScheduledStart(iso.slice(0, 16));
+    var localVal = (window.NeoDates && NeoDates.toDatetimeLocal) ? NeoDates.toDatetimeLocal(iso) : iso.slice(0, 16);
+    this.setScheduledStart(localVal);
     var self = this;
     this.refreshSlots().then(function () {
       var host = self._el('slot_buttons');
       if (!host) return;
-      var val = iso.length >= 16 ? iso.slice(0, 16) : iso;
+      var val = localVal;
       Array.prototype.forEach.call(host.querySelectorAll('button'), function (b) {
         if (b.dataset.value === val) b.classList.add('active');
       });

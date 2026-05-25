@@ -1,0 +1,48 @@
+<%
+  var card = typeof p !== 'undefined' ? p : {};
+  var rank = typeof showRank !== 'undefined' ? showRank : null;
+  var compact = typeof compact !== 'undefined' ? compact : false;
+%>
+<article class="sf-product-card <%= compact ? 'sf-product-card--compact' : '' %>">
+  <div class="sf-product-card__media">
+    <% if (rank) { %>
+      <span class="sf-product-card__rank">#<%= rank %></span>
+    <% } %>
+    <% if (card.has_promo && card.discount_percent) { %>
+      <span class="sf-product-card__badge sf-product-card__badge--sale">-<%= card.discount_percent %>%</span>
+    <% } else if (card.qty_sold > 0) { %>
+      <span class="sf-product-card__badge sf-product-card__badge--hot"><i class="bi bi-fire"></i> Top</span>
+    <% } %>
+    <a href="/produtos/<%= card.id %>" class="sf-product-card__img-link" tabindex="-1" aria-hidden="true">
+      <img src="<%= card.thumb_url || card.image_url %>" alt="<%= card.name %>" loading="lazy">
+    </a>
+    <div class="sf-product-card__overlay">
+      <a href="/produtos/<%= card.id %>" class="sf-product-card__quick" title="Ver produto"><i class="bi bi-eye"></i></a>
+      <button type="button" class="sf-product-card__cart btn-add-cart" data-id="<%= card.id %>" <%= card.can_buy ? '' : 'disabled' %> title="Adicionar ao carrinho">
+        <i class="bi bi-cart-plus"></i>
+      </button>
+    </div>
+  </div>
+  <div class="sf-product-card__body">
+    <span class="sf-product-card__lab"><%= card.lab_name || 'NeoFarma' %></span>
+    <h3 class="sf-product-card__title">
+      <a href="/produtos/<%= card.id %>"><%= card.name %></a>
+    </h3>
+    <div class="sf-product-card__meta">
+      <% if (card.qty_sold > 0) { %>
+        <span class="sf-product-card__sold"><%= card.qty_sold %> vendidos</span>
+      <% } %>
+      <span class="sf-product-card__stock <%= card.can_buy ? 'in-stock' : 'out-stock' %>">
+        <%= card.can_buy ? 'Em estoque' : 'Indisponível' %>
+      </span>
+    </div>
+    <div class="sf-product-card__price">
+      <% if (card.has_promo) { %>
+        <span class="sf-product-card__price-old">R$ <%= card.price_display %></span>
+        <span class="sf-product-card__price-current">R$ <%= card.promo_display %></span>
+      <% } else { %>
+        <span class="sf-product-card__price-current">R$ <%= card.price_display %></span>
+      <% } %>
+    </div>
+  </div>
+</article>

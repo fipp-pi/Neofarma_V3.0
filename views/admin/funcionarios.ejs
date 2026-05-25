@@ -1,0 +1,498 @@
+<%- include('partials/header') %>
+<%
+  const funcList = typeof list !== 'undefined' ? list : [];
+  const funcStats = typeof stats !== 'undefined' ? stats : { total: funcList.length, active: 0, inactive: 0, admins: 0, operational: 0 };
+  const funcRoles = typeof roles !== 'undefined' ? roles : [];
+  function roleLabel(name) {
+    var map = { ADMIN: 'Administrador', FUNCIONARIO: 'Funcionário', ESTOQUISTA: 'Estoquista' };
+    return map[String(name || '').toUpperCase()] || name || '—';
+  }
+  function roleBadgeClass(name) {
+    var n = String(name || '').toUpperCase();
+    if (n === 'ADMIN') return 'danger';
+    if (n === 'ESTOQUISTA') return 'warning';
+    return 'info';
+  }
+  function fmtSalary(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+%>
+<script src="/assets/js/admin-catalog-filters.js"></script>
+<div class="container admin-catalog">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
+
+  <div class="list-header mb-4">
+    <div>
+      <h2 class="neo-heading">Funcionários</h2>
+      <p class="text-muted mb-0">Gerencie colaboradores internos, perfis de acesso e dados contratuais da equipe NeoFarma.</p>
+    </div>
+  </div>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--primary">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-people"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= funcStats.total %></div><div class="admin-catalog__stat-label">Total cadastrados</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--success">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= funcStats.active %></div><div class="admin-catalog__stat-label">Ativos</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--danger">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-shield-lock"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= funcStats.admins %></div><div class="admin-catalog__stat-label">Administradores</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--info">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-person-badge"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= funcStats.operational %></div><div class="admin-catalog__stat-label">Operacionais</div></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="admin-catalog__panel mb-3">
+    <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-funnel me-2"></i>Filtros avançados</h3>
+      <button type="button" class="admin-catalog__filters-toggle" id="funcFiltersToggle" aria-expanded="true"><i class="bi bi-sliders"></i> Recolher filtros</button>
+    </div>
+    <div class="admin-catalog__panel-body" id="funcFiltersPanel">
+      <div class="row g-3">
+        <div class="col-lg-5">
+          <label class="form-label" for="filtro_q">Busca geral</label>
+          <div class="admin-catalog__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" id="filtro_q" placeholder="Nome, e-mail, cargo, documento...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="filtro_role">Perfil</label>
+          <select class="form-select form-select-sm" id="filtro_role">
+            <option value="ALL">Todos</option>
+            <% funcRoles.forEach(function(r){ %><option value="<%= r.name %>"><%= roleLabel(r.name) %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <input type="hidden" id="filtro_status" value="ALL">
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="funcClearFilters"><i class="bi bi-x-lg me-1"></i> Limpar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="admin-catalog__tabs mb-3">
+    <button type="button" class="admin-catalog__tab is-active" id="funcTabAll">Todos</button>
+    <button type="button" class="admin-catalog__tab" id="funcTabActive">Ativos</button>
+    <button type="button" class="admin-catalog__tab" id="funcTabInactive">Inativos</button>
+  </div>
+
+  <section class="admin-catalog__panel admin-catalog__panel--table">
+    <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-list-ul me-2"></i>Equipe cadastrada</h3>
+      <div class="admin-catalog__panel-actions">
+        <span class="admin-catalog__panel-meta" id="funcResultsCount"><%= funcList.length %> registro(s)</span>
+        <% if (canEdit) { %>
+          <button type="button" class="btn btn-save btn-sm" onclick="novoFunc()" data-bs-toggle="modal" data-bs-target="#modalFunc">
+            <i class="bi bi-plus-lg me-1"></i> Novo funcionário
+          </button>
+        <% } %>
+      </div>
+    </div>
+    <div class="admin-catalog__results-bar">
+      <span>Exibindo <strong id="funcResultsVisible"><%= funcList.length %></strong> funcionário(s).</span>
+    </div>
+    <div id="catalogTableWrap">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaFunc">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Cargo</th>
+              <th>Admissão</th>
+              <th>Salário</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (funcList.length) { funcList.forEach(function(f) {
+              var searchBlob = [f.full_name, f.email, f.role_name, roleLabel(f.role_name), f.role_title, f.phone, f.document].filter(Boolean).join(' ');
+            %>
+              <tr
+                data-filter-search="<%= searchBlob.toLowerCase() %>"
+                data-filter-active="<%= f.is_active ? '1' : '0' %>"
+                data-filter-role="<%= (f.role_name || '').toUpperCase() %>"
+              >
+                <td class="fw-bold"><span class="cell-truncate-wide" title="<%= f.full_name %>"><%= f.full_name %></span></td>
+                <td><span class="cell-truncate" title="<%= f.email %>"><%= f.email %></span></td>
+                <td><span class="admin-catalog__badge admin-catalog__badge--<%= roleBadgeClass(f.role_name) %>"><%= roleLabel(f.role_name) %></span></td>
+                <td><span class="cell-truncate" title="<%= f.role_title || '' %>"><%= f.role_title || '—' %></span></td>
+                <td><%= fmtDate(f.hire_date) %></td>
+                <td><%= fmtSalary(f.salary) %></td>
+                <td class="col-status"><span class="admin-catalog__badge admin-catalog__badge--<%= f.is_active ? 'success' : 'muted' %>"><%= f.is_active ? 'Ativo' : 'Inativo' %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--<%= canEdit ? 2 : 1 %>">
+                    <button type="button" class="btn-action btn-view" data-item="<%= encodeURIComponent(JSON.stringify(f)) %>" onclick="verFunc(this)" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
+                    <% if (canEdit) { %>
+                      <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(f)) %>" onclick="editarFuncBtn(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="mensagemVazia" class="admin-catalog__empty" style="display: <%= funcList.length ? 'none' : 'block' %>;">
+      <i class="bi bi-people main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum funcionário cadastrado</p>
+      <% if (canEdit) { %>
+        <button type="button" class="btn btn-save btn-sm mt-2" onclick="novoFunc()" data-bs-toggle="modal" data-bs-target="#modalFunc">Cadastrar primeiro funcionário</button>
+      <% } %>
+    </div>
+    <div id="mensagemVaziaFilter" class="admin-catalog__empty" style="display:none;">
+      <i class="bi bi-search main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum resultado para os filtros</p>
+      <p class="text-muted small mb-0">Tente outros critérios ou limpe os filtros.</p>
+    </div>
+  </section>
+</div>
+
+<div class="modal fade modal-cadastro" id="modalVisualizar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Dados do funcionário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="conteudoVisualizacao"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (canEdit) { %>
+<div class="modal fade modal-cadastro" id="modalFunc" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalFuncTitle"><i class="bi bi-pencil-square me-2"></i>Funcionário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formFunc" class="cadastro-edit">
+          <input type="hidden" id="fn_user_id">
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Dados pessoais</div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label field-required" for="fn_name">Nome completo</label>
+                <input class="form-control" id="fn_name" required>
+                <div class="invalid-feedback">Informe o nome.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label field-required" for="fn_email">E-mail</label>
+                <input type="email" class="form-control" id="fn_email" required>
+                <div class="invalid-feedback">Informe um e-mail válido.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="fn_phone">Telefone</label>
+                <input class="form-control" id="fn_phone" placeholder="(00) 00000-0000">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="fn_document">Documento (CPF)</label>
+                <input class="form-control" id="fn_document" placeholder="000.000.000-00">
+              </div>
+            </div>
+          </div>
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Acesso ao sistema</div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label field-required" for="fn_role_id">Perfil</label>
+                <select class="form-select" id="fn_role_id" required>
+                  <% funcRoles.forEach(function(r){ %><option value="<%= r.id %>"><%= roleLabel(r.name) %></option><% }) %>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label" for="fn_password">Senha <span class="text-muted small" id="fn_pwd_hint">(obrigatória no cadastro)</span></label>
+                <input type="password" class="form-control" id="fn_password" autocomplete="new-password">
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="fn_active" checked>
+                  <label class="form-check-label" for="fn_active">Colaborador ativo no sistema</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Dados contratuais</div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label field-required" for="fn_role_title">Cargo</label>
+                <input class="form-control" id="fn_role_title" placeholder="Ex.: Atendente de balcão" required>
+                <div class="invalid-feedback">Informe o cargo.</div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label field-required" for="fn_hire_date">Admissão</label>
+                <input type="date" class="form-control" id="fn_hire_date" required>
+                <div class="invalid-feedback">Informe a data de admissão.</div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="fn_salary">Salário (R$)</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="fn_salary" value="0">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="btnSalvarFunc"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<style>
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-body { padding: 0; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+  .cadastro-view { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+  .cadastro-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
+  .cadastro-view-section { margin-bottom: 1.25rem; }
+  .cadastro-view-section:last-child { margin-bottom: 0; }
+  .cadastro-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
+  .cadastro-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
+  .cadastro-view-row:last-child { border-bottom: none; }
+  .cadastro-view-label { font-size: 0.85rem; color: #6c757d; min-width: 110px; flex-shrink: 0; }
+  .cadastro-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
+  .cadastro-edit { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-edit-section { margin-bottom: 1.5rem; }
+  .cadastro-edit-section:last-of-type { margin-bottom: 0; }
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .modal-cadastro .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
+  .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+</style>
+
+<script>
+(function () {
+  var ROLE_LABELS = { ADMIN: 'Administrador', FUNCIONARIO: 'Funcionário', ESTOQUISTA: 'Estoquista' };
+  function roleLabel(name) { return ROLE_LABELS[String(name || '').toUpperCase()] || name || '—'; }
+  function fmtDateLocal(d) {
+    return window.NeoDates ? NeoDates.formatDate(d) : (d || '—');
+  }
+  function fmtSalary(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
+  }
+  function showPageFlash(type, message) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-' + (type || 'success') + ' alert-dismissible fade show mb-0';
+    textEl.textContent = message || '';
+    wrap.style.display = message ? 'block' : 'none';
+  }
+  try {
+    var raw = sessionStorage.getItem('funcAdminFlash');
+    if (raw) {
+      sessionStorage.removeItem('funcAdminFlash');
+      var flash = JSON.parse(raw);
+      showPageFlash(flash.type || 'success', flash.message);
+    }
+  } catch (e) {}
+
+  NeoFarmaCatalogFilters.init({
+    tableBodySelector: '#tabelaFunc tbody tr',
+    resultsId: 'funcResultsCount',
+    emptyFilterId: 'mensagemVaziaFilter',
+    tableWrapId: 'catalogTableWrap',
+    clearBtnId: 'funcClearFilters',
+    filtersToggleId: 'funcFiltersToggle',
+    filtersPanelId: 'funcFiltersPanel',
+    inputs: { q: 'filtro_q', role: 'filtro_role', status: 'filtro_status' },
+    tabs: [
+      { id: 'funcTabAll', targetInput: 'filtro_status', value: 'ALL' },
+      { id: 'funcTabActive', targetInput: 'filtro_status', value: '1' },
+      { id: 'funcTabInactive', targetInput: 'filtro_status', value: '0' },
+    ],
+    matchRow: function (tr, v) {
+      var F = NeoFarmaCatalogFilters;
+      if (!F.textMatch(tr, v.q)) return false;
+      if (v.status === '1' && tr.getAttribute('data-filter-active') !== '1') return false;
+      if (v.status === '0' && tr.getAttribute('data-filter-active') !== '0') return false;
+      if (v.role && v.role !== 'ALL' && tr.getAttribute('data-filter-role') !== v.role) return false;
+      return true;
+    },
+    onApply: function (visible) {
+      var el = document.getElementById('funcResultsVisible');
+      if (el) el.textContent = visible;
+    },
+  });
+
+  function parseItem(btn) {
+    try { return JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return null; }
+  }
+
+  window.verFunc = function (btn) {
+    var f = parseItem(btn);
+    if (!f) return;
+    var nome = f.full_name || '—';
+    var inicial = nome !== '—' ? nome.charAt(0).toUpperCase() : '?';
+    var html = '<div class="cadastro-view">' +
+      '<div class="cadastro-view-avatar">' + inicial + '</div>' +
+      '<div class="cadastro-view-nome">' + nome + '</div>' +
+      '<div class="cadastro-view-section">' +
+        '<div class="cadastro-view-section-title">Contato</div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">E-mail</span><span class="cadastro-view-value"><i class="bi bi-envelope"></i> ' + (f.email || '—') + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Telefone</span><span class="cadastro-view-value"><i class="bi bi-telephone"></i> ' + (f.phone || '—') + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Documento</span><span class="cadastro-view-value">' + (f.document || '—') + '</span></div>' +
+      '</div>' +
+      '<div class="cadastro-view-section">' +
+        '<div class="cadastro-view-section-title">Acesso e contrato</div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Perfil</span><span class="cadastro-view-value">' + roleLabel(f.role_name) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Cargo</span><span class="cadastro-view-value">' + (f.role_title || '—') + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Admissão</span><span class="cadastro-view-value">' + fmtDateLocal(f.hire_date) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Salário</span><span class="cadastro-view-value">' + fmtSalary(f.salary) + '</span></div>' +
+        '<div class="cadastro-view-row"><span class="cadastro-view-label">Status</span><span class="cadastro-view-value">' + (f.is_active ? 'Ativo' : 'Inativo') + '</span></div>' +
+      '</div></div>';
+    document.getElementById('conteudoVisualizacao').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
+  };
+
+  <% if (canEdit) { %>
+  function clearFuncValidation() {
+    ['fn_name', 'fn_email', 'fn_role_title', 'fn_hire_date'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('is-invalid');
+    });
+  }
+  function validateFuncForm() {
+    clearFuncValidation();
+    var ok = true;
+    var name = document.getElementById('fn_name');
+    var email = document.getElementById('fn_email');
+    var title = document.getElementById('fn_role_title');
+    var hire = document.getElementById('fn_hire_date');
+    var pwd = document.getElementById('fn_password');
+    var userId = document.getElementById('fn_user_id').value;
+    if (!name.value.trim()) { name.classList.add('is-invalid'); ok = false; }
+    if (!email.value.trim() || email.value.indexOf('@') === -1) { email.classList.add('is-invalid'); ok = false; }
+    if (!title.value.trim()) { title.classList.add('is-invalid'); ok = false; }
+    if (!hire.value) { hire.classList.add('is-invalid'); ok = false; }
+    if (!userId && !pwd.value.trim()) {
+      pwd.classList.add('is-invalid');
+      ok = false;
+      if (window.neofarmaToast) window.neofarmaToast('Senha é obrigatória no cadastro.', 'warning');
+    }
+    return ok;
+  }
+
+  window.novoFunc = function () {
+    clearFuncValidation();
+    document.getElementById('fn_user_id').value = '';
+    document.getElementById('fn_name').value = '';
+    document.getElementById('fn_email').value = '';
+    document.getElementById('fn_role_title').value = '';
+    document.getElementById('fn_hire_date').value = '';
+    document.getElementById('fn_salary').value = '0';
+    document.getElementById('fn_phone').value = '';
+    document.getElementById('fn_document').value = '';
+    document.getElementById('fn_password').value = '';
+    document.getElementById('fn_active').checked = true;
+    document.getElementById('fn_pwd_hint').textContent = '(obrigatória no cadastro)';
+    document.getElementById('modalFuncTitle').innerHTML = '<i class="bi bi-plus-lg me-2"></i>Novo funcionário';
+  };
+
+  window.editarFuncBtn = function (btn) {
+    var f = parseItem(btn);
+    if (!f) return;
+    clearFuncValidation();
+    document.getElementById('fn_user_id').value = f.user_id || '';
+    document.getElementById('fn_name').value = f.full_name || '';
+    document.getElementById('fn_email').value = f.email || '';
+    var sel = document.getElementById('fn_role_id');
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text === roleLabel(f.role_name)) sel.selectedIndex = i;
+    }
+    document.getElementById('fn_role_title').value = f.role_title || '';
+    document.getElementById('fn_hire_date').value = f.hire_date ? (window.NeoDates ? NeoDates.formatDateInput(f.hire_date) : String(f.hire_date).slice(0, 10)) : '';
+    document.getElementById('fn_salary').value = f.salary != null ? f.salary : 0;
+    document.getElementById('fn_phone').value = f.phone || '';
+    document.getElementById('fn_document').value = f.document || '';
+    document.getElementById('fn_password').value = '';
+    document.getElementById('fn_active').checked = !!f.is_active;
+    document.getElementById('fn_pwd_hint').textContent = '(deixe em branco para manter)';
+    document.getElementById('modalFuncTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar funcionário';
+    new bootstrap.Modal(document.getElementById('modalFunc')).show();
+  };
+
+  document.getElementById('btnSalvarFunc').addEventListener('click', async function () {
+    if (!validateFuncForm()) {
+      if (window.neofarmaToast) window.neofarmaToast('Preencha os campos obrigatórios.', 'warning');
+      return;
+    }
+    var btn = document.getElementById('btnSalvarFunc');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+    var body = {
+      user_id: document.getElementById('fn_user_id').value || null,
+      full_name: document.getElementById('fn_name').value.trim(),
+      email: document.getElementById('fn_email').value.trim(),
+      role_id: document.getElementById('fn_role_id').value,
+      role_title: document.getElementById('fn_role_title').value.trim(),
+      hire_date: document.getElementById('fn_hire_date').value,
+      salary: document.getElementById('fn_salary').value,
+      phone: document.getElementById('fn_phone').value.trim(),
+      document: document.getElementById('fn_document').value.trim(),
+      password: document.getElementById('fn_password').value,
+      is_active: document.getElementById('fn_active').checked,
+    };
+    try {
+      var r = await fetch('/admin/funcionarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      var d = await r.json();
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+      if (d.ok) {
+        sessionStorage.setItem('funcAdminFlash', JSON.stringify({ type: 'success', message: d.message || 'Funcionário salvo com sucesso.' }));
+        location.reload();
+      } else {
+        if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro ao salvar.', 'danger');
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+      if (window.neofarmaToast) window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger');
+    }
+  });
+  <% } %>
+})();
+</script>
+
+<%- include('partials/footer') %>

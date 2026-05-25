@@ -31,6 +31,7 @@ router.post('/shipping/select', commerceController.apiSetShipping);
 // ===== API de checkout/pagamento =====
 router.post('/checkout/payment-preview', requireAuth, commerceController.apiPaymentPreview);
 router.post('/checkout/finalize', requireAuth, commerceController.finalizeCheckout);
+router.post('/checkout/orders/:id/confirm-payment', requireAuth, commerceController.confirmOrderPayment);
 
 // ===== API de agendamentos (cliente) =====
 router.get('/service-appointments/availability/slots', requireAuth, serviceAppointmentAdminController.getAvailabilitySlots);

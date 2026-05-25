@@ -82,8 +82,9 @@ async function findByUserId(userId) {
  */
 async function getProfileByUserId(userId) {
   const [rows] = await pool.execute(
-    `SELECT u.id AS user_id, u.full_name, u.email, u.phone, u.document, u.birth_date,
-            c.id AS customer_id, a.id AS address_id,
+    `SELECT u.id AS user_id, u.full_name, u.email, u.phone, u.document, u.birth_date, u.created_at AS user_created_at,
+            c.id AS customer_id, c.loyalty_points, c.created_at AS customer_created_at,
+            a.id AS address_id,
             a.street, a.number, a.complement, a.district, a.city, a.state, a.country, a.zip_code
      FROM users u
      INNER JOIN customers c ON c.user_id = u.id
@@ -112,7 +113,7 @@ async function createClient(data, passwordHash) {
       full_name: data.nome || data.full_name,
       email: data.email,
       password_hash: passwordHash,
-      phone: data.telefone || data.phone,
+      phone: data.telefoneDigits || data.telefone || data.phone,
       document: data.document || data.cpf || null,
       birth_date: data.birth_date || null,
     });

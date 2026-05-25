@@ -18,159 +18,224 @@
     <div class="container" data-aos="fade-up" data-aos-delay="100">
       <div class="row justify-content-center">
         <div class="col-lg-10">
-          <div class="registration-form-wrapper">
+          <div class="registration-form-wrapper register-wizard">
             <div class="form-header text-center">
-              <h2>Crie a sua Conta</h2>
-              <p>Preencha os dados abaixo para criar sua conta (campos em conformidade com o cadastro do sistema).</p>
+              <h2>Crie a sua conta</h2>
+              <p class="mb-0">Cadastro rápido em etapas — seus dados ficam protegidos e você acompanha cada passo.</p>
             </div>
+
+            <ol class="register-wizard__steps" id="wizardSteps" aria-label="Etapas do cadastro">
+              <li class="register-wizard__step-item is-active" data-step="1">
+                <span class="register-wizard__step-num">1</span>
+                <span class="register-wizard__step-label">Identificação</span>
+              </li>
+              <li class="register-wizard__step-item" data-step="2">
+                <span class="register-wizard__step-num">2</span>
+                <span class="register-wizard__step-label">Segurança</span>
+              </li>
+              <li class="register-wizard__step-item" data-step="3">
+                <span class="register-wizard__step-num">3</span>
+                <span class="register-wizard__step-label">Endereço</span>
+              </li>
+              <li class="register-wizard__step-item" data-step="4">
+                <span class="register-wizard__step-num">4</span>
+                <span class="register-wizard__step-label">Confirmação</span>
+              </li>
+            </ol>
 
             <div class="row">
-              <div class="col-lg-8 mx-auto">
-                <form id="formRegister" method="post" novalidate>
-                  <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Nome completo" required minlength="3" autocomplete="name" value="">
-                    <label for="full_name">Nome completo *</label>
-                  </div>
+              <div class="col-lg-10 mx-auto">
+                <div id="registerFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
 
-                  <div class="form-floating mb-3">
-                    <input type="email" class="form-control" id="email" name="email" placeholder="Email" required autocomplete="email" value="">
-                    <label for="email">E-mail *</label>
-                  </div>
+                <form id="formRegister" novalidate autocomplete="off">
 
-                  <div class="row mb-3">
-                    <div class="col-md-6">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="document" name="document" placeholder="CPF" maxlength="14" autocomplete="off" value="">
-                        <label for="document">CPF</label>
+                  <!-- Etapa 1 -->
+                  <div class="register-wizard__panel" data-step-panel="1">
+                    <div class="register-wizard__panel-head">
+                      <i class="bi bi-person-vcard"></i>
+                      <div>
+                        <h3>Dados pessoais</h3>
+                        <p>Informe como podemos identificar e contatar você.</p>
                       </div>
                     </div>
-                    <div class="col-md-6">
-                      <div class="form-floating">
-                        <input type="tel" class="form-control" id="register_phone" name="phone" placeholder="(99) 9 9999 9999" maxlength="18" autocomplete="tel" value="" inputmode="numeric">
-                        <label for="register_phone">Telefone (ex: (99) 9 9999 9999)</label>
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label for="full_name" class="form-label field-required">Nome completo</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Ex.: Ana Beatriz Ferreira" autocomplete="name">
+                        <div class="invalid-feedback" id="full_name_error">Informe o nome completo.</div>
+                      </div>
+                      <div class="col-md-6">
+                        <label for="email" class="form-label field-required">E-mail</label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="seu@email.com" autocomplete="email">
+                        <div class="invalid-feedback" id="email_error">Informe um e-mail válido.</div>
+                      </div>
+                      <div class="col-md-6">
+                        <label for="register_phone" class="form-label field-required">Telefone / WhatsApp</label>
+                        <input type="tel" class="form-control" id="register_phone" name="phone" placeholder="(00) 00000-0000" maxlength="16" autocomplete="tel" inputmode="numeric">
+                        <div class="invalid-feedback" id="register_phone_error">Informe um telefone válido.</div>
+                      </div>
+                      <div class="col-md-6">
+                        <label for="document" class="form-label field-required">CPF</label>
+                        <input type="text" class="form-control" id="document" name="document" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off" required>
+                        <div class="invalid-feedback" id="document_error">Informe um CPF válido.</div>
+                      </div>
+                      <div class="col-md-6">
+                        <label for="birth_date" class="form-label">Data de nascimento</label>
+                        <input type="date" class="form-control" id="birth_date" name="birth_date" autocomplete="bday">
+                        <div class="invalid-feedback" id="birth_date_error">Data inválida.</div>
                       </div>
                     </div>
-                  </div>
-
-                  <div class="form-floating mb-3">
-                    <input type="date" class="form-control" id="birth_date" name="birth_date" placeholder="Data de nascimento" autocomplete="bday">
-                    <label for="birth_date">Data de nascimento</label>
-                  </div>
-
-                  <div class="row mb-3">
-                    <div class="col-md-6">
-                      <div class="form-floating">
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Senha" required minlength="6" autocomplete="new-password">
-                        <label for="password">Senha *</label>
-                      </div>
-                    </div>
-                    <div class="col-md-6">
-                      <div class="form-floating">
-                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirmar senha" required minlength="6" autocomplete="new-password">
-                        <label for="confirmPassword">Confirmar senha *</label>
-                      </div>
-                    </div>
-                    <small id="erroSenha" class="text-danger" style="display:none;">As senhas não coincidem.</small>
-                  </div>
-
-                  <div class="form-floating mb-3">
-                    <select class="form-select" id="country" name="country">
-                      <option value="">Selecione seu país</option>
-                      <option value="Brasil" selected>Brasil</option>
-                      <option value="Portugal">Portugal</option>
-                      <option value="Estados Unidos">Estados Unidos</option>
-                      <option value="Outro">Outro</option>
-                    </select>
-                    <label for="country">País</label>
-                  </div>
-
-                  <h6 class="mb-3 mt-2">Endereço</h6>
-                  <div class="row mb-3">
-                    <div class="col-md-4">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="cep" name="cep" placeholder="CEP" maxlength="9" autocomplete="postal-code" value="">
-                        <label for="cep">CEP *</label>
-                        <small id="erroCep" class="text-danger" style="display:none;"></small>
-                      </div>
-                    </div>
-                    <div class="col-md-8">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="street" name="street" placeholder="Rua / Avenida" autocomplete="address-line1" value="">
-                        <label for="street">Rua / Logradouro *</label>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-md-4">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="number" name="number" placeholder="Número" autocomplete="off" value="">
-                        <label for="number">Número *</label>
-                      </div>
-                    </div>
-                    <div class="col-md-4">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="complement" name="complement" placeholder="Complemento" autocomplete="off" value="">
-                        <label for="complement">Complemento</label>
-                      </div>
-                    </div>
-                    <div class="col-md-4">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="district" name="district" placeholder="Bairro" autocomplete="address-level2" value="">
-                        <label for="district">Bairro *</label>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-md-6">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="city" name="city" placeholder="Cidade" autocomplete="address-level2" value="">
-                        <label for="city">Cidade *</label>
-                      </div>
-                    </div>
-                    <div class="col-md-6">
-                      <div class="form-floating">
-                        <input type="text" class="form-control" id="state" name="state" placeholder="UF" maxlength="2" autocomplete="address-level1" value="">
-                        <label for="state">Estado (UF) *</label>
-                      </div>
+                    <div class="register-wizard__hint mt-3">
+                      <i class="bi bi-shield-check me-1"></i>
+                      Seus dados são utilizados apenas para identificação da conta e entrega de pedidos.
                     </div>
                   </div>
 
-                  <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="termsCheck" name="termsCheck" required>
-                    <label class="form-check-label" for="termsCheck">
-                      Concordo com os <a href="/tos">Termos de Serviço</a> e a <a href="/privacy">Política de Privacidade</a>
-                    </label>
+                  <!-- Etapa 2 -->
+                  <div class="register-wizard__panel d-none" data-step-panel="2">
+                    <div class="register-wizard__panel-head">
+                      <i class="bi bi-lock"></i>
+                      <div>
+                        <h3>Segurança da conta</h3>
+                        <p>Defina uma senha forte para proteger seu acesso.</p>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="password" class="form-label field-required">Senha</label>
+                        <div class="register-wizard__password-wrap">
+                          <input type="password" class="form-control" id="password" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+                          <button type="button" class="register-wizard__toggle-pw" data-target="password" aria-label="Mostrar senha"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <div class="invalid-feedback" id="password_error">Informe uma senha válida.</div>
+                        <div class="register-wizard__pw-strength mt-2">
+                          <div class="register-wizard__pw-bar"><span id="pwStrengthBar"></span></div>
+                          <small id="pwStrengthLabel" class="text-muted">Use letras, números e símbolos para maior segurança.</small>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <label for="confirmPassword" class="form-label field-required">Confirmar senha</label>
+                        <div class="register-wizard__password-wrap">
+                          <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Repita a senha" autocomplete="new-password">
+                          <button type="button" class="register-wizard__toggle-pw" data-target="confirmPassword" aria-label="Mostrar confirmação"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <div class="invalid-feedback" id="confirmPassword_error">As senhas devem coincidir.</div>
+                      </div>
+                    </div>
+                    <ul class="register-wizard__pw-rules mt-3" id="pwRules">
+                      <li data-rule="len"><i class="bi bi-circle"></i> Mínimo 6 caracteres</li>
+                      <li data-rule="letter"><i class="bi bi-circle"></i> Pelo menos uma letra</li>
+                      <li data-rule="number"><i class="bi bi-circle"></i> Pelo menos um número</li>
+                    </ul>
                   </div>
 
-                  <div class="form-check mb-4">
-                    <input class="form-check-input" type="checkbox" id="marketingCheck" name="marketingCheck">
-                    <label class="form-check-label" for="marketingCheck">
-                      Gostaria de receber ofertas e novidades por e-mail
-                    </label>
+                  <!-- Etapa 3 -->
+                  <div class="register-wizard__panel d-none" data-step-panel="3">
+                    <div class="register-wizard__panel-head">
+                      <i class="bi bi-geo-alt"></i>
+                      <div>
+                        <h3>Endereço de entrega</h3>
+                        <p>Informe o CEP para preenchermos logradouro, bairro, cidade e UF automaticamente.</p>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        <label for="country" class="form-label">País</label>
+                        <select class="form-select" id="country" name="country">
+                          <option value="Brasil" selected>Brasil</option>
+                          <option value="Portugal">Portugal</option>
+                          <option value="Estados Unidos">Estados Unidos</option>
+                          <option value="Outro">Outro</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <label for="cep" class="form-label field-required">CEP</label>
+                        <div class="register-wizard__cep-wrap">
+                          <input type="text" class="form-control" id="cep" name="cep" placeholder="00000-000" maxlength="9" autocomplete="postal-code" inputmode="numeric">
+                          <span class="register-wizard__cep-spinner d-none" id="cepSpinner"><span class="spinner-border spinner-border-sm"></span></span>
+                        </div>
+                        <div class="invalid-feedback" id="cep_error">Informe um CEP válido.</div>
+                      </div>
+                      <div class="col-md-4 d-flex align-items-end">
+                        <a href="https://buscacepinter.correios.com.br/app/endereco/index.php" class="small text-decoration-none" target="_blank" rel="noopener">Não sei meu CEP</a>
+                      </div>
+                      <div class="col-12">
+                        <label for="street" class="form-label field-required">Rua / Logradouro</label>
+                        <input type="text" class="form-control" id="street" name="street" placeholder="Preenchido automaticamente pelo CEP" autocomplete="address-line1">
+                        <div class="invalid-feedback" id="street_error">Informe o logradouro.</div>
+                      </div>
+                      <div class="col-md-3">
+                        <label for="number" class="form-label field-required">Número</label>
+                        <input type="text" class="form-control" id="number" name="number" placeholder="Nº" autocomplete="off">
+                        <div class="invalid-feedback" id="number_error">Informe o número.</div>
+                      </div>
+                      <div class="col-md-4">
+                        <label for="complement" class="form-label">Complemento</label>
+                        <input type="text" class="form-control" id="complement" name="complement" placeholder="Apto, bloco, etc." autocomplete="off">
+                      </div>
+                      <div class="col-md-5">
+                        <label for="district" class="form-label field-required">Bairro</label>
+                        <input type="text" class="form-control" id="district" name="district" placeholder="Preenchido pelo CEP" autocomplete="address-level2">
+                        <div class="invalid-feedback" id="district_error">Informe o bairro.</div>
+                      </div>
+                      <div class="col-md-8">
+                        <label for="city" class="form-label field-required">Cidade</label>
+                        <input type="text" class="form-control" id="city" name="city" placeholder="Preenchido pelo CEP" autocomplete="address-level2">
+                        <div class="invalid-feedback" id="city_error">Informe a cidade.</div>
+                      </div>
+                      <div class="col-md-4">
+                        <label for="state" class="form-label field-required">UF</label>
+                        <input type="text" class="form-control" id="state" name="state" placeholder="SP" maxlength="2" autocomplete="address-level1">
+                        <div class="invalid-feedback" id="state_error">Informe a UF.</div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div id="msgErroRegister" class="alert alert-danger d-none mb-3"></div>
-                  <div class="d-grid mb-4">
-                    <button type="submit" class="btn btn-register" id="btnCriarConta">Criar conta</button>
+                  <!-- Etapa 4 -->
+                  <div class="register-wizard__panel d-none" data-step-panel="4">
+                    <div class="register-wizard__panel-head">
+                      <i class="bi bi-check2-circle"></i>
+                      <div>
+                        <h3>Revise e confirme</h3>
+                        <p>Confira os dados antes de finalizar o cadastro.</p>
+                      </div>
+                    </div>
+
+                    <div class="register-wizard__review" id="reviewSummary"></div>
+
+                    <div class="register-wizard__terms mt-4">
+                      <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="termsCheck" name="termsCheck">
+                        <label class="form-check-label" for="termsCheck">
+                          Li e concordo com os <a href="/tos" target="_blank">Termos de Serviço</a> e a <a href="/privacy" target="_blank">Política de Privacidade</a> <span class="text-danger">*</span>
+                        </label>
+                        <div class="invalid-feedback" id="termsCheck_error">Você precisa aceitar os termos para continuar.</div>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="marketingCheck" name="marketingCheck">
+                        <label class="form-check-label" for="marketingCheck">
+                          Quero receber ofertas e novidades por e-mail
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="login-link text-center">
-                    <p>Já possui uma conta? <a href="/login">Entrar</a></p>
+                  <div class="register-wizard__nav">
+                    <button type="button" class="btn btn-outline-secondary" id="btnWizardPrev" disabled>
+                      <i class="bi bi-arrow-left me-1"></i> Voltar
+                    </button>
+                    <button type="button" class="btn btn-register" id="btnWizardNext">
+                      Continuar <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                    <button type="button" class="btn btn-register d-none" id="btnCriarConta">
+                      <i class="bi bi-check-lg me-1"></i> Criar conta
+                    </button>
+                  </div>
+
+                  <div class="login-link text-center mt-4">
+                    <p class="mb-0">Já possui uma conta? <a href="/login">Entrar</a></p>
                   </div>
                 </form>
-              </div>
-            </div>
-
-            <div class="social-login">
-              <div class="row">
-                <div class="col-lg-8 mx-auto">
-                  <div class="divider"><span>ou registrar com</span></div>
-                  <div class="social-buttons">
-                    <a href="https://www.google.com/intl/pt-BR/account/about/" class="btn btn-social" target="_blank"><i class="bi bi-google"></i><span>Google</span></a>
-                    <a href="https://www.facebook.com" class="btn btn-social" target="_blank"><i class="bi bi-facebook"></i><span>Facebook</span></a>
-                    <a href="https://account.apple.com" class="btn btn-social" target="_blank"><i class="bi bi-apple"></i><span>Apple</span></a>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -189,148 +254,836 @@
 
 </main>
 
-<script>
-(function() {
-  var form = document.getElementById('formRegister');
-  var erroSenha = document.getElementById('erroSenha');
-  var msgErro = document.getElementById('msgErroRegister');
-  var btn = document.getElementById('btnCriarConta');
-  if (!form) return;
+<style>
+  .register-wizard .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.35rem;
+  }
 
-  // Máscara telefone Brasil: (DD) 9 XXXX XXXX — id único para não ser sobrescrito pelo main.js (checkout)
-  var phoneInput = document.getElementById('register_phone');
-  if (phoneInput) {
-    phoneInput.addEventListener('input', function() {
-      var raw = this.value.replace(/\D/g, '');
-      if (raw.length > 11) raw = raw.slice(0, 11);
-      var ddd = raw.slice(0, 2);   // 2 primeiros = DDD
-      var nono = raw.slice(2, 3);  // 3º = 9 (nono dígito)
-      var bloco1 = raw.slice(3, 7); // 4 dígitos
-      var bloco2 = raw.slice(7, 11); // 4 dígitos
-      if (raw.length === 0) { this.value = ''; return; }
-      if (raw.length <= 2) { this.value = '(' + ddd; return; }
-      if (raw.length === 3) { this.value = '(' + ddd + ') ' + nono; return; }
-      if (raw.length <= 7) { this.value = '(' + ddd + ') ' + nono + ' ' + bloco1; return; }
-      this.value = '(' + ddd + ') ' + nono + ' ' + bloco1 + ' ' + bloco2;
+  .register-wizard .form-control,
+  .register-wizard .form-select {
+    border-radius: 10px;
+    border-color: #dee2e6;
+    font-size: 0.92rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .register-wizard .form-control:focus,
+  .register-wizard .form-select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%);
+  }
+
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+
+  .register-wizard .form-control.is-invalid,
+  .register-wizard .form-select.is-invalid,
+  .register-wizard .form-check-input.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12);
+  }
+
+  .register-wizard .invalid-feedback { display: none; font-size: 0.8rem; }
+  .register-wizard .form-control.is-invalid ~ .invalid-feedback,
+  .register-wizard .form-select.is-invalid ~ .invalid-feedback { display: block; }
+
+  .register-wizard__steps {
+    list-style: none;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 1.75rem 0 1.5rem;
+    counter-reset: wizard;
+  }
+
+  .register-wizard__step-item {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    opacity: 0.55;
+    transition: opacity 0.2s ease;
+  }
+
+  .register-wizard__step-item.is-active,
+  .register-wizard__step-item.is-done {
+    opacity: 1;
+  }
+
+  .register-wizard__step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+    transition: all 0.2s ease;
+  }
+
+  .register-wizard__step-item.is-active .register-wizard__step-num,
+  .register-wizard__step-item.is-done .register-wizard__step-num {
+    background: var(--accent-color);
+    color: var(--contrast-color);
+  }
+
+  .register-wizard__step-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6c757d;
+  }
+
+  .register-wizard__step-item.is-active .register-wizard__step-label {
+    color: var(--heading-color);
+  }
+
+  .register-wizard__panel {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 14px;
+    padding: 1.35rem 1.25rem 1.5rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    animation: registerFadeIn 0.25s ease;
+  }
+
+  @keyframes registerFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .register-wizard__panel-head {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .register-wizard__panel-head > i {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--accent-color), transparent 88%);
+    color: var(--accent-color);
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  .register-wizard__panel-head h3 {
+    margin: 0 0 0.15rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--heading-color);
+  }
+
+  .register-wizard__panel-head p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+
+  .register-wizard__hint {
+    font-size: 0.82rem;
+    color: #495057;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .register-wizard__password-wrap {
+    position: relative;
+  }
+
+  .register-wizard__password-wrap .form-control {
+    padding-right: 2.75rem;
+  }
+
+  .register-wizard__toggle-pw {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #6c757d;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+  }
+
+  .register-wizard__toggle-pw:hover { color: var(--accent-color); }
+
+  .register-wizard__pw-bar {
+    height: 5px;
+    border-radius: 999px;
+    background: #e9ecef;
+    overflow: hidden;
+  }
+
+  .register-wizard__pw-bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    transition: width 0.2s ease, background 0.2s ease;
+  }
+
+  .register-wizard__pw-rules {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    color: #6c757d;
+  }
+
+  .register-wizard__pw-rules li.is-ok { color: #198754; }
+  .register-wizard__pw-rules li.is-ok i::before { content: '\F26B'; }
+
+  .register-wizard__cep-wrap { position: relative; }
+  .register-wizard__cep-spinner {
+    position: absolute;
+    right: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .register-wizard__review {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .register-wizard__review-card {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    background: #fafbfc;
+  }
+
+  .register-wizard__review-card h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent-color);
+  }
+
+  .register-wizard__review-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.88rem;
+    padding: 0.2rem 0;
+  }
+
+  .register-wizard__review-row span:first-child { color: #6c757d; }
+  .register-wizard__review-row span:last-child { font-weight: 500; text-align: right; word-break: break-word; }
+
+  .register-wizard__nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .register-wizard__nav .btn-register {
+    min-width: 150px;
+  }
+
+  #registerFormAlert:empty { display: none !important; }
+
+  @media (max-width: 767.98px) {
+    .register-wizard__steps {
+      flex-wrap: wrap;
+    }
+    .register-wizard__step-item {
+      flex: 1 1 45%;
+    }
+    .register-wizard__step-label {
+      font-size: 0.65rem;
+    }
+    .register-wizard__nav {
+      flex-wrap: wrap;
+    }
+    .register-wizard__nav .btn {
+      flex: 1 1 auto;
+    }
+  }
+</style>
+
+<script>
+(function () {
+  var TOTAL_STEPS = 4;
+  var currentStep = 1;
+  var cepLoading = false;
+  var isSubmitting = false;
+  var registerSucceeded = false;
+
+  var FIELD_IDS = [
+    'full_name', 'email', 'register_phone', 'document', 'birth_date',
+    'password', 'confirmPassword',
+    'cep', 'street', 'number', 'district', 'city', 'state', 'termsCheck'
+  ];
+
+  var FIELD_STEPS = {
+    full_name: 1, email: 1, register_phone: 1, phone: 1, document: 1, birth_date: 1,
+    password: 2, confirmPassword: 2,
+    cep: 3, street: 3, number: 3, district: 3, city: 3, state: 3,
+    termsCheck: 4
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  function stripDigits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  function formatCpf(v) {
+    var d = stripDigits(v).slice(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return d.slice(0, 3) + '.' + d.slice(3);
+    if (d.length <= 9) return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6);
+    return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9);
+  }
+
+  function formatPhone(v) {
+    var d = stripDigits(v).slice(0, 11);
+    if (d.length <= 2) return d.length ? '(' + d : '';
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  }
+
+  function formatCep(v) {
+    var d = stripDigits(v).slice(0, 8);
+    if (d.length <= 5) return d;
+    return d.slice(0, 5) + '-' + d.slice(5);
+  }
+
+  function validarCpf(digits) {
+    if (digits.length !== 11) return false;
+    if (/^(\d)\1+$/.test(digits)) return false;
+    var sum = 0, i, d1, d2;
+    for (i = 0; i < 9; i++) sum += parseInt(digits[i], 10) * (10 - i);
+    d1 = (sum * 10) % 11;
+    if (d1 === 10) d1 = 0;
+    if (d1 !== parseInt(digits[9], 10)) return false;
+    sum = 0;
+    for (i = 0; i < 10; i++) sum += parseInt(digits[i], 10) * (11 - i);
+    d2 = (sum * 10) % 11;
+    if (d2 === 10) d2 = 0;
+    return d2 === parseInt(digits[10], 10);
+  }
+
+  function setFormAlert(message) {
+    var el = $('registerFormAlert');
+    if (!el) return;
+    if (!message) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+  }
+
+  function setFieldError(fieldId, message) {
+    var input = $(fieldId);
+    var err = $(fieldId + '_error');
+    if (input) input.classList.add('is-invalid');
+    if (err && message) {
+      err.textContent = message;
+      err.style.display = 'block';
+    }
+  }
+
+  function clearFieldError(fieldId) {
+    var input = $(fieldId);
+    var err = $(fieldId + '_error');
+    if (input) input.classList.remove('is-invalid');
+    if (err) err.style.display = 'none';
+  }
+
+  function clearAllErrors() {
+    setFormAlert('');
+    FIELD_IDS.forEach(clearFieldError);
+  }
+
+  function applyFieldErrors(fields) {
+    if (!fields) return;
+    Object.keys(fields).forEach(function (key) {
+      setFieldError(key, fields[key]);
     });
   }
 
-  function validarSenha() {
-    var p = document.getElementById('password').value;
-    var c = document.getElementById('confirmPassword').value;
-    if (c && p !== c) {
-      erroSenha.style.display = 'block';
+  function validateStep(step) {
+    var errors = {};
+
+    if (step === 1) {
+      var nome = $('full_name').value.trim();
+      var email = $('email').value.trim();
+      var phoneDigits = stripDigits($('register_phone').value);
+      var cpfDigits = stripDigits($('document').value);
+      var birthDate = $('birth_date').value;
+
+      if (!nome) errors.full_name = 'Informe o nome completo.';
+      else if (nome.length < 3) errors.full_name = 'O nome deve ter pelo menos 3 caracteres.';
+      else if (!/\s/.test(nome)) errors.full_name = 'Informe nome e sobrenome.';
+
+      if (!email) errors.email = 'Informe o e-mail.';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Informe um e-mail válido.';
+
+      if (!phoneDigits) errors.register_phone = 'Informe o telefone.';
+      else if (phoneDigits.length < 10) errors.register_phone = 'Informe um telefone válido (mínimo 10 dígitos).';
+
+      if (!cpfDigits) errors.document = 'Informe o CPF.';
+      else if (cpfDigits.length !== 11) errors.document = 'O CPF deve conter 11 dígitos.';
+      else if (!validarCpf(cpfDigits)) errors.document = 'CPF inválido — verifique os dígitos verificadores.';
+
+      if (birthDate) {
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        var bd = new Date(birthDate + 'T00:00:00');
+        if (bd > today) errors.birth_date = 'A data de nascimento não pode ser futura.';
+      }
+    }
+
+    if (step === 2) {
+      var senha = $('password').value;
+      var confirmar = $('confirmPassword').value;
+      if (!senha) errors.password = 'Informe a senha de acesso.';
+      else if (senha.length < 6) errors.password = 'A senha deve ter no mínimo 6 caracteres.';
+      if (!confirmar) errors.confirmPassword = 'Confirme a senha de acesso.';
+      else if (senha !== confirmar) errors.confirmPassword = 'As senhas não coincidem.';
+    }
+
+    if (step === 3) {
+      var cepDigits = stripDigits($('cep').value);
+      var rua = $('street').value.trim();
+      var numero = $('number').value.trim();
+      var bairro = $('district').value.trim();
+      var cidade = $('city').value.trim();
+      var estado = $('state').value.trim().toUpperCase();
+      $('state').value = estado;
+
+      if (!cepDigits) errors.cep = 'Informe o CEP do endereço.';
+      else if (cepDigits.length !== 8) errors.cep = 'Informe um CEP válido (8 dígitos).';
+      if (!rua) errors.street = 'Informe o logradouro.';
+      if (!numero) errors.number = 'Informe o número do endereço.';
+      if (!bairro) errors.district = 'Informe o bairro.';
+      if (!cidade) errors.city = 'Informe a cidade.';
+      if (!estado || estado.length !== 2) errors.state = 'Informe a UF com 2 letras.';
+    }
+
+    if (step === 4) {
+      if (!$('termsCheck').checked) {
+        errors.termsCheck = 'Você precisa aceitar os termos para continuar.';
+      }
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      applyFieldErrors(errors);
+      setFormAlert('Revise os campos destacados antes de continuar.');
+      var first = $(keys[0]);
+      if (first) {
+        first.focus();
+        first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      if (window.neofarmaToast) window.neofarmaToast('Preencha os campos obrigatórios corretamente.', 'warning');
       return false;
     }
-    erroSenha.style.display = 'none';
     return true;
   }
-  document.getElementById('confirmPassword').addEventListener('input', validarSenha);
 
-  // Máscara CEP e busca ViaCEP
-  var cepInput = document.getElementById('cep');
-  var erroCep = document.getElementById('erroCep');
-  if (cepInput) {
-    cepInput.addEventListener('input', function() {
-      var v = this.value.replace(/\D/g, '');
-      if (v.length > 8) v = v.slice(0, 8);
-      this.value = v.length > 5 ? v.slice(0, 5) + '-' + v.slice(5) : v;
-      if (erroCep) erroCep.style.display = 'none';
+  function updatePasswordStrength() {
+    var pwd = $('password').value || '';
+    var bar = $('pwStrengthBar');
+    var label = $('pwStrengthLabel');
+    var rules = document.querySelectorAll('#pwRules li');
+    var score = 0;
+    var hasLen = pwd.length >= 6;
+    var hasLetter = /[A-Za-z]/.test(pwd);
+    var hasNumber = /\d/.test(pwd);
+    var hasSpecial = /[^A-Za-z0-9]/.test(pwd);
+
+    if (hasLen) score++;
+    if (hasLetter) score++;
+    if (hasNumber) score++;
+    if (hasSpecial) score++;
+    if (pwd.length >= 10) score++;
+
+    rules.forEach(function (li) {
+      var rule = li.getAttribute('data-rule');
+      var ok = (rule === 'len' && hasLen) || (rule === 'letter' && hasLetter) || (rule === 'number' && hasNumber);
+      li.classList.toggle('is-ok', ok);
     });
-    cepInput.addEventListener('blur', function() {
-      var cep = this.value.replace(/\D/g, '');
-      if (cep.length !== 8) return;
-      fetch('https://viacep.com.br/ws/' + cep + '/json/')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.erro) {
-            if (erroCep) { erroCep.textContent = 'CEP não encontrado.'; erroCep.style.display = 'block'; }
-            return;
-          }
-          var street = document.getElementById('street');
-          var district = document.getElementById('district');
-          var city = document.getElementById('city');
-          var state = document.getElementById('state');
-          if (street) street.value = data.logradouro || '';
-          if (district) district.value = data.bairro || '';
-          if (city) city.value = data.localidade || '';
-          if (state) state.value = data.uf || '';
-          if (erroCep) erroCep.style.display = 'none';
-        })
-        .catch(function() { if (erroCep) { erroCep.textContent = 'Erro ao buscar CEP.'; erroCep.style.display = 'block'; } });
+
+    var pct = Math.min(100, score * 20);
+    var color = '#dc3545';
+    var text = 'Senha fraca';
+    if (score >= 4) { color = '#198754'; text = 'Senha forte'; }
+    else if (score >= 3) { color = '#fd7e14'; text = 'Senha boa'; }
+    else if (score >= 2) { color = '#ffc107'; text = 'Senha razoável'; }
+
+    if (bar) {
+      bar.style.width = pwd ? pct + '%' : '0%';
+      bar.style.background = color;
+    }
+    if (label) label.textContent = pwd ? text : 'Use letras, números e símbolos para maior segurança.';
+  }
+
+  function buildReview() {
+    var cpf = $('document').value.trim();
+    var birth = $('birth_date').value;
+    var birthLabel = birth
+      ? (window.NeoDates && NeoDates.formatDate ? NeoDates.formatDate(birth) : birth.split('-').reverse().join('/'))
+      : '—';
+
+    var html = '';
+    html += '<div class="register-wizard__review-card"><h4>Identificação</h4>';
+    html += reviewRow('Nome', $('full_name').value.trim());
+    html += reviewRow('E-mail', $('email').value.trim());
+    html += reviewRow('Telefone', $('register_phone').value.trim());
+    html += reviewRow('CPF', cpf);
+    html += reviewRow('Nascimento', birthLabel);
+    html += '</div>';
+
+    html += '<div class="register-wizard__review-card"><h4>Endereço</h4>';
+    html += reviewRow('CEP', $('cep').value.trim());
+    html += reviewRow('Logradouro', $('street').value.trim() + ', ' + $('number').value.trim());
+    html += reviewRow('Complemento', $('complement').value.trim() || '—');
+    html += reviewRow('Bairro', $('district').value.trim());
+    html += reviewRow('Cidade/UF', $('city').value.trim() + ' / ' + $('state').value.trim().toUpperCase());
+    html += reviewRow('País', $('country').value);
+    html += '</div>';
+
+    $('reviewSummary').innerHTML = html;
+  }
+
+  function reviewRow(label, value) {
+    return '<div class="register-wizard__review-row"><span>' + label + '</span><span>' + escapeHtml(value) + '</span></div>';
+  }
+
+  function escapeHtml(v) {
+    return String(v || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function goToStep(step) {
+    currentStep = step;
+    document.querySelectorAll('[data-step-panel]').forEach(function (panel) {
+      panel.classList.toggle('d-none', Number(panel.getAttribute('data-step-panel')) !== step);
+    });
+    document.querySelectorAll('.register-wizard__step-item').forEach(function (item) {
+      var n = Number(item.getAttribute('data-step'));
+      item.classList.toggle('is-active', n === step);
+      item.classList.toggle('is-done', n < step);
+    });
+    var prev = $('btnWizardPrev');
+    var next = $('btnWizardNext');
+    var submit = $('btnCriarConta');
+    if (prev) prev.disabled = step === 1;
+    if (next) next.classList.toggle('d-none', step === TOTAL_STEPS);
+    if (submit) submit.classList.toggle('d-none', step !== TOTAL_STEPS);
+    setFormAlert('');
+    if (step === TOTAL_STEPS) buildReview();
+    var formEl = document.getElementById('formRegister');
+    if (formEl) {
+      window.scrollTo({ top: Math.max(0, formEl.offsetTop - 80), behavior: 'smooth' });
+    }
+  }
+
+  function firstStepForField(fieldKey) {
+    return FIELD_STEPS[fieldKey] || 1;
+  }
+
+  function buscarCep() {
+    var cep = stripDigits($('cep').value);
+    if (cep.length !== 8 || cepLoading) return;
+    cepLoading = true;
+    $('cepSpinner').classList.remove('d-none');
+    clearFieldError('cep');
+    $('street').placeholder = 'Buscando endereço...';
+
+    fetch('https://viacep.com.br/ws/' + cep + '/json/')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        cepLoading = false;
+        $('cepSpinner').classList.add('d-none');
+        $('street').placeholder = 'Preenchido automaticamente pelo CEP';
+        if (data.erro) {
+          setFieldError('cep', 'CEP não encontrado. Verifique o número informado.');
+          return;
+        }
+        if (data.logradouro) $('street').value = data.logradouro;
+        if (data.bairro) $('district').value = data.bairro;
+        if (data.localidade) $('city').value = data.localidade;
+        if (data.uf) $('state').value = data.uf;
+        ['street', 'district', 'city', 'state'].forEach(clearFieldError);
+        $('number').focus();
+      })
+      .catch(function () {
+        cepLoading = false;
+        $('cepSpinner').classList.add('d-none');
+        $('street').placeholder = 'Preenchido automaticamente pelo CEP';
+        setFieldError('cep', 'Não foi possível consultar o CEP. Tente novamente.');
+      });
+  }
+
+  function handleRegisterSuccess(result) {
+    if (registerSucceeded) return;
+    registerSucceeded = true;
+
+    var message = (result.data && result.data.message) || 'Conta criada com sucesso! Faça login com seu e-mail e senha.';
+    var redirect = (result.data && result.data.redirect) || '/login';
+    var emailEl = document.getElementById('email');
+    var emailValue = emailEl ? emailEl.value.trim().toLowerCase() : '';
+
+    try {
+      sessionStorage.setItem('loginFlash', JSON.stringify({
+        type: 'success',
+        message: message,
+        email: emailValue
+      }));
+    } catch (storageErr) { /* ignore */ }
+
+    try {
+      if (typeof window.neofarmaToast === 'function') {
+        window.neofarmaToast(message, 'success');
+      }
+    } catch (toastErr) { /* ignore */ }
+
+    try {
+      window.location.replace(redirect);
+    } catch (navErr) {
+      window.location.href = redirect;
+    }
+  }
+
+  function handleRegisterFailure(result) {
+    if (registerSucceeded) return;
+    isSubmitting = false;
+    var btn = $('btnCriarConta');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Criar conta';
+    }
+
+    try {
+      if (result.data && result.data.fields) {
+        applyFieldErrors(result.data.fields);
+        var firstKey = Object.keys(result.data.fields)[0];
+        goToStep(firstStepForField(firstKey));
+        setFormAlert(result.data.message || 'Revise os campos destacados.');
+      } else if (result.status === 409) {
+        setFormAlert(result.data && result.data.message
+          ? result.data.message
+          : 'Esta conta já foi criada. Faça login com seu e-mail e senha.');
+        goToStep(1);
+        if (result.data && result.data.fields) applyFieldErrors(result.data.fields);
+      } else {
+        setFormAlert((result.data && result.data.message) || 'Não foi possível concluir o cadastro.');
+      }
+
+      if (typeof window.neofarmaToast === 'function') {
+        window.neofarmaToast(
+          (result.data && result.data.message) || 'Erro ao cadastrar.',
+          result.status === 409 ? 'warning' : 'danger'
+        );
+      }
+    } catch (uiErr) {
+      if (typeof console !== 'undefined' && console.error) console.error('Erro ao exibir falha de cadastro:', uiErr);
+      setFormAlert((result.data && result.data.message) || 'Não foi possível concluir o cadastro.');
+    }
+  }
+
+  function readRegisterResponse(response) {
+    if (response.status === 201) {
+      return response.json().catch(function () {
+        return { ok: true, redirect: '/login', message: 'Conta criada com sucesso! Você já pode fazer login.' };
+      }).then(function (data) {
+        return { status: response.status, okHttp: true, data: data };
+      });
+    }
+
+    return response.text().then(function (raw) {
+      var data = null;
+      if (raw) {
+        try { data = JSON.parse(raw); } catch (_) { data = null; }
+      }
+      return {
+        status: response.status,
+        okHttp: response.ok,
+        data: data,
+        raw: raw || ''
+      };
     });
   }
 
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (!validarSenha()) return;
-    msgErro.classList.add('d-none');
-    btn.disabled = true;
+  function submitRegistration() {
+    if (isSubmitting || registerSucceeded) return;
 
-    var fd = new FormData(form);
-    var body = {
-      full_name: fd.get('full_name') || '',
-      email: (fd.get('email') || '').trim().toLowerCase(),
-      password: fd.get('password') || '',
-      document: fd.get('document') || null,
-      phone: fd.get('phone') || null,
-      birth_date: fd.get('birth_date') || null,
-      country: fd.get('country') || null,
-      cep: (fd.get('cep') || '').replace(/\D/g, ''),
-      street: (fd.get('street') || '').trim(),
-      number: (fd.get('number') || '').trim(),
-      complement: (fd.get('complement') || '').trim() || null,
-      district: (fd.get('district') || '').trim(),
-      city: (fd.get('city') || '').trim(),
-      state: (fd.get('state') || '').trim().toUpperCase()
-    };
+    for (var s = 1; s <= TOTAL_STEPS; s++) {
+      if (!validateStep(s)) {
+        goToStep(s);
+        return;
+      }
+    }
+
+    isSubmitting = true;
+    var btn = $('btnCriarConta');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Criando conta...';
+    }
+    setFormAlert('');
 
     fetch('/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(buildPayload())
     })
-    .then(function(r) {
-      return r.text().then(function(raw) {
-        var data = null;
-        if (raw) {
-          try { data = JSON.parse(raw); } catch (_) { data = null; }
+      .then(readRegisterResponse)
+      .then(function (result) {
+        if (result.status === 201 || (result.data && result.data.ok === true)) {
+          handleRegisterSuccess(result);
+          return;
         }
-        return { status: r.status, okHttp: r.ok, data: data, raw: raw || '' };
-      });
-    })
-    .then(function(result) {
-      btn.disabled = false;
-      if (result.data && result.data.ok && result.data.redirect) {
-        try {
-          if (typeof window.neofarmaToast === 'function') {
-            window.neofarmaToast(result.data.message || 'Conta criada! Faça login.', 'success');
-          }
-        } catch (_) {}
-        window.location.href = result.data.redirect;
-        return;
-      }
+        handleRegisterFailure(result);
+      })
+      .catch(function (err) {
+        if (registerSucceeded) return;
+        isSubmitting = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Criar conta';
+        }
 
-      if (result.data && result.data.message) {
-        msgErro.textContent = result.data.message;
-      } else if (result.status === 409) {
-        msgErro.textContent = 'Este e-mail já está cadastrado.';
-      } else if (result.status >= 500) {
-        msgErro.textContent = 'Erro interno do servidor ao criar conta.';
-      } else if (!result.okHttp) {
-        msgErro.textContent = 'Não foi possível concluir o cadastro. Verifique os dados e tente novamente.';
-      } else {
-        msgErro.textContent = 'Resposta inesperada do servidor.';
-      }
-      msgErro.classList.remove('d-none');
-    })
-    .catch(function(err) {
-      btn.disabled = false;
-      console.error('Falha no cadastro (register fetch):', err);
-      msgErro.textContent = 'Erro de comunicação ao finalizar cadastro. Atualize a página e tente novamente.';
-      msgErro.classList.remove('d-none');
+        if (typeof console !== 'undefined' && console.error) {
+          console.error('Falha no cadastro (register fetch):', err);
+        }
+
+        setFormAlert('Não foi possível confirmar o cadastro agora. Se a conta foi criada, acesse a página de login. Caso contrário, tente novamente.');
+        if (typeof window.neofarmaToast === 'function') {
+          window.neofarmaToast('Falha na confirmação. Verifique se consegue fazer login.', 'warning');
+        }
+      });
+  }
+
+  function buildPayload() {
+    var cpfRaw = stripDigits($('document').value);
+    return {
+      full_name: $('full_name').value.trim(),
+      email: $('email').value.trim().toLowerCase(),
+      password: $('password').value,
+      confirmPassword: $('confirmPassword').value,
+      document: cpfRaw,
+      phone: $('register_phone').value.trim(),
+      birth_date: ($('birth_date').value || '').trim() || null,
+      country: $('country').value,
+      cep: stripDigits($('cep').value),
+      street: $('street').value.trim(),
+      number: $('number').value.trim(),
+      complement: ($('complement').value || '').trim() || null,
+      district: $('district').value.trim(),
+      city: $('city').value.trim(),
+      state: $('state').value.trim().toUpperCase()
+    };
+  }
+
+  $('btnWizardNext').addEventListener('click', function () {
+    if (!validateStep(currentStep)) return;
+    goToStep(Math.min(TOTAL_STEPS, currentStep + 1));
+  });
+
+  $('btnWizardPrev').addEventListener('click', function () {
+    goToStep(Math.max(1, currentStep - 1));
+  });
+
+  $('document').addEventListener('input', function () {
+    this.value = formatCpf(this.value);
+    clearFieldError('document');
+    setFormAlert('');
+  });
+
+  $('register_phone').addEventListener('input', function () {
+    this.value = formatPhone(this.value);
+    clearFieldError('register_phone');
+    setFormAlert('');
+  });
+
+  $('cep').addEventListener('input', function () {
+    this.value = formatCep(this.value);
+    clearFieldError('cep');
+    setFormAlert('');
+    if (stripDigits(this.value).length === 8) buscarCep();
+  });
+
+  $('state').addEventListener('input', function () {
+    this.value = this.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
+    clearFieldError('state');
+  });
+
+  $('password').addEventListener('input', function () {
+    updatePasswordStrength();
+    clearFieldError('password');
+    clearFieldError('confirmPassword');
+    setFormAlert('');
+  });
+
+  $('confirmPassword').addEventListener('input', function () {
+    clearFieldError('confirmPassword');
+    setFormAlert('');
+  });
+
+  $('termsCheck').addEventListener('change', function () {
+    this.classList.remove('is-invalid');
+    var termsErr = $('termsCheck_error');
+    if (termsErr) termsErr.style.display = 'none';
+    setFormAlert('');
+  });
+
+  FIELD_IDS.forEach(function (id) {
+    var el = $(id);
+    if (!el || id === 'termsCheck') return;
+    el.addEventListener('input', function () { clearFieldError(id); setFormAlert(''); });
+    el.addEventListener('change', function () { clearFieldError(id); setFormAlert(''); });
+  });
+
+  document.querySelectorAll('.register-wizard__toggle-pw').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = $(btn.getAttribute('data-target'));
+      if (!target) return;
+      var isText = target.type === 'text';
+      target.type = isText ? 'password' : 'text';
+      btn.innerHTML = isText ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
     });
   });
+
+  $('btnCriarConta').addEventListener('click', submitRegistration);
+
+  $('formRegister').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (currentStep === TOTAL_STEPS) submitRegistration();
+  });
+
+  updatePasswordStrength();
 })();
 </script>
 

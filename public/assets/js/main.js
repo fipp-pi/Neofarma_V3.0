@@ -886,71 +886,17 @@
     }
   }
 
-  // Function to handle promo code application (common for both checkout types)
+  // Promoções: preço promocional é definido no admin (RF_F4), já aplicado no carrinho via API.
   function initPromoCode() {
     const promoInput = document.querySelector('.promo-code input');
     const promoButton = document.querySelector('.promo-code button');
-
-    if (promoInput && promoButton) {
-      promoButton.addEventListener('click', function() {
-        const promoCode = promoInput.value.trim();
-
-        if (promoCode) {
-          // Simulate promo code validation
-          // In a real application, this would make an API call to validate the code
-
-          // For demo purposes, let's assume "DISCOUNT20" is a valid code
-          if (promoCode.toUpperCase() === 'DISCOUNT20') {
-            // Show success state
-            promoInput.classList.add('is-valid');
-            promoInput.classList.remove('is-invalid');
-            promoButton.textContent = 'Applied';
-            promoButton.disabled = true;
-
-            // Update order total (in a real app, this would recalculate based on the discount)
-            const orderTotal = document.querySelector('.order-total span:last-child');
-            const btnPrice = document.querySelector('.btn-price');
-
-            if (orderTotal) {
-              // Apply a 20% discount
-              const currentTotal = parseFloat(orderTotal.textContent.replace('$', ''));
-              const discountedTotal = (currentTotal * 0.8).toFixed(2);
-              orderTotal.textContent = '$' + discountedTotal;
-
-              // Update button price if it exists
-              if (btnPrice) {
-                btnPrice.textContent = '$' + discountedTotal;
-              }
-
-              // Add discount line
-              const orderTotals = document.querySelector('.order-totals');
-              if (orderTotals) {
-                const discountElement = document.createElement('div');
-                discountElement.className = 'order-discount d-flex justify-content-between';
-                discountElement.innerHTML = `
-                <span>Discount (20%)</span>
-                <span>-$${(currentTotal * 0.2).toFixed(2)}</span>
-              `;
-
-                // Insert before the total
-                const totalElement = document.querySelector('.order-total');
-                if (totalElement) {
-                  orderTotals.insertBefore(discountElement, totalElement);
-                }
-              }
-            }
-          } else {
-            // Show error state
-            promoInput.classList.add('is-invalid');
-            promoInput.classList.remove('is-valid');
-
-            // Reset after 3 seconds
-            setTimeout(() => {
-              promoInput.classList.remove('is-invalid');
-            }, 3000);
-          }
-        }
-      });
+    if (promoInput) {
+      promoInput.placeholder = 'Promoções via preço promocional no produto';
+      promoInput.disabled = true;
+    }
+    if (promoButton) {
+      promoButton.disabled = true;
+      promoButton.title = 'Use o preço promocional cadastrado em Admin > Produtos';
     }
   }
 

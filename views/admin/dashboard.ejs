@@ -1,110 +1,147 @@
 <%- include('partials/header') %>
-<h1 class="mb-4">Painel Administrativo</h1>
-<p class="text-muted">Bem-vindo ao painel. Use o menu ao lado para cadastrar produtos, laboratórios, fornecedores e categorias.</p>
-<div class="row g-3 mt-2">
-  <div class="col-md-4">
-    <a href="/admin/produtos" class="card text-decoration-none text-dark h-100">
-      <div class="card-body">
-        <i class="bi bi-box-seam display-6 text-accent"></i>
-        <h5 class="card-title mt-2">Produtos</h5>
-        <p class="card-text small text-muted">Cadastrar e editar produtos</p>
+
+<% var user = typeof adminUser !== 'undefined' ? adminUser : null; %>
+<% var userName = user && user.full_name ? String(user.full_name).split(' ')[0] : 'Administrador'; %>
+<% var k = typeof kpis !== 'undefined' ? kpis : {}; %>
+<% var alertList = typeof alerts !== 'undefined' ? alerts : []; %>
+<% var orders = typeof recentOrders !== 'undefined' ? recentOrders : []; %>
+
+<div class="admin-dashboard">
+  <header class="admin-dashboard__hero">
+    <div>
+      <h1 class="admin-dashboard__hero-title"><%= typeof greeting !== 'undefined' ? greeting : 'Olá' %>, <%= userName %>.</h1>
+      <p class="admin-dashboard__hero-sub">
+        Visão consolidada da operação: vendas, estoque, serviços e pendências que exigem atenção.
+      </p>
+    </div>
+    <div class="admin-dashboard__hero-meta">
+      <strong><%= typeof todayFormatted !== 'undefined' ? todayFormatted : '' %></strong>
+      Painel NeoFarma
+    </div>
+  </header>
+
+  <section class="admin-dashboard__kpi-grid" aria-label="Indicadores principais">
+    <a href="/admin/financas" class="admin-kpi text-decoration-none">
+      <span class="admin-kpi__icon admin-kpi__icon--primary"><i class="bi bi-graph-up-arrow"></i></span>
+      <div class="admin-kpi__body">
+        <div class="admin-kpi__label">Receita (30 dias)</div>
+        <div class="admin-kpi__value"><%= k.revenuePaidFormatted || 'R$ 0,00' %></div>
+        <p class="admin-kpi__hint">Pedidos e serviços pagos</p>
       </div>
     </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/laboratorios" class="card text-decoration-none text-dark h-100">
-      <div class="card-body">
-        <i class="bi bi-bank display-6 text-accent"></i>
-        <h5 class="card-title mt-2">Laboratórios</h5>
-        <p class="card-text small text-muted">Cadastrar laboratórios</p>
+    <a href="/admin/financas/pedidos" class="admin-kpi text-decoration-none">
+      <span class="admin-kpi__icon admin-kpi__icon--success"><i class="bi bi-receipt"></i></span>
+      <div class="admin-kpi__body">
+        <div class="admin-kpi__label">Transações (30 dias)</div>
+        <div class="admin-kpi__value"><%= k.transactions30d || 0 %></div>
+        <p class="admin-kpi__hint"><%= k.pendingPayments || 0 %> pagamento(s) pendente(s)</p>
       </div>
     </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/fornecedores" class="card text-decoration-none text-dark h-100">
-      <div class="card-body">
-        <i class="bi bi-truck display-6 text-accent"></i>
-        <h5 class="card-title mt-2">Fornecedores</h5>
-        <p class="card-text small text-muted">Cadastrar fornecedores</p>
+    <a href="/admin/produtos" class="admin-kpi text-decoration-none">
+      <span class="admin-kpi__icon admin-kpi__icon--info"><i class="bi bi-box-seam"></i></span>
+      <div class="admin-kpi__body">
+        <div class="admin-kpi__label">Produtos ativos</div>
+        <div class="admin-kpi__value"><%= k.productsActive || 0 %></div>
+        <p class="admin-kpi__hint">Catálogo disponível na loja</p>
       </div>
     </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/categorias" class="card text-decoration-none text-dark h-100">
-      <div class="card-body">
-        <i class="bi bi-tags display-6 text-accent"></i>
-        <h5 class="card-title mt-2">Categorias</h5>
-        <p class="card-text small text-muted">Cadastrar categorias de produtos</p>
+    <a href="/admin/clientes" class="admin-kpi text-decoration-none">
+      <span class="admin-kpi__icon admin-kpi__icon--neutral"><i class="bi bi-people"></i></span>
+      <div class="admin-kpi__body">
+        <div class="admin-kpi__label">Clientes cadastrados</div>
+        <div class="admin-kpi__value"><%= k.customersTotal || 0 %></div>
+        <p class="admin-kpi__hint"><%= k.appointmentsActive || 0 %> agendamento(s) ativo(s)</p>
       </div>
     </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/clientes" class="card text-decoration-none text-dark h-100">
-      <div class="card-body">
-        <i class="bi bi-people display-6 text-accent"></i>
-        <h5 class="card-title mt-2">Clientes</h5>
-        <p class="card-text small text-muted">Listar e gerenciar clientes</p>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/financas" class="card text-decoration-none text-dark h-100 border-primary">
-      <div class="card-body">
-        <i class="bi bi-cash-stack display-6 text-accent"></i>
-        <h5 class="card-title mt-2">Finanças</h5>
-        <p class="card-text small text-muted">Receitas, pedidos e relatórios</p>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/agendamentos-servicos" class="card text-decoration-none text-dark h-100 border-primary">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <i class="bi bi-calendar2-check display-6 text-accent"></i>
-          <span class="badge bg-primary"><%= (appointmentCounts && appointmentCounts.total) || 0 %></span>
+  </section>
+
+  <section class="admin-dashboard__panel mb-4" aria-label="Alertas operacionais">
+    <div class="admin-dashboard__panel-head">
+      <h2 class="admin-dashboard__panel-title"><i class="bi bi-bell me-1"></i> Alertas operacionais</h2>
+    </div>
+    <div class="admin-dashboard__alerts">
+      <% alertList.forEach(function(alert) { %>
+        <% var levelClass = alert.level === 'danger' ? 'danger' : (alert.level === 'warning' ? 'warning' : (alert.level === 'info' ? 'info' : 'ok')); %>
+        <a href="<%= alert.href %>" class="admin-alert-item admin-alert-item--<%= levelClass %>">
+          <span class="admin-alert-item__icon"><i class="bi <%= alert.icon %>"></i></span>
+          <span>
+            <div class="admin-alert-item__title"><%= alert.title %></div>
+            <p class="admin-alert-item__text"><%= alert.text %></p>
+          </span>
+          <span class="admin-alert-item__count"><%= alert.count %></span>
+        </a>
+      <% }); %>
+    </div>
+  </section>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <section class="admin-dashboard__panel h-100" aria-label="Acesso rápido">
+        <div class="admin-dashboard__panel-head">
+          <h2 class="admin-dashboard__panel-title"><i class="bi bi-grid me-1"></i> Acesso rápido</h2>
         </div>
-        <h5 class="card-title mt-2">Agendamentos</h5>
-        <p class="card-text small text-muted mb-0">
-          Gestão de serviços e agenda. Caixa em dinheiro pendente: <strong><%= (appointmentCounts && appointmentCounts.pendingCash) || 0 %></strong>.
-        </p>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/agendamentos-servicos/caixa" class="card text-decoration-none text-dark h-100 border-warning">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <i class="bi bi-cash-coin display-6 text-warning"></i>
-          <span class="badge bg-warning text-dark"><%= (appointmentCounts && appointmentCounts.pendingCash) || 0 %></span>
+        <div class="admin-quick-grid">
+          <a href="/admin/produtos" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-box-seam"></i></span> Produtos</a>
+          <a href="/admin/categorias" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-tags"></i></span> Categorias</a>
+          <a href="/admin/laboratorios" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-building"></i></span> Laboratórios</a>
+          <a href="/admin/fornecedores" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-truck"></i></span> Fornecedores</a>
+          <a href="/admin/lotes" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-archive"></i></span> Lotes</a>
+          <a href="/admin/compras" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-bag-check"></i></span> Compras</a>
+          <a href="/admin/financas" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-cash-stack"></i></span> Finanças</a>
+          <a href="/admin/agendamentos-servicos" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-calendar2-check"></i></span> Agendamentos</a>
+          <a href="/admin/agendamentos-servicos/caixa" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-cash-coin"></i></span> Caixa de serviços</a>
+          <a href="/admin/clientes" class="admin-quick-link"><span class="admin-quick-link__icon"><i class="bi bi-people"></i></span> Clientes</a>
         </div>
-        <h5 class="card-title mt-2">Caixa de Serviços</h5>
-        <p class="card-text small text-muted mb-0">Pendências de recebimento em dinheiro.</p>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/produtos?batchRisk=EXPIRED" class="card text-decoration-none text-dark h-100 border-danger">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <i class="bi bi-exclamation-triangle-fill display-6 text-danger"></i>
-          <span class="badge bg-danger"><%= (validityCounts && validityCounts.expired) || 0 %></span>
+      </section>
+    </div>
+
+    <div class="col-lg-6">
+      <section class="admin-dashboard__panel h-100" aria-label="Pedidos recentes">
+        <div class="admin-dashboard__panel-head">
+          <h2 class="admin-dashboard__panel-title"><i class="bi bi-bag me-1"></i> Pedidos recentes</h2>
+          <a href="/admin/financas/pedidos" class="admin-dashboard__panel-link">Ver todos</a>
         </div>
-        <h5 class="card-title mt-2">Lotes vencidos</h5>
-        <p class="card-text small text-muted mb-0">Clique para abrir produtos com lotes vencidos.</p>
-      </div>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="/admin/produtos?batchRisk=EXPIRING" class="card text-decoration-none text-dark h-100 border-warning">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <i class="bi bi-clock-history display-6 text-warning"></i>
-          <span class="badge bg-warning text-dark"><%= (validityCounts && validityCounts.expiring) || 0 %></span>
-        </div>
-        <h5 class="card-title mt-2">Vencendo em 30 dias</h5>
-        <p class="card-text small text-muted mb-0">Clique para abrir produtos com risco próximo.</p>
-      </div>
-    </a>
+        <% if (orders.length === 0) { %>
+          <div class="admin-dashboard__empty">
+            <i class="bi bi-inbox d-block mb-2 fs-4"></i>
+            Nenhum pedido registrado ainda.
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover admin-dashboard__orders-table mb-0">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Cliente</th>
+                  <th>Total</th>
+                  <th>Pagamento</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% orders.forEach(function(order) { %>
+                  <% var pay = String(order.payment_status || 'PENDING').toUpperCase(); %>
+                  <% var payClass = pay === 'PAID' ? 'paid' : (pay === 'FAILED' ? 'failed' : 'pending'); %>
+                  <% var payLabel = pay === 'PAID' ? 'Pago' : (pay === 'FAILED' ? 'Falhou' : 'Pendente'); %>
+                  <tr>
+                    <td><a href="/admin/financas/pedidos?search=<%= order.id %>" class="text-decoration-none fw-semibold">#<%= order.id %></a></td>
+                    <td class="text-truncate" style="max-width: 140px;"><%= order.customer_name %></td>
+                    <td class="fw-semibold"><%= order.totalFormatted %></td>
+                    <td><span class="admin-dashboard__status admin-dashboard__status--<%= payClass %>"><%= payLabel %></span></td>
+                    <td class="text-nowrap text-muted small">
+                      <% if (order.created_at) { %>
+                        <%= fmtDateTime(order.created_at) %>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    </div>
   </div>
 </div>
+
 <%- include('partials/footer') %>

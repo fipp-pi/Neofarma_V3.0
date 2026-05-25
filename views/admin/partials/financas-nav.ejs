@@ -1,0 +1,36 @@
+<%
+  var finNavActive = typeof financasNavActive !== 'undefined' ? financasNavActive : '';
+  if (!finNavActive) {
+    var fp = typeof requestPath !== 'undefined' ? String(requestPath) : '';
+    if (fp === '/admin/financas/pedidos' || fp.indexOf('/admin/financas/pedidos/') === 0) finNavActive = 'pedidos';
+    else if (fp === '/admin/financas/relatorios' || fp.indexOf('/admin/financas/relatorios/') === 0) finNavActive = 'relatorios';
+    else if (fp === '/admin/financas/recibos' || fp.indexOf('/admin/financas/recibos/') === 0) finNavActive = 'recibos';
+    else finNavActive = 'dashboard';
+  }
+  var finTabs = [
+    { id: 'dashboard', href: '/admin/financas', label: 'Visão geral', icon: 'bi-speedometer2' },
+    { id: 'pedidos', href: '/admin/financas/pedidos', label: 'Pedidos', icon: 'bi-credit-card' },
+    { id: 'relatorios', href: '/admin/financas/relatorios', label: 'Relatórios', icon: 'bi-file-earmark-bar-graph' },
+    { id: 'recibos', href: '/admin/financas/recibos', label: 'Recibos', icon: 'bi-receipt-cutoff' },
+  ];
+%>
+<nav class="admin-financas-nav" aria-label="Navegação do módulo Finanças">
+  <div class="admin-financas-nav__inner">
+    <div class="admin-catalog__tabs admin-financas-nav__tabs">
+      <% finTabs.forEach(function (t) { %>
+        <a
+          href="<%= t.href %>"
+          class="admin-catalog__tab <%= finNavActive === t.id ? 'is-active' : '' %>"
+          <%= finNavActive === t.id ? 'aria-current="page"' : '' %>
+        >
+          <i class="bi <%= t.icon %> me-1"></i><%= t.label %>
+        </a>
+      <% }) %>
+    </div>
+    <% if (finNavActive !== 'dashboard') { %>
+      <a href="/admin/financas" class="btn btn-outline-secondary btn-sm admin-financas-nav__back">
+        <i class="bi bi-arrow-left me-1"></i> Painel financeiro
+      </a>
+    <% } %>
+  </div>
+</nav>

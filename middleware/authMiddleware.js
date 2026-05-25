@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const InventoryBatch = require('../models/InventoryBatch');
 
 /**
  * Redireciona para /login se não houver sessão (usuário não logado).
@@ -16,7 +17,7 @@ function requireAuth(req, res, next) {
 }
 
 /** Roles permitidas para acessar /admin */
-const ADMIN_ROLES = ['ADMIN', 'FUNCIONARIO'];
+const ADMIN_ROLES = ['ADMIN', 'FUNCIONARIO', 'ESTOQUISTA'];
 
 /**
  * Restringe /admin apenas a usuários logados com role ADMIN ou FUNCIONARIO.
@@ -45,6 +46,17 @@ async function requireAdmin(req, res, next) {
       return res.status(403).render('403', { title: 'Acesso negado', message: 'Apenas administradores ou funcionários podem acessar esta área.' });
     }
     res.locals.adminUser = { id: user.id, full_name: user.full_name, email: user.email, role_name: user.role_name };
+    try {
+      const expiredAwaiting = await InventoryBatch.countExpiredAwaitingDisposal();
+      res.locals.adminAlerts = { expiredAwaitingDisposal: expiredAwaiting };
+    } catch (_) {
+      res.locals.adminAlerts = { expiredAwaitingDisposal: 0 };
+    }
+    const adminPath = String(req.originalUrl || req.url || req.path || '').split('?')[0].replace(/\/$/, '') || '/';
+    res.locals.requestPath = adminPath;
+    if (adminPath === '/admin/agendamentos-servicos/caixa' || adminPath.startsWith('/admin/agendamentos-servicos/caixa/')) {
+      res.locals.activeAdmin = 'agendamentos_caixa';
+    }
     next();
   } catch (err) {
     next(err);

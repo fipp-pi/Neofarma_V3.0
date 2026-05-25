@@ -4,6 +4,8 @@ const Product = require('../models/Product');
 const ProductImage = require('../models/ProductImage');
 const InventoryBatch = require('../models/InventoryBatch');
 const Order = require('../models/Order');
+const OrderPendingItem = require('../models/OrderPendingItem');
+const { fulfillOrderStock } = require('../services/orderFulfillmentService');
 const Payment = require('../models/Payment');
 const cartService = require('../services/cartService');
 const { calculateShipping, normalizeCep } = require('../services/shippingService');
@@ -293,16 +295,17 @@ async function finalizeCheckout(req, res, next) {
     const shippingCost = selectedService.price;
     const total = Number((subtotal + shippingCost).toFixed(2));
 
+    const payStatus = payment_method === 'CREDIT_CARD' ? 'PAID' : 'PENDING';
     const orderId = await Order.createOrder(
       {
         customer_id: customer.id,
         address_id: Number(address_id),
-        status: 'CONFIRMED',
+        status: payStatus === 'PAID' ? 'PROCESSING' : 'CONFIRMED',
         subtotal,
         shipping_cost: shippingCost,
         total,
         payment_method,
-        payment_status: payment_method === 'CREDIT_CARD' ? 'PAID' : 'PENDING',
+        payment_status: payStatus,
         shipping_zip: normalizeCep(quote.destinationZip),
         shipping_service: selectedService.code,
         shipping_deadline_days: selectedService.deadlineDays,
@@ -310,22 +313,23 @@ async function finalizeCheckout(req, res, next) {
       connection
     );
 
-    for (const item of freshCart.items) {
-      // FEFO: consome primeiro os lotes com validade mais próxima.
-      const allocations = await InventoryBatch.allocateFEFO(connection, item.product_id, item.quantity);
-      for (const alloc of allocations) {
-        await Order.createOrderItem(
-          {
-            order_id: orderId,
-            product_id: item.product_id,
-            batch_id: alloc.batch_id,
-            quantity: alloc.quantity,
-            unit_price: item.unit_price,
-            line_total: Number((item.unit_price * alloc.quantity).toFixed(2)),
-          },
-          connection
-        );
+    const pendingLines = freshCart.items.map((item) => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      line_total: Number((item.unit_price * item.quantity).toFixed(2)),
+    }));
+
+    if (payStatus === 'PAID') {
+      await OrderPendingItem.createMany(orderId, pendingLines, connection);
+      const fulfill = await fulfillOrderStock(orderId, connection);
+      if (!fulfill.ok) {
+        const err = new Error(fulfill.message || 'Falha ao reservar estoque.');
+        err.code = fulfill.code || 'FULFILL_FAILED';
+        throw err;
       }
+    } else {
+      await OrderPendingItem.createMany(orderId, pendingLines, connection);
     }
 
     // Reaproveita preview para manter cópia Pix/Boleto consistente entre telas.
@@ -371,24 +375,80 @@ async function finalizeCheckout(req, res, next) {
 /**
  * Renderiza página final de confirmação do pedido.
  */
+/**
+ * POST /api/checkout/orders/:id/confirm-payment — simula confirmação PagSeguro (PIX/Boleto).
+ */
+async function confirmOrderPayment(req, res, next) {
+  const connection = await pool.getConnection();
+  try {
+    const orderId = Number(req.params.id);
+    if (!orderId) return res.status(400).json({ ok: false, message: 'Pedido inválido.' });
+    const customer = await Customer.findByUserId(req.session.userId);
+    if (!customer) return res.status(403).json({ ok: false, message: 'Cliente não encontrado.' });
+
+    await connection.beginTransaction();
+    const order = await Order.findByIdForCustomer(orderId, customer.id, connection, { forUpdate: true });
+    if (!order) {
+      await connection.rollback();
+      return res.status(404).json({ ok: false, message: 'Pedido não encontrado.' });
+    }
+    if (String(order.payment_status || '').toUpperCase() !== 'PENDING') {
+      await connection.rollback();
+      return res.status(400).json({ ok: false, message: 'Este pedido já foi pago ou cancelado.' });
+    }
+
+    const fulfill = await fulfillOrderStock(orderId, connection);
+    if (!fulfill.ok) {
+      await connection.rollback();
+      return res.status(409).json({ ok: false, message: fulfill.message || 'Estoque insuficiente.' });
+    }
+
+    await connection.execute(
+      `UPDATE orders SET payment_status = 'PAID', status = 'PROCESSING', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [orderId]
+    );
+    await connection.execute(
+      `UPDATE payments SET status = 'PAID', updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+      [orderId]
+    );
+    await connection.commit();
+    return res.json({ ok: true, message: 'Pagamento confirmado. Estoque atualizado.', redirect: `/order-confirmation?order=${orderId}` });
+  } catch (err) {
+    await connection.rollback();
+    if (err.code === 'INSUFFICIENT_STOCK') return res.status(409).json({ ok: false, message: err.message });
+    next(err);
+  } finally {
+    connection.release();
+  }
+}
+
 async function renderOrderConfirmation(req, res, next) {
   try {
     const orderId = Number(req.query.order);
     if (!orderId) return res.redirect('/cart');
-    const [order, items, payment] = await Promise.all([
+    const [order, items, payment, pendingItems] = await Promise.all([
       Order.findById(orderId),
       Order.findItemsByOrderId(orderId),
       Payment.findByOrderId(orderId),
+      OrderPendingItem.findByOrderId(orderId),
     ]);
     if (!order) return res.redirect('/cart');
 
-    const productIds = items.map((i) => i.product_id);
+    const displayItems = items.length
+      ? items
+      : pendingItems.map((p) => ({
+          ...p,
+          batch_id: null,
+          product_name: p.product_name,
+        }));
+
+    const productIds = displayItems.map((i) => i.product_id);
     const images = await ProductImage.findByProductIds(productIds);
     const imageMap = new Map();
     images.forEach((img) => {
       if (!imageMap.has(Number(img.product_id))) imageMap.set(Number(img.product_id), img.image_url);
     });
-    const decoratedItems = items.map((i) => ({
+    const decoratedItems = displayItems.map((i) => ({
       ...i,
       image_url: imageMap.get(Number(i.product_id)) || '/assets/img/product/product-1.webp',
     }));
@@ -400,6 +460,7 @@ async function renderOrderConfirmation(req, res, next) {
       order,
       items: decoratedItems,
       payment,
+      stockPending: !items.length && pendingItems.length > 0,
     });
   } catch (err) {
     next(err);
@@ -418,5 +479,6 @@ module.exports = {
   renderCart,
   renderCheckout,
   finalizeCheckout,
+  confirmOrderPayment,
   renderOrderConfirmation,
 };

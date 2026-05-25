@@ -73,6 +73,23 @@ async function updateById(id, data) {
 }
 
 /**
+ * Busca laboratório pelo CNPJ (opcionalmente ignorando um id na edição).
+ */
+async function findByCnpj(cnpj, excludeId = null) {
+  const code = String(cnpj || '').replace(/\D/g, '');
+  if (!code) return null;
+  let sql = 'SELECT id, name, cnpj FROM labs WHERE cnpj = ?';
+  const params = [code];
+  if (excludeId) {
+    sql += ' AND id <> ?';
+    params.push(excludeId);
+  }
+  sql += ' LIMIT 1';
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+}
+
+/**
  * Remove laboratório pelo id.
  */
 async function deleteById(id) {
@@ -80,4 +97,4 @@ async function deleteById(id) {
   return result.affectedRows;
 }
 
-module.exports = { create, findById, findAll, findAllWithAddress, updateById, deleteById };
+module.exports = { create, findById, findAll, findAllWithAddress, findByCnpj, updateById, deleteById };

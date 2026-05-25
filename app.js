@@ -14,6 +14,8 @@ const session = require('express-session');
 const path = require('path');
 const { testConnection } = require('./config/database');
 const { loadUserForViews, requireAdmin } = require('./middleware/authMiddleware');
+const displayLabels = require('./utils/displayLabels');
+const dateFormat = require('./utils/dateFormat');
 
 // ==========================================
 // INICIALIZAÇÃO DO APLICATIVO
@@ -61,6 +63,30 @@ app.use((req, res, next) => {
 // Disponibiliza usuário logado nas views (res.locals.user)
 app.use(loadUserForViews);
 
+// Rótulos PT-BR para enums nas views (t('paymentStatus', valor))
+app.use((req, res, next) => {
+  res.locals.t = displayLabels.label.bind(displayLabels);
+  res.locals.tPayBadge = displayLabels.paymentStatusBadge.bind(displayLabels);
+  res.locals.tApptBadge = displayLabels.appointmentStatusBadge.bind(displayLabels);
+  res.locals.tProdBadge = displayLabels.productStatusBadge.bind(displayLabels);
+  next();
+});
+
+app.use((req, res, next) => {
+  res.locals.fmtDate = dateFormat.formatDateBr;
+  res.locals.fmtDateLong = dateFormat.formatDateLongBr;
+  res.locals.fmtDateTime = dateFormat.formatDateTimeBr;
+  res.locals.fmtDateInput = dateFormat.formatDateInput;
+  res.locals.fmtDatetimeLocal = dateFormat.formatDatetimeLocal;
+  next();
+});
+
+// Caminho atual para destacar item correto no menu admin
+app.use((req, res, next) => {
+  res.locals.requestPath = String(req.originalUrl || req.url || req.path || '').split('?')[0];
+  next();
+});
+
 // ==========================================
 // ROTAS (MVC: routes -> controllers -> models)
 // ==========================================
@@ -76,6 +102,10 @@ app.use('/admin', requireAdmin, adminRoutes);
 // TRATAMENTO DE ERROS (404 & 500)
 // ==========================================
 app.use((req, res, next) => {
+  const wantsJson = req.xhr || /application\/json/.test(req.get('accept') || '');
+  if (wantsJson) {
+    return res.status(404).json({ ok: false, message: 'Recurso não encontrado.' });
+  }
   res.status(404).render('404', { title: 'Página Não Encontrada' });
 });
 

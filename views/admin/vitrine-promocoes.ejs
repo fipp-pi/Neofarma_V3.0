@@ -1,0 +1,231 @@
+<%- include('partials/header') %>
+<div class="container admin-catalog py-4">
+  <div id="pageFlash" class="alert d-none" role="alert"></div>
+
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h2 class="neo-heading mb-1">Vitrine e Promoções</h2>
+      <p class="text-muted mb-0">Gerencie campanhas, produtos em oferta, aparência e seções da página inicial.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="/" target="_blank" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-arrow-up-right"></i> Ver loja</a>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btnSyncPrices"><i class="bi bi-arrow-repeat"></i> Sincronizar preços</button>
+      <button type="button" class="btn btn-primary btn-sm" id="btnNovaPromocao"><i class="bi bi-plus-lg"></i> Nova promoção</button>
+    </div>
+  </div>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="admin-catalog__stat"><span class="label">Campanhas</span><strong><%= stats.total %></strong></div></div>
+    <div class="col-6 col-md-3"><div class="admin-catalog__stat"><span class="label">Ativas agora</span><strong class="text-success"><%= stats.active %></strong></div></div>
+    <div class="col-6 col-md-3"><div class="admin-catalog__stat"><span class="label">Agendadas</span><strong><%= stats.scheduled %></strong></div></div>
+    <div class="col-6 col-md-3"><div class="admin-catalog__stat"><span class="label">Produtos em campanha</span><strong><%= stats.products %></strong></div></div>
+  </div>
+
+  <ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabPromocoes" type="button">Promoções</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHome" type="button">Página inicial</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabTema" type="button">Tema global</button></li>
+  </ul>
+
+  <div class="tab-content">
+    <!-- Promoções -->
+    <div class="tab-pane fade show active" id="tabPromocoes">
+      <div class="admin-catalog__panel">
+        <div class="table-responsive">
+          <table class="table table-custom align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Campanha</th>
+                <th>Desconto</th>
+                <th>Validade</th>
+                <th>Produtos</th>
+                <th>Status</th>
+                <th class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (promotions && promotions.length) { promotions.forEach(function(p) { %>
+              <tr>
+                <td>
+                  <strong><%= p.name %></strong>
+                  <% if (p.description) { %><div class="small text-muted"><%= p.description %></div><% } %>
+                </td>
+                <td>
+                  <% if (p.discount_type === 'PERCENT') { %>
+                    <%= Number(p.discount_value).toFixed(0) %>%
+                  <% } else { %>
+                    R$ <%= Number(p.discount_value).toFixed(2).replace('.', ',') %>
+                  <% } %>
+                </td>
+                <td class="small">
+                  <%= fmtDateTime(p.starts_at) %><br>até <%= fmtDateTime(p.ends_at) %>
+                </td>
+                <td><%= p.products_count || 0 %></td>
+                <td>
+                  <span class="badge bg-<%= p.status.key === 'active' ? 'success' : (p.status.key === 'scheduled' ? 'warning' : 'secondary') %>"><%= p.status.label %></span>
+                </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-primary btn-edit-promo" data-id="<%= p.id %>">Editar</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-del-promo" data-id="<%= p.id %>" data-name="<%= p.name %>">Excluir</button>
+                </td>
+              </tr>
+              <% }) } else { %>
+              <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma promoção cadastrada.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Página inicial -->
+    <div class="tab-pane fade" id="tabHome">
+      <form id="formHomeConfig">
+        <div class="accordion" id="homeSectionsAccordion">
+          <% 
+            var sections = [
+              { key: 'hero', label: 'Hero (topo)', fields: ['enabled','title','titleHighlight','description','searchPlaceholder','searchButton','badgeText'] },
+              { key: 'benefits', label: 'Faixa de benefícios', fields: ['enabled'] },
+              { key: 'promoCarousel', label: 'Carrossel de promoções', fields: ['enabled','title','subtitle','linkText','linkUrl','limit','promotionId','badgeText','buttonText'] },
+              { key: 'categories', label: 'Categorias', fields: ['enabled','title','subtitle','linkText','limit'] },
+              { key: 'bestsellers', label: 'Mais vendidos', fields: ['enabled','title','subtitle','linkText','linkUrl','limit','days'] },
+              { key: 'flashOffer', label: 'Oferta relâmpago + cronômetro', fields: ['enabled','label','title','titleWithDiscount','description','buttonText','buttonUrl','limit','promotionId','usePromotionEnd'] },
+              { key: 'newArrivals', label: 'Novidades', fields: ['enabled','title','subtitle','limit'] },
+              { key: 'servicesCta', label: 'CTA serviços de saúde', fields: ['enabled','title','description','primaryButton','primaryUrl','secondaryButton','secondaryUrl'] },
+              { key: 'labHighlights', label: 'Marcas em destaque', fields: ['enabled','title','subtitle','linkText','linkUrl','buttonText','limit'] }
+            ];
+          %>
+          <% sections.forEach(function(sec, idx) { %>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button <%= idx ? 'collapsed' : '' %>" type="button" data-bs-toggle="collapse" data-bs-target="#homeSec<%= sec.key %>">
+                <%= sec.label %>
+              </button>
+            </h2>
+            <div id="homeSec<%= sec.key %>" class="accordion-collapse collapse <%= idx ? '' : 'show' %>" data-bs-parent="#homeSectionsAccordion">
+              <div class="accordion-body" data-home-section="<%= sec.key %>"></div>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+        <div class="mt-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Salvar página inicial</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Tema global (catálogo + fontes) -->
+    <div class="tab-pane fade" id="tabTema">
+      <form id="formThemeConfig" class="admin-catalog__panel p-4">
+        <p class="text-muted small mb-3">Fontes e cores padrão da <strong>página de catálogo</strong> (/category). As cores da página inicial são configuradas em cada seção na aba <strong>Página inicial</strong>.</p>
+        <div class="row g-3" id="themeFields"></div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary">Salvar tema</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal promoção -->
+<div class="modal fade" id="modalPromocao" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalPromocaoTitle">Nova promoção</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formPromocao">
+          <input type="hidden" id="promo_id" value="">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Nome da campanha *</label>
+              <input type="text" class="form-control" id="promo_name" required minlength="3">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Prioridade</label>
+              <input type="number" class="form-control" id="promo_priority" value="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descrição</label>
+              <textarea class="form-control" id="promo_description" rows="2"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Tipo de desconto *</label>
+              <select class="form-select" id="promo_discount_type">
+                <option value="PERCENT">Percentual (%)</option>
+                <option value="FIXED_PRICE">Preço fixo (R$)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Valor do desconto *</label>
+              <input type="text" class="form-control" id="promo_discount_value" inputmode="decimal" placeholder="Ex: 15 ou 29,90">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="promo_is_active" checked>
+                <label class="form-check-label" for="promo_is_active">Campanha ativa</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Início *</label>
+              <input type="datetime-local" class="form-control" id="promo_starts_at" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Término (cronômetro) *</label>
+              <input type="datetime-local" class="form-control" id="promo_ends_at" required>
+            </div>
+          </div>
+
+          <hr class="my-4">
+          <h6 class="mb-3">Personalização visual desta campanha</h6>
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Cor do badge</label><input type="color" class="form-control form-control-color w-100" id="style_badgeColor"></div>
+            <div class="col-md-4"><label class="form-label">Texto do badge</label><input type="color" class="form-control form-control-color w-100" id="style_badgeTextColor"></div>
+            <div class="col-md-4"><label class="form-label">Fundo do card</label><input type="color" class="form-control form-control-color w-100" id="style_cardBg"></div>
+            <div class="col-md-4"><label class="form-label">Gradiente início</label><input type="color" class="form-control form-control-color w-100" id="style_gradientStart"></div>
+            <div class="col-md-4"><label class="form-label">Gradiente fim</label><input type="color" class="form-control form-control-color w-100" id="style_gradientEnd"></div>
+            <div class="col-md-4">
+              <label class="form-label">Fonte do título</label>
+              <select class="form-select" id="style_titleFont">
+                <option value="Montserrat">Montserrat</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Poppins">Poppins</option>
+              </select>
+            </div>
+            <div class="col-md-4"><label class="form-label">Texto destaque</label><input type="text" class="form-control" id="style_headlineText"></div>
+            <div class="col-md-4"><label class="form-label">Texto do botão</label><input type="text" class="form-control" id="style_buttonText"></div>
+            <div class="col-md-4"><label class="form-label">Etiqueta desconto</label><input type="text" class="form-control" id="style_discountLabel" placeholder="OFF"></div>
+          </div>
+
+          <hr class="my-4">
+          <h6 class="mb-2">Produtos na promoção *</h6>
+          <div class="row g-2 mb-2">
+            <div class="col-md-8">
+              <input type="search" class="form-control" id="productSearch" placeholder="Buscar produto por nome ou SKU...">
+            </div>
+            <div class="col-md-4">
+              <button type="button" class="btn btn-outline-primary w-100" id="btnSearchProducts">Buscar</button>
+            </div>
+          </div>
+          <div id="productSearchResults" class="border rounded p-2 mb-3" style="max-height:160px;overflow:auto;"></div>
+          <div id="selectedProducts" class="vstack gap-2"></div>
+          <div id="promoFormError" class="alert alert-danger d-none mt-3"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSavePromocao">Salvar promoção</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="bootHomeConfig"><%- JSON.stringify(homeConfig).replace(/</g, '\\u003c') %></script>
+<script type="application/json" id="bootThemeConfig"><%- JSON.stringify(themeConfig).replace(/</g, '\\u003c') %></script>
+<script type="application/json" id="bootSectionColorSchema"><%- JSON.stringify(sectionColorSchema).replace(/</g, '\\u003c') %></script>
+<script type="application/json" id="bootPromotions"><%- JSON.stringify(promotions.map(function(p){ return { id: p.id, name: p.name }; })).replace(/</g, '\\u003c') %></script>
+
+<%- include('partials/footer') %>
+<script src="/assets/js/admin-vitrine.js"></script>

@@ -1,0 +1,644 @@
+<%- include('partials/header') %>
+
+<%
+  const statsData = typeof stats !== 'undefined' ? stats : {};
+  const statusFilterVal = typeof statusFilter !== 'undefined' ? statusFilter : 'ALL';
+  const comprasList = typeof list !== 'undefined' ? list : [];
+  const STATUS_LABELS = {
+    DRAFT: 'Rascunho',
+    AWAITING_DELIVERY: 'Aguardando entrega',
+    RECEIVED: 'Recebida',
+    CANCELLED: 'Cancelada',
+  };
+  const STATUS_BADGE = {
+    DRAFT: 'warning',
+    AWAITING_DELIVERY: 'info',
+    RECEIVED: 'success',
+    CANCELLED: 'muted',
+  };
+  const PAY_STATUS_LABELS = { PENDING: 'Pendente', PAID: 'Pago', FAILED: 'Falhou' };
+  const PAY_METHOD_LABELS = { PIX: 'PIX', TRANSFER: 'Transferência', BOLETO: 'Boleto', CASH: 'Dinheiro' };
+  const statusTabs = [
+    { v: 'ALL', l: 'Todas', icon: 'bi-grid' },
+    { v: 'DRAFT', l: 'Rascunho', icon: 'bi-pencil-square' },
+    { v: 'AWAITING_DELIVERY', l: 'Aguardando entrega', icon: 'bi-truck' },
+    { v: 'RECEIVED', l: 'Recebidas', icon: 'bi-check-circle' },
+    { v: 'CANCELLED', l: 'Canceladas', icon: 'bi-x-circle' },
+  ];
+%>
+
+<div class="container admin-compras">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
+
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Compras</h2>
+      <p class="text-muted mb-0">Crie pedidos de compra, acompanhe pagamentos e recebimentos e registre a entrada dos produtos no estoque.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="/admin/fornecedores" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-truck me-1"></i> Fornecedores
+      </a>
+      <button type="button" class="btn btn-save btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovaCompra">
+        <i class="bi bi-plus-lg me-1"></i> Nova compra
+      </button>
+    </div>
+  </div>
+
+  <div class="admin-compras__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <a href="/admin/compras?status=AWAITING_DELIVERY" class="admin-compras__stat admin-compras__stat--info text-decoration-none">
+        <span class="admin-compras__stat-icon"><i class="bi bi-truck"></i></span>
+        <div>
+          <div class="admin-compras__stat-value"><%= statsData.awaiting || 0 %></div>
+          <div class="admin-compras__stat-label">Aguardando entrega</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="/admin/compras?status=DRAFT" class="admin-compras__stat admin-compras__stat--warning text-decoration-none">
+        <span class="admin-compras__stat-icon"><i class="bi bi-pencil-square"></i></span>
+        <div>
+          <div class="admin-compras__stat-value"><%= statsData.draft || 0 %></div>
+          <div class="admin-compras__stat-label">Rascunhos</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="/admin/compras?status=RECEIVED" class="admin-compras__stat admin-compras__stat--success text-decoration-none">
+        <span class="admin-compras__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div>
+          <div class="admin-compras__stat-value"><%= statsData.received || 0 %></div>
+          <div class="admin-compras__stat-label">Recebidas</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-compras__stat admin-compras__stat--neutral">
+        <span class="admin-compras__stat-icon"><i class="bi bi-bag-check"></i></span>
+        <div>
+          <div class="admin-compras__stat-value"><%= statsData.filtered || 0 %></div>
+          <div class="admin-compras__stat-label">Neste filtro</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <% if ((statsData.awaiting || 0) > 0) { %>
+  <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-truck me-1"></i> Entregas pendentes:</strong>
+      <%= statsData.awaiting %> compra(s) aguardando conferência e entrada no estoque.
+    </div>
+    <a class="btn btn-sm btn-primary" href="/admin/compras?status=AWAITING_DELIVERY">Conferir entregas</a>
+  </div>
+  <% } %>
+
+  <div class="admin-compras__tabs mb-3">
+    <% statusTabs.forEach(function (t) { %>
+      <a href="/admin/compras?status=<%= t.v %>" class="admin-compras__tab <%= statusFilterVal === t.v ? 'is-active' : '' %>">
+        <i class="bi <%= t.icon %> me-1"></i><%= t.l %>
+      </a>
+    <% }); %>
+  </div>
+
+  <section class="admin-compras__panel admin-compras__panel--table">
+    <div class="admin-compras__panel-head admin-compras__panel-head--table">
+      <h3 class="admin-compras__panel-title"><i class="bi bi-list-ul me-2"></i>Pedidos de compra</h3>
+      <div class="search-box admin-compras__search">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control form-control-sm" id="buscaCompras" placeholder="Buscar fornecedor ou nº do pedido..." onkeyup="filtrarCompras()">
+      </div>
+    </div>
+
+    <% if (!comprasList.length) { %>
+      <div class="admin-compras__empty">
+        <i class="bi bi-inbox d-block mb-2"></i>
+        Nenhuma compra encontrada neste filtro.
+        <div class="mt-2">
+          <button type="button" class="btn btn-sm btn-save" data-bs-toggle="modal" data-bs-target="#modalNovaCompra">
+            <i class="bi bi-plus-lg me-1"></i> Registrar primeira compra
+          </button>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaCompras">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Fornecedor</th>
+              <th>Data</th>
+              <th>Total</th>
+              <th>Pagamento</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% comprasList.forEach(function (o) {
+              var st = o.status || 'DRAFT';
+              var stBadge = STATUS_BADGE[st] || 'muted';
+              var stLabel = STATUS_LABELS[st] || st;
+              var paySt = PAY_STATUS_LABELS[o.payment_status] || o.payment_status || '—';
+              var payMethod = PAY_METHOD_LABELS[o.payment_method] || o.payment_method || '—';
+            %>
+              <tr>
+                <td class="col-id fw-semibold">#<%= o.id %></td>
+                <td><span class="cell-truncate-wide fw-semibold" title="<%= o.supplier_name || o.supplier_corporate %>"><%= o.supplier_name || o.supplier_corporate %></span></td>
+                <td class="text-nowrap small text-muted"><%= fmtDateTime(o.order_date) %></td>
+                <td class="fw-semibold">R$ <%= Number(o.total_amount || 0).toFixed(2).replace('.', ',') %></td>
+                <td>
+                  <span class="admin-compras__badge admin-compras__badge--pay"><%= paySt %></span>
+                  <span class="small text-muted d-block mt-1"><%= payMethod %></span>
+                </td>
+                <td class="col-status"><span class="admin-compras__badge admin-compras__badge--<%= stBadge %>"><%= stLabel %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions justify-content-end">
+                    <button type="button" class="btn-action btn-view" onclick="abrirDetalhe(<%= o.id %>)" title="Ver detalhes" aria-label="Ver detalhes">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+</div>
+
+<!-- Modal Nova Compra -->
+<div class="modal fade modal-cadastro" id="modalNovaCompra" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bag-plus me-2"></i>Nova compra</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="poFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
+        <div class="cadastro-edit">
+          <div class="cadastro-edit-section-title">Dados do pedido</div>
+          <div class="row g-3 mb-2">
+            <div class="col-md-6">
+              <label for="po_supplier" class="form-label field-required">Fornecedor</label>
+              <select class="form-select" id="po_supplier"></select>
+            </div>
+            <div class="col-md-3">
+              <label for="po_pay_method" class="form-label">Forma de pagamento</label>
+              <select class="form-select" id="po_pay_method">
+                <option value="PIX">PIX</option>
+                <option value="TRANSFER">Transferência</option>
+                <option value="BOLETO">Boleto</option>
+                <option value="CASH">Dinheiro</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="po_expected" class="form-label">Previsão de entrega</label>
+              <input type="date" class="form-control" id="po_expected">
+            </div>
+            <div class="col-12">
+              <label for="po_notes" class="form-label">Observações</label>
+              <input class="form-control" id="po_notes" placeholder="Informações adicionais sobre o pedido">
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+            <div class="cadastro-edit-section-title mb-0">Itens do pedido</div>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="adicionarLinhaCompra()">
+              <i class="bi bi-plus-lg me-1"></i> Adicionar produto
+            </button>
+          </div>
+          <div id="po_lines"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="btnSalvarCompra" onclick="salvarCompra()">
+          <i class="bi bi-check-lg me-1"></i> Registrar compra
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalhe -->
+<div class="modal fade modal-cadastro" id="modalDetalhe" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="detalhe_title"><i class="bi bi-receipt me-2"></i>Detalhe da compra</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detalhe_body"></div>
+      <div class="modal-footer" id="detalhe_actions"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+  .cadastro-edit { padding: 1.25rem 1.25rem 0.5rem; }
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .cadastro-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; }
+  .cadastro-edit .form-control, .cadastro-edit .form-select { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
+  .cadastro-edit .form-control:focus, .cadastro-edit .form-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+  .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 600; border-radius: 8px; }
+  .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+
+  .admin-compras__stats { margin-top: 0.25rem; }
+  .admin-compras__stat { display: flex; align-items: center; gap: 0.85rem; padding: 1rem 1.1rem; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.04); min-height: 88px; color: inherit; transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease; }
+  a.admin-compras__stat:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.08); border-color: color-mix(in srgb, var(--accent-color), transparent 70%); }
+  .admin-compras__stat-icon { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+  .admin-compras__stat--info .admin-compras__stat-icon { background: #e7f1ff; color: #0d6efd; }
+  .admin-compras__stat--warning .admin-compras__stat-icon { background: #fff8e6; color: #997404; }
+  .admin-compras__stat--success .admin-compras__stat-icon { background: #e8f6ee; color: #198754; }
+  .admin-compras__stat--neutral .admin-compras__stat-icon { background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); }
+  .admin-compras__stat-value { font-size: 1.45rem; font-weight: 700; color: var(--heading-color); line-height: 1.1; }
+  .admin-compras__stat-label { font-size: 0.8rem; color: #6c757d; margin-top: 0.15rem; }
+
+  .admin-compras__tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .admin-compras__tab { display: inline-flex; align-items: center; padding: 0.45rem 0.85rem; border-radius: 999px; border: 1px solid rgba(0,0,0,0.08); background: #fff; color: #495057; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease; }
+  .admin-compras__tab:hover { border-color: color-mix(in srgb, var(--accent-color), transparent 70%); color: var(--accent-color); }
+  .admin-compras__tab.is-active { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); }
+
+  .admin-compras__panel { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 14px; box-shadow: 0 4px 18px rgba(0,0,0,0.04); overflow: hidden; }
+  .admin-compras__panel-head { padding: 0.95rem 1.15rem; border-bottom: 1px solid rgba(0,0,0,0.06); background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), #fff 92%) 0%, #fff 100%); }
+  .admin-compras__panel-head--table { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .admin-compras__panel-title { margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--heading-color); }
+  .admin-compras__search { min-width: min(100%, 260px); }
+  .admin-compras__search .form-control { padding-left: 2rem; border-radius: 8px; }
+
+  .admin-compras__panel--table .table-custom th { font-size: 0.72rem; padding: 0.85rem 1rem; }
+  .admin-compras__panel--table .table-custom td { padding: 0.85rem 1rem; font-size: 0.88rem; }
+
+  .admin-compras__badge { display: inline-block; font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 0.22rem 0.55rem; white-space: nowrap; }
+  .admin-compras__badge--success { background: #d1e7dd; color: #0f5132; }
+  .admin-compras__badge--warning { background: #fff3cd; color: #664d03; }
+  .admin-compras__badge--info { background: #dbeafe; color: #0a58ca; }
+  .admin-compras__badge--muted { background: #e9ecef; color: #495057; }
+  .admin-compras__badge--pay { background: color-mix(in srgb, var(--accent-color), transparent 86%); color: var(--accent-color); }
+
+  .admin-compras__empty { padding: 3rem 1.5rem; text-align: center; color: #868e96; font-size: 0.92rem; }
+  .admin-compras__empty i { font-size: 2.2rem; opacity: 0.65; }
+
+  .admin-compras__detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .admin-compras__detail-card { border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 1rem 1.1rem; background: #fafbfc; height: 100%; }
+  .admin-compras__detail-card-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.65rem; }
+  .admin-compras__recv-block { border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 0.85rem; margin-bottom: 0.65rem; background: #fff; }
+
+  @media (max-width: 767.98px) {
+    .admin-compras__detail-grid { grid-template-columns: 1fr; }
+    .admin-compras__panel-head--table { align-items: stretch; flex-direction: column; }
+    .admin-compras__search { width: 100%; }
+  }
+</style>
+
+<script>
+  var catalogo = { suppliers: [], products: [] };
+
+  function showPageFlash(message, type) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-dismissible fade show mb-0 alert-' + (type === 'danger' ? 'danger' : 'success');
+    textEl.textContent = message;
+    wrap.style.display = 'block';
+  }
+
+  (function initPageFlash() {
+    try {
+      var raw = sessionStorage.getItem('comprasAdminFlash');
+      if (!raw) return;
+      sessionStorage.removeItem('comprasAdminFlash');
+      var data = JSON.parse(raw);
+      if (data && data.message) showPageFlash(data.message, data.type || 'success');
+    } catch (e) { /* ignore */ }
+  })();
+
+  function setPoFormAlert(message) {
+    var el = document.getElementById('poFormAlert');
+    if (!el) return;
+    if (!message) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+  }
+
+  function fmtMoney(v) {
+    return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
+  }
+  function fmtDate(v) {
+    return window.NeoDates ? NeoDates.formatDate(v) : (v || '—');
+  }
+  function fmtDateTime(v) {
+    return window.NeoDates ? NeoDates.formatDateTime(v) : (v || '—');
+  }
+
+  var STATUS_LABELS = {
+    DRAFT: 'Rascunho',
+    AWAITING_DELIVERY: 'Aguardando entrega',
+    RECEIVED: 'Recebida',
+    CANCELLED: 'Cancelada'
+  };
+  var PAY_STATUS_LABELS = { PENDING: 'Pendente', PAID: 'Pago', FAILED: 'Falhou' };
+  var PAY_METHOD_LABELS = { PIX: 'PIX', TRANSFER: 'Transferência', BOLETO: 'Boleto', CASH: 'Dinheiro' };
+
+  function statusBadge(st) {
+    var map = { RECEIVED: 'success', AWAITING_DELIVERY: 'info', CANCELLED: 'muted', DRAFT: 'warning' };
+    var cls = map[st] || 'muted';
+    return '<span class="admin-compras__badge admin-compras__badge--' + cls + '">' + (STATUS_LABELS[st] || st) + '</span>';
+  }
+
+  function filtrarCompras() {
+    var q = (document.getElementById('buscaCompras').value || '').toLowerCase();
+    document.querySelectorAll('#tabelaCompras tbody tr').forEach(function (tr) {
+      tr.style.display = tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+    });
+  }
+
+  async function carregarCatalogo() {
+    try {
+      var r = await fetch('/admin/compras/catalogo');
+      var d = await r.json();
+      if (!d.ok) return;
+      catalogo = d;
+      var sel = document.getElementById('po_supplier');
+      if (!d.suppliers.length) {
+        sel.innerHTML = '<option value="">Cadastre um fornecedor primeiro</option>';
+        return;
+      }
+      sel.innerHTML = d.suppliers.map(function (s) {
+        return '<option value="' + s.id + '">' + (s.trade_name || s.corporate_name) + '</option>';
+      }).join('');
+    } catch (e) {
+      setPoFormAlert('Não foi possível carregar fornecedores e produtos.');
+    }
+  }
+
+  function adicionarLinhaCompra() {
+    if (!catalogo.products.length) {
+      setPoFormAlert('Não há produtos ativos disponíveis para compra.');
+      return;
+    }
+    setPoFormAlert('');
+    var host = document.getElementById('po_lines');
+    var opts = catalogo.products.map(function (p) {
+      return '<option value="' + p.id + '">' + p.name + '</option>';
+    }).join('');
+    var row = document.createElement('div');
+    row.className = 'row g-2 mb-2 po-line align-items-end';
+    row.innerHTML =
+      '<div class="col-md-5"><label class="form-label small mb-1">Produto</label><select class="form-select form-select-sm po-product">' + opts + '</select></div>' +
+      '<div class="col-md-2"><label class="form-label small mb-1">Qtd</label><input type="number" min="1" class="form-control form-control-sm po-qty" value="1"></div>' +
+      '<div class="col-md-3"><label class="form-label small mb-1">Custo unit.</label><input type="number" step="0.01" min="0" class="form-control form-control-sm po-cost" placeholder="0,00"></div>' +
+      '<div class="col-md-2"><button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest(\'.po-line\').remove()"><i class="bi bi-trash"></i></button></div>';
+    host.appendChild(row);
+  }
+
+  async function salvarCompra() {
+    setPoFormAlert('');
+    var lines = Array.prototype.slice.call(document.querySelectorAll('.po-line')).map(function (row) {
+      return {
+        product_id: row.querySelector('.po-product').value,
+        quantity: row.querySelector('.po-qty').value,
+        unit_cost: row.querySelector('.po-cost').value
+      };
+    });
+    if (!document.getElementById('po_supplier').value) {
+      setPoFormAlert('Selecione o fornecedor.');
+      return;
+    }
+    if (!lines.length) {
+      setPoFormAlert('Adicione ao menos um produto ao pedido.');
+      return;
+    }
+
+    var btn = document.getElementById('btnSalvarCompra');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+
+    try {
+      var resp = await fetch('/admin/compras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplier_id: document.getElementById('po_supplier').value,
+          payment_method: document.getElementById('po_pay_method').value,
+          expected_date: document.getElementById('po_expected').value,
+          notes: document.getElementById('po_notes').value,
+          items: lines
+        })
+      });
+      var data = await resp.json();
+      if (data.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('modalNovaCompra')).hide();
+        sessionStorage.setItem('comprasAdminFlash', JSON.stringify({ type: 'success', message: data.message || 'Pedido registrado com sucesso.' }));
+        location.reload();
+        return;
+      }
+      setPoFormAlert(data.message || 'Não foi possível registrar a compra.');
+      if (window.neofarmaToast) window.neofarmaToast(data.message || 'Erro ao salvar.', 'danger');
+    } catch (e) {
+      setPoFormAlert('Erro de conexão. Tente novamente.');
+      if (window.neofarmaToast) window.neofarmaToast('Erro de conexão.', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Registrar compra';
+    }
+  }
+
+  async function abrirDetalhe(id) {
+    var r = await fetch('/admin/compras/' + id);
+    var d = await r.json();
+    if (!d.ok) {
+      if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro ao carregar compra.', 'danger');
+      return;
+    }
+    var o = d.order;
+    document.getElementById('detalhe_title').innerHTML = '<i class="bi bi-receipt me-2"></i>Compra #' + o.id;
+
+    var html = '<div class="admin-compras__detail-grid">';
+    html += '<div class="admin-compras__detail-card">';
+    html += '<div class="admin-compras__detail-card-title">Fornecedor</div>';
+    html += '<p class="mb-1 fw-semibold">' + (o.supplier_name || o.supplier_corporate || '—') + '</p>';
+    if (o.supplier_corporate && o.supplier_corporate !== o.supplier_name) {
+      html += '<p class="mb-1 small text-muted">' + o.supplier_corporate + '</p>';
+    }
+    if (o.supplier_cnpj) html += '<p class="mb-1 small">CNPJ: ' + o.supplier_cnpj + '</p>';
+    if (o.supplier_email) html += '<p class="mb-1 small">E-mail: ' + o.supplier_email + '</p>';
+    if (o.supplier_phone) html += '<p class="mb-0 small">Telefone: ' + o.supplier_phone + '</p>';
+    html += '</div>';
+
+    html += '<div class="admin-compras__detail-card">';
+    html += '<div class="admin-compras__detail-card-title">Pedido</div>';
+    html += '<div class="row small g-2">';
+    html += '<div class="col-6"><span class="text-muted">Status</span><br>' + statusBadge(o.status) + '</div>';
+    html += '<div class="col-6"><span class="text-muted">Total</span><br><strong>' + fmtMoney(o.total_amount) + '</strong></div>';
+    html += '<div class="col-6"><span class="text-muted">Pagamento</span><br>' + (PAY_STATUS_LABELS[o.payment_status] || o.payment_status) + '</div>';
+    html += '<div class="col-6"><span class="text-muted">Forma</span><br>' + (PAY_METHOD_LABELS[o.payment_method] || o.payment_method || '—') + '</div>';
+    html += '<div class="col-6"><span class="text-muted">Pedido em</span><br>' + fmtDateTime(o.order_date || o.created_at) + '</div>';
+    html += '<div class="col-6"><span class="text-muted">Previsão entrega</span><br>' + fmtDate(o.expected_date) + '</div>';
+    if (o.status === 'RECEIVED') {
+      html += '<div class="col-12"><span class="text-muted">Recebida em</span><br><strong class="text-success">' + fmtDateTime(o.updated_at) + '</strong></div>';
+    } else if (o.status === 'AWAITING_DELIVERY') {
+      html += '<div class="col-12"><span class="text-muted">Pagamento confirmado em</span><br>' + fmtDateTime(o.updated_at) + '</div>';
+    } else if (o.status === 'CANCELLED') {
+      html += '<div class="col-12"><span class="text-muted">Cancelada em</span><br>' + fmtDateTime(o.updated_at) + '</div>';
+    }
+    if (o.employee_name) {
+      html += '<div class="col-12"><span class="text-muted">Registrado por</span><br>' + o.employee_name + '</div>';
+    }
+    html += '</div></div></div>';
+
+    if (o.notes) {
+      html += '<div class="alert alert-light border small mb-3"><strong>Observações:</strong> ' + o.notes + '</div>';
+    }
+
+    html += '<div class="cadastro-edit-section-title">Itens (' + d.items.length + ')</div>';
+    html += '<div class="table-responsive"><table class="table table-sm table-custom align-middle mb-0">';
+    html += '<thead><tr>';
+    html += '<th>Produto</th><th>SKU</th><th class="text-center">Pedido</th><th class="text-center">Recebido</th>';
+    html += '<th class="text-end">Custo un.</th><th class="text-end">Total</th>';
+    html += '<th>Lote</th><th>Validade</th><th>Fabricação</th><th class="text-center">Saldo</th>';
+    html += '</tr></thead><tbody>';
+
+    var sumPedido = 0;
+    var sumRecebido = 0;
+    d.items.forEach(function (it) {
+      sumPedido += Number(it.quantity || 0);
+      sumRecebido += Number(it.quantity_received || 0);
+      var recv = Number(it.quantity_received || 0);
+      var pending = recv < Number(it.quantity);
+      var recvCell = recv > 0
+        ? '<span class="' + (pending ? 'text-warning' : 'text-success') + ' fw-semibold">' + recv + '</span>'
+        : '<span class="text-muted">0</span>';
+      var batchCell = it.batch_code
+        ? '<a href="/admin/lotes?search=' + encodeURIComponent(it.batch_code) + '" class="text-decoration-none">' + it.batch_code + '</a>'
+        : '—';
+      html += '<tr>';
+      html += '<td>' + it.product_name + '</td>';
+      html += '<td class="small text-muted">' + (it.sku || '—') + '</td>';
+      html += '<td class="text-center">' + it.quantity + '</td>';
+      html += '<td class="text-center">' + recvCell + '</td>';
+      html += '<td class="text-end">' + fmtMoney(it.unit_cost) + '</td>';
+      html += '<td class="text-end">' + fmtMoney(it.total_cost) + '</td>';
+      html += '<td>' + batchCell + '</td>';
+      html += '<td>' + fmtDate(it.expiry_date) + '</td>';
+      html += '<td>' + fmtDate(it.batch_mfg_date) + '</td>';
+      html += '<td class="text-center">' + (it.batch_current_qty != null ? it.batch_current_qty : '—') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody>';
+    html += '<tfoot><tr class="table-light">';
+    html += '<td colspan="2" class="text-end fw-semibold">Totais</td>';
+    html += '<td class="text-center fw-semibold">' + sumPedido + '</td>';
+    html += '<td class="text-center fw-semibold">' + sumRecebido + '</td>';
+    html += '<td colspan="2" class="text-end fw-semibold">' + fmtMoney(o.total_amount) + '</td>';
+    html += '<td colspan="4"></td>';
+    html += '</tr></tfoot></table></div>';
+
+    if (o.status === 'AWAITING_DELIVERY') {
+      html += '<hr class="my-3">';
+      html += '<div class="cadastro-edit-section-title">Conferência de entrega</div>';
+      html += '<p class="small text-muted mb-3">Informe lote, fabricação e validade de cada item recebido para dar entrada no estoque.</p>';
+      d.items.forEach(function (it) {
+        html += '<div class="admin-compras__recv-block" data-item-id="' + it.id + '">';
+        html += '<div class="small fw-semibold mb-2">' + it.product_name + ' <span class="text-muted">(pedido: ' + it.quantity + ' · SKU ' + (it.sku || '—') + ')</span></div>';
+        html += '<div class="row g-2">';
+        html += '<div class="col-md-2"><label class="form-label form-label-sm mb-0">Qtd recebida</label><input type="number" class="form-control form-control-sm recv-qty" min="0" max="' + it.quantity + '" placeholder="0"></div>';
+        html += '<div class="col-md-3"><label class="form-label form-label-sm mb-0">Código do lote *</label><input class="form-control form-control-sm recv-batch" placeholder="Ex.: LOTE-2026-001"></div>';
+        html += '<div class="col-md-2"><label class="form-label form-label-sm mb-0">Fabricação</label><input type="date" class="form-control form-control-sm recv-mfg"></div>';
+        html += '<div class="col-md-2"><label class="form-label form-label-sm mb-0">Validade *</label><input type="date" class="form-control form-control-sm recv-exp"></div>';
+        html += '<div class="col-md-3"><label class="form-label form-label-sm mb-0">Custo un.</label><input class="form-control form-control-sm" value="' + Number(it.unit_cost).toFixed(2) + '" disabled></div>';
+        html += '</div></div>';
+      });
+    }
+
+    document.getElementById('detalhe_body').innerHTML = html;
+    var actions = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>';
+    if (o.status === 'DRAFT') {
+      actions = '<button type="button" class="btn btn-success me-2" onclick="confirmarPagamentoCompra(' + id + ')"><i class="bi bi-credit-card me-1"></i> Confirmar pagamento</button>' +
+        '<button type="button" class="btn btn-outline-danger me-2" onclick="cancelarCompra(' + id + ')">Cancelar pedido</button>' + actions;
+    }
+    if (o.status === 'AWAITING_DELIVERY') {
+      actions = '<button type="button" class="btn btn-save me-2" onclick="receberEntrega(' + id + ')"><i class="bi bi-box-arrow-in-down me-1"></i> Dar entrada no estoque</button>' + actions;
+    }
+    document.getElementById('detalhe_actions').innerHTML = actions;
+    new bootstrap.Modal(document.getElementById('modalDetalhe')).show();
+  }
+
+  function flashAndReload(message, type) {
+    sessionStorage.setItem('comprasAdminFlash', JSON.stringify({ type: type || 'success', message: message }));
+    location.reload();
+  }
+
+  async function confirmarPagamentoCompra(id) {
+    var r = await fetch('/admin/compras/' + id + '/pagamento', { method: 'POST' });
+    var d = await r.json();
+    if (d.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('modalDetalhe')).hide();
+      flashAndReload(d.message, 'success');
+      return;
+    }
+    if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro.', 'danger');
+  }
+
+  async function cancelarCompra(id) {
+    var ok = window.neofarmaConfirm
+      ? await window.neofarmaConfirm({ title: 'Cancelar compra', message: 'Deseja cancelar este pedido de compra?' })
+      : confirm('Cancelar esta compra?');
+    if (!ok) return;
+    var r = await fetch('/admin/compras/' + id, { method: 'DELETE' });
+    var d = await r.json();
+    if (d.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('modalDetalhe')).hide();
+      flashAndReload(d.message, 'success');
+      return;
+    }
+    if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro.', 'danger');
+  }
+
+  async function receberEntrega(id) {
+    var blocks = document.querySelectorAll('#detalhe_body [data-item-id]');
+    var items = [];
+    blocks.forEach(function (b) {
+      items.push({
+        item_id: b.getAttribute('data-item-id'),
+        quantity_received: b.querySelector('.recv-qty').value,
+        batch_code: b.querySelector('.recv-batch').value,
+        mfg_date: b.querySelector('.recv-mfg').value,
+        expiry_date: b.querySelector('.recv-exp').value
+      });
+    });
+    var r = await fetch('/admin/compras/' + id + '/receber', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items })
+    });
+    var d = await r.json();
+    if (d.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('modalDetalhe')).hide();
+      flashAndReload(d.message, 'success');
+      return;
+    }
+    if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro ao receber entrega.', 'danger');
+  }
+
+  carregarCatalogo();
+  adicionarLinhaCompra();
+</script>
+
+<%- include('partials/footer') %>

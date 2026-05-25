@@ -5,6 +5,10 @@
  * @see docs/code-commenting.md
  */
 const InventoryBatch = require('../models/InventoryBatch');
+const InventoryDisposal = require('../models/InventoryDisposal');
+const Product = require('../models/Product');
+const displayLabels = require('../utils/displayLabels');
+const { formatDateTimeSecBr, formatDateBr } = require('../utils/dateFormat');
 const { pool } = require('../config/database');
 
 /**
@@ -36,6 +40,8 @@ async function listBatches(req, res, next) {
     const rows = await InventoryBatch.findByProductId(productId, {
       status: req.query.status,
       sort: req.query.sort,
+      withDisposal: true,
+      hideDisposed: req.query.hideDisposed === '1' || req.query.hideDisposed === 'true',
     });
     res.json({ ok: true, batches: rows });
   } catch (err) {
@@ -150,30 +156,36 @@ async function listAllBatchesPage(req, res, next) {
     const status = req.query.status || 'ALL';
     const sort = req.query.sort || 'expiry_asc';
     const search = req.query.search || '';
+    const hideDisposed = req.query.hideDisposed === '1' || req.query.hideDisposed === 'true';
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageSize = Math.min(200, Math.max(10, parseInt(req.query.pageSize, 10) || 25));
-    const paged = await InventoryBatch.findAllGlobalPaginated({ status, sort, search, page, pageSize });
-    const rows = paged.rows;
-    const summary = rows.reduce((acc, r) => {
-      if (r.validity_status === 'EXPIRED') acc.expired += 1;
-      else if (r.validity_status === 'EXPIRING') acc.expiring += 1;
-      else acc.valid += 1;
-      return acc;
-    }, { expired: 0, expiring: 0, valid: 0 });
+    const paged = await InventoryBatch.findAllGlobalPaginated({ status, sort, search, page, pageSize, hideDisposed });
+    const validityCounts = await InventoryBatch.getDashboardValidityCounts(30);
+    const expiredAwaiting = await InventoryBatch.countExpiredAwaitingDisposal();
+    const [validRows] = await pool.execute(
+      `SELECT COUNT(*) AS c FROM inventory_batches WHERE quantity > 0 AND expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)`
+    );
     const totalPages = Math.max(1, Math.ceil(paged.total / pageSize));
     res.render('admin/lotes', {
       title: 'Lotes - Admin',
       bodyClass: 'admin-page',
       activeAdmin: 'lotes',
-      rows,
-      filters: { status, sort, search },
-      summary,
+      rows: paged.rows,
+      filters: { status, sort, search, hideDisposed },
+      summary: {
+        valid: Number(validRows[0]?.c || 0),
+        expiring: Number(validityCounts.expiring_count || 0),
+        expired: Number(validityCounts.expired_count || 0),
+        expiredAwaiting,
+      },
+      expiredAwaiting,
       pagination: {
         total: paged.total,
         page: paged.page,
         pageSize: paged.pageSize,
         totalPages,
       },
+      disposedOk: req.query.disposed === '1',
     });
   } catch (err) {
     next(err);
@@ -188,15 +200,19 @@ async function exportCsv(req, res, next) {
     const status = req.query.status || 'ALL';
     const sort = req.query.sort || 'expiry_asc';
     const search = req.query.search || '';
-    const rows = await InventoryBatch.findAllGlobal({ status, sort, search });
-    const header = ['id', 'product_id', 'product_name', 'sku', 'batch_code', 'mfg_date', 'expiry_date', 'validity_status', 'days_to_expiry', 'quantity'];
+    const hideDisposed = req.query.hideDisposed === '1' || req.query.hideDisposed === 'true';
+    const rows = await InventoryBatch.findAllGlobal({ status, sort, search, hideDisposed });
+    const header = ['id', 'product_id', 'product_name', 'sku', 'batch_code', 'mfg_date', 'expiry_date', 'validity_status', 'days_to_expiry', 'quantity', 'disposal_status', 'disposed_qty', 'last_disposed_at'];
     const lines = [header.join(';')];
     rows.forEach((r) => {
       lines.push([
         r.id, r.product_id, `"${String(r.product_name || '').replace(/"/g, '""')}"`, r.sku || '', r.batch_code || '',
-        r.mfg_date ? String(r.mfg_date).slice(0, 10) : '',
-        r.expiry_date ? String(r.expiry_date).slice(0, 10) : '',
-        r.validity_status || '', r.days_to_expiry, r.quantity,
+        formatDateBr(r.mfg_date),
+        formatDateBr(r.expiry_date),
+        displayLabels.validityStatus(r.validity_status),
+        r.days_to_expiry, r.quantity,
+        displayLabels.disposalStatus(r.disposal_status || 'NONE'), r.disposed_qty || 0,
+        formatDateTimeSecBr(r.last_disposed_at),
       ].join(';'));
     });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -230,6 +246,90 @@ async function deleteManyBatches(req, res, next) {
   }
 }
 
+async function renderDisposalsPage(req, res, next) {
+  try {
+    const [history, products, expiredAwaiting] = await Promise.all([
+      InventoryDisposal.findAll(80),
+      Product.findForDisposal(),
+      InventoryBatch.countExpiredAwaitingDisposal(),
+    ]);
+    res.render('admin/descartes', {
+      title: 'Descarte de estoque - Admin',
+      bodyClass: 'admin-page',
+      activeAdmin: 'descartes',
+      history,
+      products,
+      stats: {
+        expiredAwaiting: Number(expiredAwaiting || 0),
+        historyCount: Array.isArray(history) ? history.length : 0,
+        productsEligible: Array.isArray(products) ? products.length : 0,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function registerDisposal(req, res, next) {
+  const connection = await pool.getConnection();
+  try {
+    const b = req.body || {};
+    const productId = Number(b.product_id);
+    const batchId = Number(b.batch_id);
+    const quantity = Number(b.quantity);
+    const reason = String(b.reason || '').trim();
+    if (!productId || !batchId || quantity <= 0 || !reason) {
+      return res.status(400).json({ ok: false, message: 'Preencha produto, lote, quantidade e motivo.' });
+    }
+    await connection.beginTransaction();
+    const id = await InventoryDisposal.create(
+      {
+        product_id: productId,
+        batch_id: batchId,
+        quantity,
+        reason,
+        disposed_by: req.session?.userId || null,
+      },
+      connection
+    );
+    await writeAudit(req, 'DISPOSAL', { batch_id: batchId, product_id: productId, quantity, reason, disposal_id: id });
+    await connection.commit();
+    const [batchRows] = await pool.execute(
+      'SELECT batch_code, quantity FROM inventory_batches WHERE id = ? LIMIT 1',
+      [batchId]
+    );
+    const batch = batchRows[0];
+    return res.status(201).json({
+      ok: true,
+      message: 'Descarte registrado e estoque atualizado.',
+      batch_code: batch?.batch_code || null,
+      remaining_qty: batch ? Number(batch.quantity) : null,
+    });
+  } catch (err) {
+    await connection.rollback();
+    if (err.code === 'INSUFFICIENT_STOCK' || err.code === 'BATCH_NOT_FOUND') {
+      return res.status(409).json({ ok: false, message: err.message });
+    }
+    next(err);
+  } finally {
+    connection.release();
+  }
+}
+
+async function listBatchesForProduct(req, res, next) {
+  try {
+    const productId = Number(req.params.productId);
+    const rows = await InventoryBatch.findByProductId(productId, {
+      status: 'ALL',
+      sort: 'expiry_asc',
+      onlyWithStock: true,
+    });
+    return res.json({ ok: true, batches: rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listAllBatchesPage,
   exportCsv,
@@ -238,4 +338,7 @@ module.exports = {
   createBatch,
   updateBatch,
   deleteBatch,
+  renderDisposalsPage,
+  registerDisposal,
+  listBatchesForProduct,
 };

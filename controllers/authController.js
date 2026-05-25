@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
 const Role = require('../models/Role');
 const User = require('../models/User');
-const Address = require('../models/Address');
 const { pool } = require('../config/database');
+const { validateRegisterPayload, mapRegisterFieldsToPublic, findRegisterDuplicateFields } = require('../utils/registerValidation');
 
 /**
  * Abre a tela de login.
@@ -31,43 +31,16 @@ function getRegister(req, res) {
 async function postRegister(req, res, next) {
   let conn = null;
   try {
-    const {
-      full_name, email, password, document, phone, birth_date, country,
-      cep, street, number, complement, district, city, state
-    } = req.body || {};
+    const { fields, payload } = validateRegisterPayload(req.body || {});
+    const duplicateFields = await findRegisterDuplicateFields(payload, User);
+    const allFields = { ...fields, ...duplicateFields };
 
-    if (!full_name || !full_name.trim()) {
-      return res.status(400).json({ ok: false, message: 'Nome completo é obrigatório.' });
-    }
-    if (!email || !email.trim()) {
-      return res.status(400).json({ ok: false, message: 'E-mail é obrigatório.' });
-    }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ ok: false, message: 'Senha deve ter no mínimo 6 caracteres.' });
-    }
-    const cepClean = (cep && String(cep).replace(/\D/g, '')) || '';
-    if (cepClean.length !== 8) {
-      return res.status(400).json({ ok: false, message: 'CEP inválido (informe 8 dígitos).' });
-    }
-    if (!street || !street.trim()) {
-      return res.status(400).json({ ok: false, message: 'Rua / logradouro é obrigatório.' });
-    }
-    if (!number || !String(number).trim()) {
-      return res.status(400).json({ ok: false, message: 'Número do endereço é obrigatório.' });
-    }
-    if (!district || !district.trim()) {
-      return res.status(400).json({ ok: false, message: 'Bairro é obrigatório.' });
-    }
-    if (!city || !city.trim()) {
-      return res.status(400).json({ ok: false, message: 'Cidade é obrigatória.' });
-    }
-    if (!state || !state.trim()) {
-      return res.status(400).json({ ok: false, message: 'Estado (UF) é obrigatório.' });
-    }
-
-    const existing = await User.findByEmail(email.trim());
-    if (existing) {
-      return res.status(409).json({ ok: false, message: 'Este e-mail já está cadastrado.' });
+    if (Object.keys(allFields).length) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Revise os campos destacados antes de continuar.',
+        fields: mapRegisterFieldsToPublic(allFields),
+      });
     }
 
     const roleCliente = await Role.findByName('CLIENTE');
@@ -78,18 +51,18 @@ async function postRegister(req, res, next) {
     conn = await pool.getConnection();
     await conn.beginTransaction();
 
-    const password_hash = await bcrypt.hash(password, 10);
+    const password_hash = await bcrypt.hash(payload.senha, 10);
     const [userResult] = await conn.execute(
       `INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         roleCliente.id,
-        full_name.trim(),
-        email.trim().toLowerCase(),
+        payload.nome,
+        payload.email,
         password_hash,
-        document && document.trim() ? document.trim() : null,
-        phone && phone.trim() ? phone.trim() : null,
-        birth_date && birth_date.trim() ? birth_date.trim() : null,
+        payload.document,
+        payload.telefone,
+        payload.birth_date,
       ]
     );
     const userId = userResult.insertId;
@@ -98,14 +71,14 @@ async function postRegister(req, res, next) {
       `INSERT INTO addresses (street, number, complement, district, city, state, country, zip_code)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        street.trim(),
-        String(number).trim(),
-        complement && String(complement).trim() ? String(complement).trim() : null,
-        district.trim(),
-        city.trim(),
-        String(state).trim().toUpperCase().slice(0, 2),
-        (country && String(country).trim()) || 'Brasil',
-        cepClean,
+        payload.rua,
+        payload.numero,
+        payload.complement,
+        payload.bairro,
+        payload.cidade,
+        payload.estado,
+        payload.pais,
+        payload.cep,
       ]
     );
     const addressId = addrResult.insertId;
@@ -122,14 +95,26 @@ async function postRegister(req, res, next) {
 
     await conn.commit();
     conn.release();
-    res.status(201).json({ ok: true, message: 'Conta criada com sucesso. Faça login.', redirect: '/login' });
+    conn = null;
+    return res.status(201).json({
+      ok: true,
+      message: 'Conta criada com sucesso! Você já pode fazer login.',
+      redirect: '/login',
+    });
   } catch (err) {
     if (conn) {
       await conn.rollback().catch(() => {});
       conn.release();
+      conn = null;
     }
     if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ ok: false, message: 'Este e-mail já está cadastrado.' });
+      return res.status(409).json({
+        ok: false,
+        message: 'Esta conta já foi criada ou os dados informados já estão em uso.',
+        fields: {
+          email: 'Verifique se o e-mail, CPF ou telefone já não estão cadastrados.',
+        },
+      });
     }
     if (err.code === 'ER_NO_REFERENCED_ROW_2' || (err.message && err.message.includes('default_address_id'))) {
       return res.status(500).json({ ok: false, message: 'Tabela customers sem coluna default_address_id. Adicione a coluna ou use apenas customer_addresses.' });

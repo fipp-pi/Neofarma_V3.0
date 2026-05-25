@@ -1,5 +1,7 @@
 const bcrypt = require('bcrypt');
 const Customer = require('../models/Customer');
+const User = require('../models/User');
+const { validateRegisterPayload, findRegisterDuplicateFields } = require('../utils/registerValidation');
 
 /**
  * GET /admin/clientes - Lista clientes (página + dados para a tabela via API ou render).
@@ -9,10 +11,19 @@ async function listClients(req, res, next) {
   try {
     const search = req.query.search || req.query.q || null;
     const clients = await Customer.findAll(search);
+    const list = clients || [];
+    const stats = {
+      total: list.length,
+      withEmail: list.filter((c) => c.email).length,
+      withPhone: list.filter((c) => c.phone).length,
+      withCity: list.filter((c) => c.city && String(c.city).trim()).length,
+      withDocument: list.filter((c) => c.document && String(c.document).trim()).length,
+    };
     res.render('list_clients', {
-      title: 'Clientes - NeoFarma',
+      title: 'Clientes - Admin - NeoFarma',
       bodyClass: 'admin-page',
-      clients: clients || [],
+      clients: list,
+      stats,
       activeAdmin: 'clientes',
       useAdminLayout: true,
     });
@@ -26,7 +37,7 @@ async function listClients(req, res, next) {
  */
 function getRegisterNew(req, res) {
   res.render('register_new', {
-    title: 'Novo Cliente - NeoFarma',
+    title: 'Novo Cliente - Admin - NeoFarma',
     bodyClass: 'admin-page',
     activeAdmin: 'clientes',
     useAdminLayout: true,
@@ -40,51 +51,28 @@ function getRegisterNew(req, res) {
 async function postRegisterNew(req, res, next) {
   try {
     const data = req.body || {};
-    if (!data.nome && !data.full_name) {
-      return res.status(400).json({ ok: false, message: 'Nome é obrigatório.' });
+    const { fields, payload } = validateRegisterPayload(data);
+    const duplicateFields = await findRegisterDuplicateFields(payload, User);
+    const allFields = { ...fields, ...duplicateFields };
+
+    if (Object.keys(allFields).length) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Revise os campos destacados em vermelho antes de continuar.',
+        fields: allFields,
+      });
     }
-    if (!data.email) {
-      return res.status(400).json({ ok: false, message: 'E-mail é obrigatório.' });
-    }
-    if (!data.telefone && !data.phone) {
-      return res.status(400).json({ ok: false, message: 'Telefone é obrigatório.' });
-    }
-    const senha = data.senha || '';
-    if (!senha || senha.length < 6) {
-      return res.status(400).json({ ok: false, message: 'Senha é obrigatória (mínimo 6 caracteres).' });
-    }
-    if (senha !== (data.confirmar_senha || '')) {
-      return res.status(400).json({ ok: false, message: 'As senhas não coincidem.' });
-    }
-    if (!data.cep && !data.zip_code) {
-      return res.status(400).json({ ok: false, message: 'CEP é obrigatório.' });
-    }
-    if (!data.numero && !data.number) {
-      return res.status(400).json({ ok: false, message: 'Número do endereço é obrigatório.' });
-    }
-    const document = data.document || data.cpf || null;
-    const birthDate = data.birth_date ? String(data.birth_date).trim() || null : null;
-    const payload = {
-      nome: data.nome || data.full_name,
-      email: data.email,
-      telefone: data.telefone || data.phone,
-      document: document && String(document).replace(/\D/g, '').length === 11 ? String(document).replace(/\D/g, '') : null,
-      birth_date: birthDate,
-      pais: data.pais || 'Brasil',
-      cep: (data.cep || data.zip_code || '').toString().replace(/\D/g, ''),
-      rua: data.rua || data.street,
-      numero: data.numero || data.number,
-      complement: data.complement || null,
-      bairro: data.bairro || data.district,
-      cidade: data.cidade || data.city,
-      estado: data.estado || data.state,
-    };
-    const passwordHash = await bcrypt.hash(senha, 10);
+
+    const passwordHash = await bcrypt.hash(payload.senha, 10);
     const result = await Customer.createClient(payload, passwordHash);
     res.status(201).json({ ok: true, message: 'Cliente cadastrado com sucesso.', id: result.customerId });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY' || err.message?.includes('Duplicate')) {
-      return res.status(409).json({ ok: false, message: 'Este e-mail já está cadastrado.' });
+      return res.status(409).json({
+        ok: false,
+        message: 'Este e-mail já está cadastrado.',
+        fields: { email: 'Este e-mail já está em uso por outro cliente.' },
+      });
     }
     next(err);
   }

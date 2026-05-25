@@ -1,6 +1,8 @@
 <%- include('partials/header') %>
 
-<div class="container">
+<div class="container admin-catalog admin-financas">
+  <%- include('partials/financas-nav') %>
+
   <%
     function toLocaleString(v) {
       const n = Number(v || 0);
@@ -8,10 +10,10 @@
     }
   %>
 
-  <div class="list-header">
+  <div class="list-header mb-3">
     <div>
-      <h2 class="neo-heading">Finanças - Pedidos</h2>
-      <p class="text-muted mb-0">Gerencie pagamentos pendentes: marque pago/falhou com segurança.</p>
+      <h2 class="neo-heading">Pedidos e pagamentos</h2>
+      <p class="text-muted mb-0">Consulte os pedidos da loja, filtre por status de pagamento e confirme ou rejeite recebimentos pendentes.</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -87,19 +89,19 @@
                 <% if (orders && orders.length) { %>
                   <% orders.forEach(function(o) { %>
                     <tr>
-                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '' %></div></td>
+                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= fmtDateTime(o.created_at) %></div></td>
                       <td>
                         <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
                         <div class="text-muted small text-break"><%= o.email || '' %></div>
                       </td>
-                      <td><span class="badge bg-light text-dark border"><%= o.payment_method %></span></td>
+                      <td><span class="badge bg-light text-dark border"><%= t('paymentMethod', o.payment_method) %></span></td>
                       <td>
                         <% 
                           const pay = String(o.payment_status || '');
-                          const badge = pay === 'PAID' ? 'success' : (pay === 'FAILED' ? 'danger' : 'warning');
+                          const badge = tPayBadge(pay);
                         %>
-                        <span class="badge bg-<%= badge %>"><%= pay || '-' %></span>
-                        <div class="text-muted small mt-1"><%= o.order_status || '' %></div>
+                        <span class="badge bg-<%= badge %>"><%= t('paymentStatus', pay) || '-' %></span>
+                        <div class="text-muted small mt-1"><%= t('orderStatus', o.order_status) %></div>
                       </td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
                       <td class="text-end">
@@ -179,19 +181,19 @@
                 <% if (orders && orders.length) { %>
                   <% orders.forEach(function(o) { %>
                     <tr>
-                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '' %></div></td>
+                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= fmtDateTime(o.created_at) %></div></td>
                       <td>
                         <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
                         <div class="text-muted small text-break"><%= o.email || '' %></div>
                       </td>
-                      <td><span class="badge bg-light text-dark border"><%= o.payment_method %></span></td>
+                      <td><span class="badge bg-light text-dark border"><%= t('paymentMethod', o.payment_method) %></span></td>
                       <td>
                         <% 
                           const pay = String(o.payment_status || '');
-                          const badge = pay === 'PAID' ? 'success' : (pay === 'FAILED' ? 'danger' : 'warning');
+                          const badge = tPayBadge(pay);
                         %>
-                        <span class="badge bg-<%= badge %>"><%= pay || '-' %></span>
-                        <div class="text-muted small mt-1"><%= o.order_status || '' %></div>
+                        <span class="badge bg-<%= badge %>"><%= t('paymentStatus', pay) || '-' %></span>
+                        <div class="text-muted small mt-1"><%= t('orderStatus', o.order_status) %></div>
                       </td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
                       <td class="text-end">
@@ -263,10 +265,25 @@
     }
 
     function getPaymentBadgeClass(paymentStatus) {
+      if (window.NeoLabels && NeoLabels.paymentStatusBadge) {
+        return NeoLabels.paymentStatusBadge(paymentStatus);
+      }
       var pay = String(paymentStatus || '');
       if (pay === 'PAID') return 'success';
       if (pay === 'FAILED') return 'danger';
       return 'warning';
+    }
+
+    function labelPaymentStatus(v) {
+      return window.NeoLabels ? NeoLabels.paymentStatus(v) : String(v || '-');
+    }
+
+    function labelPaymentMethod(v) {
+      return window.NeoLabels ? NeoLabels.paymentMethod(v) : String(v || '');
+    }
+
+    function labelOrderStatus(v) {
+      return window.NeoLabels ? NeoLabels.orderStatus(v) : String(v || '');
     }
 
     // Delegação de eventos para funcionar também após paginação via AJAX no modal
@@ -352,7 +369,7 @@
         orders.forEach(function (o) {
           var tr = document.createElement('tr');
 
-          var createdStr = o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '';
+          var createdStr = o.created_at ? (window.NeoDates ? NeoDates.formatDateTime(o.created_at) : o.created_at) : '';
           var pay = String(o.payment_status || '');
           var badgeClass = getPaymentBadgeClass(pay);
 
@@ -373,10 +390,10 @@
               <div class="fw-bold">' + (o.full_name ? String(o.full_name) : 'Cliente') + '</div>\
               <div class="text-muted small text-break">' + (o.email ? String(o.email) : '') + '</div>\
             </td>\
-            <td><span class="badge bg-light text-dark border">' + String(o.payment_method || '') + '</span></td>\
+            <td><span class="badge bg-light text-dark border">' + labelPaymentMethod(o.payment_method) + '</span></td>\
             <td>\
-              <span class="badge bg-' + badgeClass + '">' + (pay || '-') + '</span>\
-              <div class="text-muted small mt-1">' + (o.order_status || '') + '</div>\
+              <span class="badge bg-' + badgeClass + '">' + labelPaymentStatus(pay) + '</span>\
+              <div class="text-muted small mt-1">' + labelOrderStatus(o.order_status) + '</div>\
             </td>\
             <td class="text-end fw-semibold">R$ ' + formatMoney(o.total) + '</td>\
             <td class="text-end">' + actionsHtml + '</td>';

@@ -1,0 +1,382 @@
+/* ============================================================
+   NeoFarma — Dashboard Admin
+   ============================================================ */
+
+.admin-dashboard {
+  max-width: 1320px;
+}
+
+.admin-dashboard__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.75rem;
+  padding: 1.35rem 1.5rem;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-color), #fff 92%) 0%, #fff 55%, color-mix(in srgb, var(--accent-color), #fff 96%) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent-color), transparent 78%);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
+}
+
+.admin-dashboard__hero-title {
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-weight: 700;
+  color: var(--heading-color);
+  margin: 0 0 0.35rem;
+  line-height: 1.2;
+}
+
+.admin-dashboard__hero-sub {
+  margin: 0;
+  color: #5c6670;
+  font-size: 0.95rem;
+  max-width: 38rem;
+}
+
+.admin-dashboard__hero-meta {
+  text-align: right;
+  color: #6c757d;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.admin-dashboard__hero-meta strong {
+  display: block;
+  color: var(--accent-color);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.admin-dashboard__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-kpi {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  padding: 1.1rem 1.15rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-height: 104px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+a.admin-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  border-color: color-mix(in srgb, var(--accent-color), transparent 70%);
+}
+
+.admin-kpi__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.admin-kpi__icon--primary {
+  background: color-mix(in srgb, var(--accent-color), transparent 86%);
+  color: var(--accent-color);
+}
+
+.admin-kpi__icon--success {
+  background: #e8f6ee;
+  color: #198754;
+}
+
+.admin-kpi__icon--info {
+  background: #e7f1ff;
+  color: #0d6efd;
+}
+
+.admin-kpi__icon--neutral {
+  background: #f1f3f5;
+  color: #495057;
+}
+
+.admin-kpi__body {
+  min-width: 0;
+}
+
+.admin-kpi__label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.admin-kpi__value {
+  font-size: clamp(1.15rem, 1.8vw, 1.55rem);
+  font-weight: 700;
+  color: var(--heading-color);
+  line-height: 1.15;
+  margin-bottom: 0.15rem;
+}
+
+.admin-kpi__hint {
+  font-size: 0.8rem;
+  color: #868e96;
+  margin: 0;
+}
+
+.admin-dashboard__panel {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.admin-dashboard__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1.15rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fafbfc;
+}
+
+.admin-dashboard__panel-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--heading-color);
+}
+
+.admin-dashboard__panel-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent-color);
+}
+
+.admin-dashboard__panel-link:hover {
+  text-decoration: underline;
+}
+
+.admin-dashboard__alerts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.admin-alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.admin-alert-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.admin-alert-item__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-alert-item__title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+  color: #212529;
+}
+
+.admin-alert-item__text {
+  font-size: 0.78rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.admin-alert-item__count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.admin-alert-item--danger {
+  background: #fff5f5;
+  border-color: #f1c2c7;
+}
+.admin-alert-item--danger .admin-alert-item__icon {
+  background: #f8d7da;
+  color: #b02a37;
+}
+.admin-alert-item--danger .admin-alert-item__count {
+  background: #dc3545;
+  color: #fff;
+}
+
+.admin-alert-item--warning {
+  background: #fffbf0;
+  border-color: #f3dfaa;
+}
+.admin-alert-item--warning .admin-alert-item__icon {
+  background: #fff3cd;
+  color: #997404;
+}
+.admin-alert-item--warning .admin-alert-item__count {
+  background: #ffc107;
+  color: #212529;
+}
+
+.admin-alert-item--info {
+  background: #f0f7ff;
+  border-color: #cfe2ff;
+}
+.admin-alert-item--info .admin-alert-item__icon {
+  background: #dbeafe;
+  color: #0a58ca;
+}
+.admin-alert-item--info .admin-alert-item__count {
+  background: #0d6efd;
+  color: #fff;
+}
+
+.admin-alert-item--ok {
+  background: #f6fbf7;
+  border-color: #cfe8d5;
+}
+.admin-alert-item--ok .admin-alert-item__icon {
+  background: #d1e7dd;
+  color: #146c43;
+}
+.admin-alert-item--ok .admin-alert-item__count {
+  background: #198754;
+  color: #fff;
+}
+
+.admin-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.admin-quick-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fff;
+  text-decoration: none;
+  color: #343a40;
+  font-size: 0.86rem;
+  font-weight: 500;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.admin-quick-link:hover {
+  background: color-mix(in srgb, var(--accent-color), transparent 92%);
+  border-color: color-mix(in srgb, var(--accent-color), transparent 75%);
+  color: var(--accent-color);
+}
+
+.admin-quick-link__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f1f3f5;
+  color: var(--accent-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-dashboard__orders-table {
+  margin: 0;
+}
+
+.admin-dashboard__orders-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  font-weight: 700;
+  border-bottom-width: 1px;
+  white-space: nowrap;
+}
+
+.admin-dashboard__orders-table td {
+  font-size: 0.86rem;
+  vertical-align: middle;
+}
+
+.admin-dashboard__empty {
+  padding: 2rem 1.15rem;
+  text-align: center;
+  color: #868e96;
+  font-size: 0.9rem;
+}
+
+.admin-dashboard__status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.admin-dashboard__status--paid { background: #d1e7dd; color: #0f5132; }
+.admin-dashboard__status--pending { background: #fff3cd; color: #664d03; }
+.admin-dashboard__status--failed { background: #f8d7da; color: #842029; }
+
+@media (max-width: 1199.98px) {
+  .admin-dashboard__kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .admin-dashboard__hero-meta {
+    text-align: left;
+    width: 100%;
+  }
+
+  .admin-dashboard__kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -31,6 +31,12 @@
                 <p>Entrar na sua conta</p>
               </div>
 
+              <div id="login-success" class="alert alert-success alert-dismissible fade show d-none mb-3" role="alert" style="font-size: 14px; padding: 10px;">
+                <i class="bi bi-check-circle-fill me-1"></i>
+                <span id="login-success-text"></span>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Fechar"></button>
+              </div>
+
               <form class="auth-form-content" id="loginForm">
                 <div class="input-group mb-3">
                   <span class="input-icon">
@@ -92,5 +98,39 @@
   </section><!-- /Login Section -->
 
 </main>
+
+<script>
+(function () {
+  try {
+    var raw = sessionStorage.getItem('loginFlash');
+    if (!raw) return;
+    sessionStorage.removeItem('loginFlash');
+    var data = JSON.parse(raw);
+    if (!data || !data.message) return;
+
+    var successBox = document.getElementById('login-success');
+    var successText = document.getElementById('login-success-text');
+    var errorBox = document.getElementById('login-error');
+    var emailInput = document.getElementById('email');
+
+    if (successText) successText.textContent = data.message;
+    if (successBox) successBox.classList.remove('d-none');
+    if (errorBox) errorBox.classList.add('d-none');
+
+    if (data.email && emailInput) {
+      emailInput.value = data.email;
+      var senhaInput = document.getElementById('senha');
+      if (senhaInput) senhaInput.focus();
+      else emailInput.focus();
+    } else if (emailInput) {
+      emailInput.focus();
+    }
+
+    if (typeof window.neofarmaToast === 'function') {
+      window.neofarmaToast(data.message, data.type || 'success');
+    }
+  } catch (e) { /* ignore */ }
+})();
+</script>
 
 <%- include('partials/footer') %>

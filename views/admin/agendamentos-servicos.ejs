@@ -1,236 +1,571 @@
 <%- include('partials/header') %>
-<div class="container-fluid">
-  <div class="list-header mb-3">
+
+<%
+  const currentView = typeof activeView !== 'undefined' ? String(activeView) : 'agenda';
+  const servicesList = Array.isArray(services) ? services : [];
+  const professionalsList = Array.isArray(professionals) ? professionals : [];
+  const servicesTotalCount = servicesList.length;
+  const professionalsTotalCount = professionalsList.length;
+  const statsData = {
+    servicesCount: servicesTotalCount,
+    professionalsCount: professionalsTotalCount,
+    holidaysCount: Array.isArray(holidays) ? holidays.length : 0,
+    filteredAppointments: Array.isArray(appointments) ? appointments.length : 0,
+  };
+  function agUrl(v, extra) {
+    var target = v || currentView;
+    var q = 'view=' + encodeURIComponent(target);
+    if (target === 'agenda') {
+      q += '&status=' + encodeURIComponent((extra && extra.status) ? extra.status : statusFilter);
+    }
+    return '/admin/agendamentos-servicos?' + q;
+  }
+  const mainTabs = [
+    { v: 'agenda', l: 'Agenda', icon: 'bi-calendar2-check' },
+    { v: 'servicos', l: 'Serviços', icon: 'bi-heart-pulse' },
+    { v: 'profissionais', l: 'Profissionais', icon: 'bi-person-badge' },
+    { v: 'config', l: 'Configurações', icon: 'bi-gear' },
+  ];
+  const aptStatusTabs = [
+    { v: 'ALL', l: 'Todos', icon: 'bi-grid' },
+    { v: 'RESERVED', l: 'Reservados', icon: 'bi-hourglass' },
+    { v: 'PAYMENT_FAILED', l: 'Pag. falhou', icon: 'bi-x-circle' },
+    { v: 'CONFIRMED', l: 'Confirmados', icon: 'bi-check-circle' },
+    { v: 'IN_PROGRESS', l: 'Em atendimento', icon: 'bi-play-circle' },
+    { v: 'COMPLETED', l: 'Concluídos', icon: 'bi-flag' },
+    { v: 'CANCELLED', l: 'Cancelados', icon: 'bi-slash-circle' },
+    { v: 'NO_SHOW', l: 'Ausentes', icon: 'bi-person-x' },
+    { v: 'INCOMPLETE', l: 'Não finalizados', icon: 'bi-exclamation-square' },
+  ];
+  const APT_STATUS_LABELS = {
+    RESERVED: 'Reservado',
+    PAYMENT_FAILED: 'Pag. falhou',
+    CONFIRMED: 'Confirmado',
+    IN_PROGRESS: 'Em atendimento',
+    COMPLETED: 'Concluído',
+    CANCELLED: 'Cancelado',
+    NO_SHOW: 'Ausente',
+    INCOMPLETE: 'Não finalizado',
+  };
+  const APT_STATUS_BADGE = {
+    RESERVED: 'warning',
+    PAYMENT_FAILED: 'danger',
+    CONFIRMED: 'info',
+    IN_PROGRESS: 'primary',
+    COMPLETED: 'success',
+    CANCELLED: 'muted',
+    NO_SHOW: 'muted',
+    INCOMPLETE: 'warning',
+  };
+  const PAY_STATUS_LABELS_PT = { PENDING: 'Pendente', PAID: 'Pago', FAILED: 'Falhou', REFUNDED_PARTIAL: 'Estorno parcial' };
+  const PAY_STATUS_BADGE = { PENDING: 'warning', PAID: 'success', FAILED: 'danger', REFUNDED_PARTIAL: 'info' };
+  const PAY_METHOD_LABELS = { CASH: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão crédito', DEBIT_CARD: 'Cartão débito' };
+  const PAY_METHOD_ICONS = { CASH: 'bi-cash-coin', PIX: 'bi-qr-code-scan', CREDIT_CARD: 'bi-credit-card-2-front', DEBIT_CARD: 'bi-credit-card' };
+%>
+
+<div class="container admin-agendamentos">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
+
+  <div class="list-header">
     <div>
-      <h2 class="neo-heading">Agendar Serviços</h2>
-      <p class="text-muted mb-0">Reserva temporária (10 min), pagamento, execução profissional e conclusão clínica.</p>
+      <h2 class="neo-heading">Agendamentos de serviços</h2>
+      <p class="text-muted mb-0">Gerencie agendamentos de serviços de saúde, do registro e pagamento até a execução e conclusão do atendimento.</p>
     </div>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalService" onclick="novoServico()">
-        <i class="bi bi-plus-lg me-1"></i> Novo Serviço
-      </button>
-      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalProfessional" onclick="novoProfissional()">
-        <i class="bi bi-person-plus me-1"></i> Novo Profissional
-      </button>
-      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalHoliday">
-        <i class="bi bi-calendar-x me-1"></i> Feriados
-      </button>
-      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalReserve" onclick="novoAgendamento()">
-        <i class="bi bi-calendar-plus me-1"></i> Novo Agendamento
-      </button>
-    </div>
-  </div>
-
-  <div class="row g-3 mb-3">
-    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Total</div><div class="h4 mb-0"><%= summary.total %></div></div></div>
-    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Reservados</div><div class="h4 mb-0"><%= summary.reserved %></div></div></div>
-    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Confirmados</div><div class="h4 mb-0"><%= summary.confirmed %></div></div></div>
-    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Em atendimento</div><div class="h4 mb-0"><%= summary.inProgress %></div></div></div>
-    <div class="col-md-2"><div class="card p-3"><div class="text-muted small">Concluídos</div><div class="h4 mb-0"><%= summary.completed %></div></div></div>
-  </div>
-
-  <div class="table-container mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0">Serviços cadastrados</h5>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-custom align-middle">
-        <thead>
-          <tr><th>Serviço</th><th>Preço</th><th>Duração</th><th>Domicílio</th><th>Receita</th><th>Status</th><th class="text-end">Ações</th></tr>
-        </thead>
-        <tbody>
-          <% (services || []).forEach(function(s) { %>
-            <tr>
-              <td><%= s.name %></td>
-              <td>R$ <%= toMoney(s.price) %></td>
-              <td><%= s.duration_minutes %> min</td>
-              <td><span class="badge <%= s.home_available ? 'bg-success' : 'bg-secondary' %>"><%= s.home_available ? 'Sim' : 'Não' %></span></td>
-              <td><span class="badge <%= s.requires_prescription ? 'bg-warning' : 'bg-primary' %>"><%= s.requires_prescription ? 'Obrigatória' : 'Não' %></span></td>
-              <td><span class="badge <%= s.is_active ? 'bg-success' : 'bg-secondary' %>"><%= s.is_active ? 'Ativo' : 'Inativo' %></span></td>
-              <td class="text-end">
-                <div class="actions-compact">
-                <button class="btn btn-sm btn-outline-primary btn-icon-square" title="Ver" aria-label="Ver" onclick='verServico(<%- JSON.stringify(s) %>)'><i class="bi bi-eye"></i></button>
-                <button class="btn btn-sm btn-primary btn-icon-square" title="Editar" aria-label="Editar" onclick='editarServico(<%- JSON.stringify(s) %>)'><i class="bi bi-pencil-square"></i></button>
-                <button class="btn btn-sm btn-outline-danger btn-icon-square" title="Excluir" aria-label="Excluir" onclick='excluirServico(<%= s.id %>)'><i class="bi bi-trash"></i></button>
-                </div>
-              </td>
-            </tr>
-          <% }) %>
-          <% if (!services || !services.length) { %>
-            <tr><td colspan="7" class="text-muted">Nenhum serviço cadastrado.</td></tr>
-          <% } %>
-        </tbody>
-      </table>
+    <div class="d-flex flex-wrap gap-2" id="agendamentos_header_actions">
+      <div class="admin-agendamentos__header-actions" data-header-for="agenda" <%= currentView !== 'agenda' ? 'hidden' : '' %>>
+        <a href="/admin/agendamentos-servicos/caixa" class="btn btn-outline-primary btn-sm"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
+        <button type="button" class="btn btn-save btn-sm" data-bs-toggle="modal" data-bs-target="#modalReserve" onclick="novoAgendamento()">
+          <i class="bi bi-calendar-plus me-1"></i> Novo agendamento
+        </button>
+      </div>
+      <div class="admin-agendamentos__header-actions" data-header-for="servicos" <%= currentView !== 'servicos' ? 'hidden' : '' %>>
+        <button type="button" class="btn btn-save btn-sm" data-bs-toggle="modal" data-bs-target="#modalService" onclick="novoServico()">
+          <i class="bi bi-plus-lg me-1"></i> Novo serviço
+        </button>
+      </div>
+      <div class="admin-agendamentos__header-actions" data-header-for="profissionais" <%= currentView !== 'profissionais' ? 'hidden' : '' %>>
+        <button type="button" class="btn btn-save btn-sm" data-bs-toggle="modal" data-bs-target="#modalProfessional" onclick="novoProfissional()">
+          <i class="bi bi-person-plus me-1"></i> Novo profissional
+        </button>
+      </div>
     </div>
   </div>
 
-  <div class="table-container mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0">Profissionais cadastrados</h5>
-      <div class="d-flex gap-2">
-        <input class="form-control form-control-sm" id="pro_search" placeholder="Buscar por nome, cargo, conselho, e-mail ou telefone" style="min-width: 320px;">
-        <select class="form-select form-select-sm" id="pro_page_size" style="width: 100px;">
-          <option value="5">5</option>
-          <option value="10" selected>10</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
+  <nav class="admin-agendamentos__main-tabs mb-4" aria-label="Seções de agendamentos">
+    <% mainTabs.forEach(function (t) { %>
+      <a href="<%= agUrl(t.v) %>" class="admin-agendamentos__main-tab <%= currentView === t.v ? 'is-active' : '' %>" data-view-tab="<%= t.v %>">
+        <i class="bi <%= t.icon %> me-1"></i><%= t.l %>
+      </a>
+    <% }); %>
+  </nav>
+
+  <div class="admin-agendamentos-view" data-view-panel="agenda" <%= currentView !== 'agenda' ? 'hidden' : '' %>>
+  <div class="admin-agendamentos__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <a href="<%= agUrl('agenda', { status: 'RESERVED' }) %>" class="admin-agendamentos__stat admin-agendamentos__stat--warning text-decoration-none">
+        <span class="admin-agendamentos__stat-icon"><i class="bi bi-hourglass"></i></span>
+        <div><div class="admin-agendamentos__stat-value"><%= summary.reserved %></div><div class="admin-agendamentos__stat-label">Reservados / pendências</div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="<%= agUrl('agenda', { status: 'CONFIRMED' }) %>" class="admin-agendamentos__stat admin-agendamentos__stat--info text-decoration-none">
+        <span class="admin-agendamentos__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div><div class="admin-agendamentos__stat-value"><%= summary.confirmed %></div><div class="admin-agendamentos__stat-label">Confirmados</div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="<%= agUrl('agenda', { status: 'IN_PROGRESS' }) %>" class="admin-agendamentos__stat admin-agendamentos__stat--primary text-decoration-none">
+        <span class="admin-agendamentos__stat-icon"><i class="bi bi-play-circle"></i></span>
+        <div><div class="admin-agendamentos__stat-value"><%= summary.inProgress %></div><div class="admin-agendamentos__stat-label">Em atendimento</div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="<%= agUrl('agenda', { status: 'COMPLETED' }) %>" class="admin-agendamentos__stat admin-agendamentos__stat--success text-decoration-none">
+        <span class="admin-agendamentos__stat-icon"><i class="bi bi-flag"></i></span>
+        <div><div class="admin-agendamentos__stat-value"><%= summary.completed %></div><div class="admin-agendamentos__stat-label">Concluídos</div></div>
+      </a>
+    </div>
+  </div>
+
+  <% if ((summary.reserved || 0) > 0) { %>
+  <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-exclamation-triangle me-1"></i> Pendências:</strong>
+      existem <strong><%= summary.reserved %></strong> agendamento(s) aguardando pagamento ou confirmação. Revise antes que a reserva expire.
+    </div>
+    <a class="btn btn-sm btn-warning" href="<%= agUrl('agenda', { status: 'RESERVED' }) %>">Ver pendências</a>
+  </div>
+  <% } %>
+
+  <% if ((summary.inProgress || 0) > 0) { %>
+  <div class="alert alert-primary d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-play-circle me-1"></i> Em andamento:</strong>
+      <%= summary.inProgress %> atendimento(s) em execução no momento.
+    </div>
+    <a class="btn btn-sm btn-primary" href="<%= agUrl('agenda', { status: 'IN_PROGRESS' }) %>">Ver em atendimento</a>
+  </div>
+  <% } %>
+
+  <% if (servicesTotalCount === 0) { %>
+  <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-heart-pulse me-1"></i> Catálogo vazio:</strong>
+      cadastre ao menos um serviço de saúde antes de receber agendamentos.
+    </div>
+    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalService" onclick="novoServico()">Cadastrar serviço</button>
+  </div>
+  <% } else if (professionalsTotalCount === 0) { %>
+  <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-person-badge me-1"></i> Sem profissionais:</strong>
+      cadastre profissionais com disponibilidade semanal para liberar horários na agenda.
+    </div>
+    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalProfessional" onclick="novoProfissional()">Cadastrar profissional</button>
+  </div>
+  <% } %>
+
+  <div class="admin-agendamentos__tabs mb-3">
+    <% aptStatusTabs.forEach(function (t) { %>
+      <a href="<%= agUrl('agenda', { status: t.v }) %>" class="admin-agendamentos__tab <%= statusFilter === t.v ? 'is-active' : '' %>">
+        <i class="bi <%= t.icon %> me-1"></i><%= t.l %>
+      </a>
+    <% }); %>
+  </div>
+
+  <section class="admin-agendamentos__panel admin-agendamentos__panel--table">
+    <div class="admin-agendamentos__panel-head admin-agendamentos__panel-head--table">
+      <h3 class="admin-agendamentos__panel-title"><i class="bi bi-calendar-week me-2"></i>Agenda e atendimentos</h3>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="search-box admin-agendamentos__search">
+          <i class="bi bi-search"></i>
+          <input class="form-control form-control-sm" id="apt_search" placeholder="Buscar cliente, serviço, profissional...">
+        </div>
+        <select class="form-select form-select-sm admin-agendamentos__page-size" id="apt_page_size">
+          <option value="10" selected>10 / pág.</option>
+          <option value="20">20 / pág.</option>
+          <option value="50">50 / pág.</option>
         </select>
       </div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-custom align-middle" id="table_professionals">
-        <thead>
-          <tr><th>Nome</th><th>Cargo</th><th>Registro</th><th>Contato</th><th>Status</th><th class="text-end">Ações</th></tr>
-        </thead>
-        <tbody id="pro_tbody">
-          <% (professionals || []).forEach(function(p) { %>
-            <tr data-search="<%= [p.full_name, p.role_name, p.council_type, p.council_uf, p.council_number, p.email, p.phone].filter(Boolean).join(' ').toLowerCase() %>">
-              <td><%= p.full_name %></td>
-              <td><%= p.role_name %></td>
-              <td><%= p.council_type %>/<%= p.council_uf %> <%= p.council_number %></td>
-              <td>
-                <div><%= p.email || '-' %></div>
-                <div class="small text-muted"><%= p.phone || '-' %></div>
-              </td>
-              <td><span class="badge <%= p.is_active ? 'bg-success' : 'bg-secondary' %>"><%= p.is_active ? 'Ativo' : 'Inativo' %></span></td>
-              <td class="text-end">
-                <div class="actions-compact">
-                <button class="btn btn-sm btn-outline-primary btn-icon-square" title="Ver" aria-label="Ver" onclick='verProfissional(<%- JSON.stringify(p) %>)'><i class="bi bi-eye"></i></button>
-                <button class="btn btn-sm btn-primary btn-icon-square" title="Editar" aria-label="Editar" onclick='editarProfissional(<%- JSON.stringify(p) %>)'><i class="bi bi-pencil-square"></i></button>
-                <button class="btn btn-sm btn-outline-danger btn-icon-square" title="Excluir" aria-label="Excluir" onclick='excluirProfissional(<%= p.id %>)'><i class="bi bi-trash"></i></button>
-                </div>
-              </td>
-            </tr>
-          <% }) %>
-          <% if (!professionals || !professionals.length) { %>
-            <tr><td colspan="6" class="text-muted">Nenhum profissional cadastrado.</td></tr>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
-    <div class="d-flex justify-content-between align-items-center mt-2">
-      <div class="small text-muted" id="pro_pagination_info">0 profissional(is)</div>
-      <div class="btn-group btn-group-sm" id="pro_pagination_controls"></div>
-    </div>
-  </div>
 
-  <div class="table-container">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0">Agenda e atendimento</h5>
-      <div class="d-flex gap-2">
-        <input class="form-control form-control-sm" id="apt_search" placeholder="Buscar por cliente, serviço, profissional, status ou pagamento" style="min-width: 340px;">
-        <select class="form-select form-select-sm" id="apt_page_size" style="width: 100px;">
-          <option value="5">5</option>
-          <option value="10" selected>10</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
-        </select>
-        <div class="btn-group btn-group-sm">
-          <a class="btn <%= statusFilter === 'ALL' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos">Todos</a>
-          <a class="btn <%= statusFilter === 'RESERVED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=RESERVED">Reservados</a>
-          <a class="btn <%= statusFilter === 'PAYMENT_FAILED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=PAYMENT_FAILED">Pagamento falhou</a>
-          <a class="btn <%= statusFilter === 'CONFIRMED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=CONFIRMED">Confirmados</a>
-          <a class="btn <%= statusFilter === 'IN_PROGRESS' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=IN_PROGRESS">Em atendimento</a>
-          <a class="btn <%= statusFilter === 'COMPLETED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=COMPLETED">Concluídos</a>
-          <a class="btn <%= statusFilter === 'CANCELLED' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=CANCELLED">Cancelados</a>
-          <a class="btn <%= statusFilter === 'NO_SHOW' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=NO_SHOW">Ausentes</a>
-          <a class="btn <%= statusFilter === 'INCOMPLETE' ? 'btn-dark' : 'btn-outline-dark' %>" href="/admin/agendamentos-servicos?status=INCOMPLETE">Não finalizados</a>
+    <% if (!appointments || !appointments.length) { %>
+      <div class="admin-agendamentos__empty">
+        <i class="bi bi-calendar-x d-block mb-2"></i>
+        Nenhum agendamento neste filtro.
+        <div class="mt-2">
+          <button type="button" class="btn btn-sm btn-save" data-bs-toggle="modal" data-bs-target="#modalReserve" onclick="novoAgendamento()">
+            <i class="bi bi-calendar-plus me-1"></i> Criar agendamento
+          </button>
         </div>
       </div>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-custom align-middle" id="table_appointments">
-        <thead>
-          <tr>
-            <th>#</th><th>Cliente</th><th>Origem</th><th>Serviço</th><th>Profissional</th><th>Modalidade</th><th>Horário</th><th>Pagamento</th><th>Status</th><th class="text-end">Ações</th>
-          </tr>
-        </thead>
-        <tbody id="apt_tbody">
-          <% (appointments || []).forEach(function(a) { %>
-            <tr data-search="<%= [a.id, a.customer_name, a.customer_email, a.booking_channel, a.service_name, a.professional_name, a.professional_role, a.modality, a.payment_method, a.payment_status, a.status].filter(Boolean).join(' ').toLowerCase() %>">
-              <td><%= a.id %></td>
-              <td>
-                <div><strong><%= a.customer_name %></strong></div>
-                <div class="small text-muted"><%= a.customer_email || '-' %></div>
-              </td>
-              <td>
-                <span class="badge <%= String(a.booking_channel || '').toUpperCase() === 'CUSTOMER_ONLINE' ? 'bg-info text-dark' : 'bg-secondary' %>">
-                  <%= String(a.booking_channel || 'ADMIN') === 'CUSTOMER_ONLINE' ? 'Online' : 'Admin' %>
-                </span>
-              </td>
-              <td><%= a.service_name %></td>
-              <td>
-                <div><%= a.professional_name || '-' %></div>
-                <div class="small text-muted"><%= a.professional_role || '' %></div>
-              </td>
-              <td><%= a.modality === 'HOME' ? 'Domicílio' : 'Na farmácia' %></td>
-              <td><%= new Date(a.scheduled_start).toLocaleString('pt-BR') %></td>
-              <td>
-                <div class="small">R$ <%= toMoney(a.total_amount) %></div>
-                <div class="small text-muted"><%= a.payment_method || '-' %></div>
-                <span class="badge <%= a.payment_status === 'PAID' ? 'bg-success' : (a.payment_status === 'FAILED' ? 'bg-danger' : 'bg-warning') %>"><%= a.payment_status %></span>
-                <% if (a.payment_status === 'REFUNDED_PARTIAL' && Number(a.refund_amount || 0) > 0) { %>
-                  <div class="mt-1"><span class="badge bg-info text-dark">Estorno R$ <%= toMoney(a.refund_amount) %></span></div>
-                <% } %>
-              </td>
-              <td><span class="badge bg-primary"><%= a.status %></span></td>
-              <td class="text-end">
-                <div class="actions-compact">
-                <button class="btn btn-sm btn-outline-primary btn-icon-square" title="Ver" aria-label="Ver" onclick='verAgendamento(<%- JSON.stringify(a) %>)'><i class="bi bi-eye"></i></button>
-                <button class="btn btn-sm btn-primary btn-icon-square" title="Editar" aria-label="Editar" onclick='editarAgendamento(<%- JSON.stringify(a) %>)'><i class="bi bi-pencil-square"></i></button>
-                <button class="btn btn-sm btn-outline-danger btn-icon-square" title="Excluir" aria-label="Excluir" onclick='excluirAgendamento(<%= a.id %>)'><i class="bi bi-trash"></i></button>
-                <div class="btn-group btn-group-sm">
-                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle btn-icon-square" data-bs-toggle="dropdown" type="button" title="Mais opções" aria-label="Mais opções">
-                    <i class="bi bi-three-dots"></i>
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end">
-                    <% if (a.status === 'RESERVED' || a.status === 'PAYMENT_FAILED') { %>
-                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/pagamento',{approved:true})"><i class="bi bi-check-circle me-2"></i>Confirmar pagamento</button></li>
-                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/pagamento',{approved:false})"><i class="bi bi-x-circle me-2"></i>Recusar pagamento</button></li>
-                      <li><hr class="dropdown-divider"></li>
-                    <% } %>
-                    <% if (a.status === 'CONFIRMED') { %>
-                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/iniciar')"><i class="bi bi-play-circle me-2"></i>Iniciar atendimento</button></li>
-                    <% } %>
-                    <% if (a.status === 'IN_PROGRESS' || a.status === 'CONFIRMED') { %>
-                      <li><button class="dropdown-item" onclick='abrirConcluir(<%- JSON.stringify(a) %>)'><i class="bi bi-check2-square me-2"></i>Concluir</button></li>
-                      <li><button class="dropdown-item" onclick='abrirIncompleto(<%- JSON.stringify(a) %>)'><i class="bi bi-exclamation-square me-2"></i>Não finalizado</button></li>
-                      <li><button class="dropdown-item" onclick="postAct('/admin/agendamentos-servicos/<%= a.id %>/ausente')"><i class="bi bi-person-x me-2"></i>Ausente</button></li>
-                    <% } %>
-                    <% if ((a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS' || a.status === 'COMPLETED') && a.payment_status !== 'PAID') { %>
-                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'CASH')"><i class="bi bi-cash-coin me-2"></i>Recebido em dinheiro</button></li>
-                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'PIX')"><i class="bi bi-qr-code-scan me-2"></i>Recebido em PIX</button></li>
-                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'CREDIT_CARD')"><i class="bi bi-credit-card-2-front me-2"></i>Recebido no cartão crédito</button></li>
-                      <li><button class="dropdown-item" onclick="confirmarRecebimento(<%= a.id %>, 'DEBIT_CARD')"><i class="bi bi-credit-card me-2"></i>Recebido no cartão débito</button></li>
-                    <% } %>
-                  </ul>
-                </div>
-                </div>
-              </td>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="table_appointments">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Cliente</th>
+              <th>Serviço</th>
+              <th>Profissional</th>
+              <th>Horário</th>
+              <th>Pagamento</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions text-end">Ações</th>
             </tr>
-          <% }) %>
-          <% if (!appointments || !appointments.length) { %>
-            <tr><td colspan="10" class="text-muted">Nenhum agendamento encontrado.</td></tr>
-          <% } %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody id="apt_tbody">
+            <% (appointments || []).forEach(function (a) {
+              var st = a.status || 'RESERVED';
+              var stBadge = APT_STATUS_BADGE[st] || 'muted';
+              var stLabel = t('appointmentStatus', st);
+              var paySt = String(a.payment_status || 'PENDING').toUpperCase();
+              var payLabel = t('paymentStatus', paySt);
+              var payBadge = tPayBadge(paySt);
+              var payMethodKey = String(a.payment_method || 'CASH').toUpperCase();
+              var payMethodLabel = t('paymentMethod', payMethodKey);
+              var payMethodIcon = PAY_METHOD_ICONS[payMethodKey] || 'bi-wallet2';
+              var bookingCh = String(a.booking_channel || 'ADMIN').toUpperCase();
+              var awaitingOnlinePay = (st === 'RESERVED' || st === 'PAYMENT_FAILED') && bookingCh === 'CUSTOMER_ONLINE';
+              var legacyAdminReserve = (st === 'RESERVED' || st === 'PAYMENT_FAILED') && bookingCh === 'ADMIN';
+              var awaitingPresencialPay = st === 'CONFIRMED' && paySt === 'PENDING';
+              var canStartAttendance = st === 'CONFIRMED' && !awaitingOnlinePay;
+              var canFinishAttendance = (st === 'CONFIRMED' || st === 'IN_PROGRESS') && !awaitingOnlinePay;
+            %>
+              <tr data-search="<%= [a.id, a.customer_name, a.customer_email, a.booking_channel, a.service_name, a.professional_name, a.professional_role, a.modality, a.payment_method, a.payment_status, a.status].filter(Boolean).join(' ').toLowerCase() %>">
+                <td class="col-id fw-semibold">#<%= a.id %></td>
+                <td>
+                  <div class="fw-semibold cell-truncate-wide" title="<%= a.customer_name %>"><%= a.customer_name %></div>
+                  <div class="small text-muted"><%= a.customer_email || '—' %></div>
+                  <span class="admin-agendamentos__badge admin-agendamentos__badge--muted mt-1"><%= t('bookingChannel', a.booking_channel) %> · <%= t('modality', a.modality) %></span>
+                </td>
+                <td><span class="cell-truncate-wide" title="<%= a.service_name %>"><%= a.service_name %></span></td>
+                <td>
+                  <div><%= a.professional_name || '—' %></div>
+                  <div class="small text-muted"><%= a.professional_role || '' %></div>
+                </td>
+                <td class="text-nowrap small"><%= fmtDateTime(a.scheduled_start) %></td>
+                <td>
+                  <div class="fw-semibold small">R$ <%= toMoney(a.total_amount) %></div>
+                  <div class="small text-muted mt-1"><i class="bi <%= payMethodIcon %> me-1"></i><%= payMethodLabel %></div>
+                  <span class="admin-agendamentos__badge admin-agendamentos__badge--<%= payBadge %> mt-1"><%= payLabel %></span>
+                  <% if (paySt === 'REFUNDED_PARTIAL' && Number(a.refund_amount || 0) > 0) { %>
+                    <div class="small text-muted mt-1">Estorno R$ <%= toMoney(a.refund_amount) %></div>
+                  <% } %>
+                </td>
+                <td class="col-status"><span class="admin-agendamentos__badge admin-agendamentos__badge--<%= stBadge %>"><%= stLabel %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--4 justify-content-end">
+                    <button type="button" class="btn-action btn-view" title="Ver informações" onclick='verAgendamento(<%- JSON.stringify(a) %>)'><i class="bi bi-info-circle"></i></button>
+                    <button type="button" class="btn-action btn-edit" title="Editar" onclick='editarAgendamento(<%- JSON.stringify(a) %>)'><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn-action btn-delete" title="Excluir" onclick="excluirAgendamento(<%= a.id %>)"><i class="bi bi-trash"></i></button>
+                    <div class="dropdown apt-actions-dropdown">
+                      <button type="button" class="btn-action btn-view dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="true" data-bs-popper-config='{"strategy":"fixed","modifiers":[{"name":"preventOverflow","options":{"boundary":"viewport","padding":12}},{"name":"flip","options":{"fallbackPlacements":["top-end","bottom-end","top-start","bottom-start"]}}]}' title="Mais ações" aria-label="Mais ações"><i class="bi bi-three-dots-vertical"></i></button>
+                      <ul class="dropdown-menu dropdown-menu-end apt-actions-menu shadow">
+                        <li><h6 class="dropdown-header px-3 py-2 mb-0">Agendamento #<%= a.id %></h6></li>
+                        <li><span class="dropdown-item-text small text-muted px-3 pb-2"><%= stLabel %> · <%= payLabel %> · <%= payMethodLabel %></span></li>
+                        <% if (awaitingOnlinePay) { %>
+                          <li><h6 class="dropdown-header">Pagamento online</h6></li>
+                          <li><button class="dropdown-item" type="button" onclick="confirmarPagamento(<%= a.id %>, true)"><i class="bi bi-check-circle me-2"></i>Confirmar pagamento online</button></li>
+                          <li><button class="dropdown-item" type="button" onclick="confirmarPagamento(<%= a.id %>, false)"><i class="bi bi-x-circle me-2"></i>Recusar pagamento</button></li>
+                        <% } %>
+                        <% if (legacyAdminReserve) { %>
+                          <li><h6 class="dropdown-header">Regularizar agendamento</h6></li>
+                          <li><button class="dropdown-item" type="button" onclick="confirmarPagamento(<%= a.id %>, true)"><i class="bi bi-check-circle me-2"></i>Efetivar agendamento</button></li>
+                          <li><button class="dropdown-item" type="button" onclick="confirmarPagamento(<%= a.id %>, false)"><i class="bi bi-x-circle me-2"></i>Cancelar reserva</button></li>
+                        <% } %>
+                        <% if (awaitingPresencialPay) { %>
+                          <li><h6 class="dropdown-header">Pagamento no caixa</h6></li>
+                          <li><button class="dropdown-item" type="button" onclick="confirmarRecebimento(<%= a.id %>, '<%= payMethodKey %>')"><i class="bi <%= payMethodIcon %> me-2"></i>Registrar recebimento (<%= payMethodLabel %>)</button></li>
+                        <% } %>
+                        <% if (canStartAttendance) { %>
+                          <li><h6 class="dropdown-header">Atendimento</h6></li>
+                          <li><button class="dropdown-item" type="button" onclick="iniciarAtendimento(<%= a.id %>)"><i class="bi bi-play-circle me-2"></i>Iniciar atendimento</button></li>
+                        <% } %>
+                        <% if (canFinishAttendance) { %>
+                          <% if (!canStartAttendance && !awaitingPresencialPay && !awaitingOnlinePay) { %><li><h6 class="dropdown-header">Atendimento</h6></li><% } %>
+                          <li><button class="dropdown-item" type="button" onclick='abrirConcluir(<%- JSON.stringify(a) %>)'><i class="bi bi-check2-square me-2"></i>Concluir</button></li>
+                          <li><button class="dropdown-item" type="button" onclick='abrirIncompleto(<%- JSON.stringify(a) %>)'><i class="bi bi-exclamation-square me-2"></i>Não finalizado</button></li>
+                          <li><button class="dropdown-item" type="button" onclick="marcarAusente(<%= a.id %>)"><i class="bi bi-person-x me-2"></i>Marcar ausente</button></li>
+                        <% } %>
+                        <% if (!awaitingOnlinePay && !legacyAdminReserve && !awaitingPresencialPay && !canStartAttendance && !canFinishAttendance) { %>
+                          <li><span class="dropdown-item-text small text-muted px-3">Nenhuma ação disponível neste status.</span></li>
+                        <% } %>
+                      </ul>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <div class="admin-agendamentos__pagination-bar">
+        <div class="small text-muted" id="apt_pagination_info">0 agendamento(s)</div>
+        <div class="btn-group btn-group-sm" id="apt_pagination_controls"></div>
+      </div>
+    <% } %>
+  </section>
+  </div>
+
+  <div class="admin-agendamentos-view" data-view-panel="servicos" <%= currentView !== 'servicos' ? 'hidden' : '' %>>
+  <section class="admin-agendamentos__panel">
+    <div class="admin-agendamentos__panel-head admin-agendamentos__panel-head--table">
+      <h3 class="admin-agendamentos__panel-title"><i class="bi bi-heart-pulse me-2"></i>Catálogo de serviços</h3>
+      <span class="admin-agendamentos__panel-meta"><%= servicesTotalCount %> serviço(s) cadastrado(s)</span>
     </div>
-    <div class="d-flex justify-content-between align-items-center mt-2">
-      <div class="small text-muted" id="apt_pagination_info">0 agendamento(s)</div>
-      <div class="btn-group btn-group-sm" id="apt_pagination_controls"></div>
+    <% if (!services || !services.length) { %>
+      <div class="admin-agendamentos__empty">
+        <i class="bi bi-heart d-block mb-2"></i>
+        Nenhum serviço cadastrado.
+        <div class="mt-2"><button type="button" class="btn btn-sm btn-save" data-bs-toggle="modal" data-bs-target="#modalService" onclick="novoServico()">Cadastrar serviço</button></div>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0">
+          <thead>
+            <tr><th>Serviço</th><th>Preço</th><th>Duração</th><th>Domicílio</th><th>Receita</th><th class="col-status">Status</th><th class="col-actions text-end">Ações</th></tr>
+          </thead>
+          <tbody>
+            <% (services || []).forEach(function (s) { %>
+              <tr>
+                <td class="fw-semibold"><span class="cell-truncate-wide" title="<%= s.name %>"><%= s.name %></span></td>
+                <td>R$ <%= toMoney(s.price) %></td>
+                <td><%= s.duration_minutes %> min</td>
+                <td><span class="admin-agendamentos__badge admin-agendamentos__badge--<%= s.home_available ? 'success' : 'muted' %>"><%= s.home_available ? 'Sim' : 'Não' %></span></td>
+                <td><span class="admin-agendamentos__badge admin-agendamentos__badge--<%= s.requires_prescription ? 'warning' : 'info' %>"><%= s.requires_prescription ? 'Obrigatória' : 'Não' %></span></td>
+                <td class="col-status"><span class="admin-agendamentos__badge admin-agendamentos__badge--<%= s.is_active ? 'success' : 'muted' %>"><%= s.is_active ? 'Ativo' : 'Inativo' %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--3 justify-content-end">
+                    <button type="button" class="btn-action btn-view" title="Ver informações" onclick='verServico(<%- JSON.stringify(s) %>)'><i class="bi bi-info-circle"></i></button>
+                    <button type="button" class="btn-action btn-edit" title="Editar" onclick='editarServico(<%- JSON.stringify(s) %>)'><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn-action btn-delete" title="Excluir" onclick="excluirServico(<%= s.id %>)"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+  </div>
+
+  <div class="admin-agendamentos-view" data-view-panel="profissionais" <%= currentView !== 'profissionais' ? 'hidden' : '' %>>
+  <section class="admin-agendamentos__panel">
+    <div class="admin-agendamentos__panel-head admin-agendamentos__panel-head--table">
+      <h3 class="admin-agendamentos__panel-title"><i class="bi bi-person-badge me-2"></i>Profissionais de saúde</h3>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="search-box admin-agendamentos__search">
+          <i class="bi bi-search"></i>
+          <input class="form-control form-control-sm" id="pro_search" placeholder="Buscar profissional...">
+        </div>
+        <select class="form-select form-select-sm admin-agendamentos__page-size" id="pro_page_size">
+          <option value="10" selected>10 / pág.</option>
+          <option value="20">20 / pág.</option>
+          <option value="50">50 / pág.</option>
+        </select>
+      </div>
     </div>
+    <% if (!professionals || !professionals.length) { %>
+      <div class="admin-agendamentos__empty">
+        <i class="bi bi-person-x d-block mb-2"></i>
+        Nenhum profissional cadastrado.
+        <div class="mt-2"><button type="button" class="btn btn-sm btn-save" data-bs-toggle="modal" data-bs-target="#modalProfessional" onclick="novoProfissional()">Cadastrar profissional</button></div>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="table_professionals">
+          <thead>
+            <tr><th>Nome</th><th>Cargo</th><th>Registro</th><th>Contato</th><th class="col-status">Status</th><th class="col-actions text-end">Ações</th></tr>
+          </thead>
+          <tbody id="pro_tbody">
+            <% (professionals || []).forEach(function (p) { %>
+              <tr data-search="<%= [p.full_name, p.role_name, p.council_type, p.council_uf, p.council_number, p.email, p.phone].filter(Boolean).join(' ').toLowerCase() %>">
+                <td class="fw-semibold"><%= p.full_name %></td>
+                <td><%= p.role_name %></td>
+                <td class="small"><%= p.council_type %>/<%= p.council_uf %> <%= p.council_number %></td>
+                <td>
+                  <div class="small"><%= p.email || '—' %></div>
+                  <div class="small text-muted"><%= p.phone || '—' %></div>
+                </td>
+                <td class="col-status"><span class="admin-agendamentos__badge admin-agendamentos__badge--<%= p.is_active ? 'success' : 'muted' %>"><%= p.is_active ? 'Ativo' : 'Inativo' %></span></td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--3 justify-content-end">
+                    <button type="button" class="btn-action btn-view" title="Ver informações" onclick='verProfissional(<%- JSON.stringify(p) %>)'><i class="bi bi-info-circle"></i></button>
+                    <button type="button" class="btn-action btn-edit" title="Editar" onclick='editarProfissional(<%- JSON.stringify(p) %>)'><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn-action btn-delete" title="Excluir" onclick="excluirProfissional(<%= p.id %>)"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <div class="admin-agendamentos__pagination-bar">
+        <div class="small text-muted" id="pro_pagination_info">0 profissional(is)</div>
+        <div class="btn-group btn-group-sm" id="pro_pagination_controls"></div>
+      </div>
+    <% } %>
+  </section>
+  </div>
+
+  <div class="admin-agendamentos-view" data-view-panel="config" <%= currentView !== 'config' ? 'hidden' : '' %>>
+  <section class="admin-agendamentos__panel">
+    <div class="admin-agendamentos__panel-head">
+      <h3 class="admin-agendamentos__panel-title"><i class="bi bi-calendar-x me-2"></i>Feriados e bloqueios de agenda</h3>
+    </div>
+    <div class="admin-agendamentos__panel-body">
+      <p class="text-muted small mb-3">Datas cadastradas aqui impedem novos agendamentos. Use para feriados nacionais, recessos ou indisponibilidades da unidade.</p>
+      <div id="holFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
+      <div class="row g-2 mb-3 align-items-end">
+        <div class="col-md-3">
+          <label for="hol_date" class="form-label field-required">Data</label>
+          <input class="form-control" id="hol_date" type="date">
+          <div class="invalid-feedback" id="hol_date_error">Selecione a data do feriado.</div>
+        </div>
+        <div class="col-md-5">
+          <label for="hol_name" class="form-label field-required">Nome do feriado</label>
+          <input class="form-control" id="hol_name" maxlength="120" placeholder="Ex.: Natal, Ano Novo">
+          <div class="invalid-feedback" id="hol_name_error">Informe o nome do feriado.</div>
+        </div>
+        <div class="col-md-4 d-grid">
+          <button type="button" class="btn btn-save" id="btnSalvarFeriado" onclick="salvarFeriado()"><i class="bi bi-plus-lg me-1"></i> Adicionar feriado</button>
+        </div>
+      </div>
+      <% if (!holidays || !holidays.length) { %>
+        <div class="admin-agendamentos__empty py-4">
+          <i class="bi bi-calendar-check d-block mb-2"></i>
+          Nenhum feriado cadastrado.
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover table-custom align-middle mb-0">
+            <thead><tr><th>Data</th><th>Nome</th><th class="text-end col-actions">Ação</th></tr></thead>
+            <tbody>
+              <% (holidays || []).forEach(function (h) { %>
+                <tr>
+                  <td class="text-nowrap"><%= fmtDate(h.holiday_date) %></td>
+                  <td><%= h.name %></td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerFeriado(<%= h.id %>)"><i class="bi bi-trash me-1"></i> Remover</button>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </section>
   </div>
 </div>
 
-<div class="modal fade" id="modalService" tabindex="-1">
+<style>
+  .admin-agendamentos__header-actions { display: inline-flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+  .admin-agendamentos__main-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 0.75rem; }
+  .admin-agendamentos__main-tab { display: inline-flex; align-items: center; padding: 0.55rem 1rem; border-radius: 10px 10px 0 0; border: 1px solid transparent; border-bottom: none; color: #495057; font-size: 0.9rem; font-weight: 600; text-decoration: none; margin-bottom: -1px; transition: color 0.16s ease, background 0.16s ease; }
+  .admin-agendamentos__main-tab:hover { color: var(--accent-color); background: color-mix(in srgb, var(--accent-color), transparent 94%); }
+  .admin-agendamentos__main-tab.is-active { color: var(--accent-color); background: #fff; border-color: rgba(0,0,0,0.08); border-bottom-color: #fff; box-shadow: 0 -2px 0 var(--accent-color) inset; }
+
+  .admin-agendamentos__stats { margin-top: 0.25rem; }
+  .admin-agendamentos__stat { display: flex; align-items: center; gap: 0.85rem; padding: 1rem 1.1rem; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.04); min-height: 88px; color: inherit; transition: transform 0.16s ease, box-shadow 0.16s ease; }
+  a.admin-agendamentos__stat:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.08); }
+  .admin-agendamentos__stat-icon { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+  .admin-agendamentos__stat--warning .admin-agendamentos__stat-icon { background: #fff8e6; color: #997404; }
+  .admin-agendamentos__stat--info .admin-agendamentos__stat-icon { background: #e7f1ff; color: #0d6efd; }
+  .admin-agendamentos__stat--primary .admin-agendamentos__stat-icon { background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); }
+  .admin-agendamentos__stat--success .admin-agendamentos__stat-icon { background: #e8f6ee; color: #198754; }
+  .admin-agendamentos__stat-value { font-size: 1.45rem; font-weight: 700; color: var(--heading-color); line-height: 1.1; }
+  .admin-agendamentos__stat-label { font-size: 0.8rem; color: #6c757d; margin-top: 0.15rem; }
+
+  .admin-agendamentos__tabs { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .admin-agendamentos__tab { display: inline-flex; align-items: center; padding: 0.4rem 0.75rem; border-radius: 999px; border: 1px solid rgba(0,0,0,0.08); background: #fff; color: #495057; font-size: 0.8rem; font-weight: 600; text-decoration: none; }
+  .admin-agendamentos__tab:hover { border-color: color-mix(in srgb, var(--accent-color), transparent 70%); color: var(--accent-color); }
+  .admin-agendamentos__tab.is-active { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); }
+
+  .admin-agendamentos__panel { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 14px; box-shadow: 0 4px 18px rgba(0,0,0,0.04); overflow: hidden; }
+  .admin-agendamentos__panel.admin-agendamentos__panel--table { overflow: visible; }
+  .admin-agendamentos__panel-head { padding: 0.95rem 1.15rem; border-bottom: 1px solid rgba(0,0,0,0.06); background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), #fff 92%) 0%, #fff 100%); }
+  .admin-agendamentos__panel-head--table { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .admin-agendamentos__panel-title { margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--heading-color); }
+  .admin-agendamentos__panel-meta { font-size: 0.8rem; color: #6c757d; }
+  .admin-agendamentos__panel-body { padding: 1.15rem; }
+  .admin-agendamentos__panel-body .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; }
+
+  .admin-agendamentos__search { min-width: min(100%, 240px); }
+  .admin-agendamentos__search .form-control { padding-left: 2rem; border-radius: 8px; }
+  .admin-agendamentos__page-size { width: 110px; border-radius: 8px; }
+
+  .admin-agendamentos__panel .table-custom th { font-size: 0.72rem; padding: 0.85rem 1rem; }
+  .admin-agendamentos__panel .table-custom td { padding: 0.85rem 1rem; font-size: 0.88rem; }
+
+  .admin-agendamentos__badge { display: inline-block; font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 0.22rem 0.55rem; white-space: nowrap; }
+  .admin-agendamentos__badge--success { background: #d1e7dd; color: #0f5132; }
+  .admin-agendamentos__badge--warning { background: #fff3cd; color: #664d03; }
+  .admin-agendamentos__badge--info { background: #dbeafe; color: #0a58ca; }
+  .admin-agendamentos__badge--primary { background: color-mix(in srgb, var(--accent-color), transparent 86%); color: var(--accent-color); }
+  .admin-agendamentos__badge--danger { background: #f8d7da; color: #842029; }
+  .admin-agendamentos__badge--muted { background: #e9ecef; color: #495057; }
+
+  .admin-agendamentos__empty { padding: 3rem 1.5rem; text-align: center; color: #868e96; font-size: 0.92rem; }
+  .admin-agendamentos__empty i { font-size: 2.2rem; opacity: 0.65; }
+
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+  .admin-agendamentos .invalid-feedback { display: none; }
+  .admin-agendamentos .form-control.is-invalid ~ .invalid-feedback,
+  .admin-agendamentos .form-select.is-invalid ~ .invalid-feedback { display: block; }
+
+  .admin-agendamentos__pagination-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.85rem 1.15rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafbfc; }
+
+  .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 600; border-radius: 8px; }
+  .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+
+  .admin-agendamentos .table-actions .dropdown .btn-action.dropdown-toggle::after { display: none; }
+
+  .admin-agendamentos__panel .table-responsive { overflow-x: auto; overflow-y: visible; }
+
+  .apt-actions-menu { min-width: 15rem; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 0.35rem 0; }
+  .apt-actions-menu .dropdown-header { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #868e96; padding-top: 0.5rem; }
+  .apt-actions-menu .dropdown-item-text { white-space: normal; line-height: 1.35; }
+  .apt-actions-menu .dropdown-item { font-size: 0.88rem; padding: 0.55rem 1rem; border-radius: 8px; margin: 0 0.35rem; width: calc(100% - 0.7rem); }
+  .apt-actions-menu .dropdown-item:hover,
+  .apt-actions-menu .dropdown-item:focus { background: color-mix(in srgb, var(--accent-color), transparent 92%); color: var(--heading-color); }
+  .apt-actions-menu .dropdown-item i { opacity: 0.85; }
+  .apt-actions-menu.apt-actions-menu--floating { z-index: 1085; max-height: min(70vh, 420px); overflow-y: auto; }
+
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+
+  @media (max-width: 767.98px) {
+    .admin-agendamentos__panel-head--table { flex-direction: column; align-items: stretch; }
+    .admin-agendamentos__search, .admin-agendamentos__page-size { width: 100%; }
+  }
+</style>
+
+<div class="modal fade modal-cadastro" id="modalService" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Novo serviço</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
+        <div id="svcFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
         <input type="hidden" id="svc_id">
-        <div class="mb-2"><label class="form-label">Nome</label><input class="form-control" id="svc_name"></div>
         <div class="mb-2">
-          <label class="form-label">Grupo do serviço</label>
+          <label class="form-label field-required" for="svc_name">Nome</label>
+          <input class="form-control" id="svc_name" maxlength="120" placeholder="Ex.: Vacina contra gripe">
+          <div class="invalid-feedback" id="svc_name_error">Informe o nome do serviço.</div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label" for="svc_group">Grupo do serviço</label>
           <select class="form-select" id="svc_group">
             <option value="VACINACAO">Vacinação</option>
             <option value="PROCEDIMENTO">Procedimento</option>
@@ -241,13 +576,33 @@
           </select>
         </div>
         <div class="row g-2">
-          <div class="col"><label class="form-label">Preço</label><input class="form-control" id="svc_price" type="number" step="0.01"></div>
-          <div class="col"><label class="form-label">Duração (min)</label><input class="form-control" id="svc_duration" type="number" value="30"></div>
+          <div class="col">
+            <label class="form-label field-required" for="svc_price">Preço (R$)</label>
+            <input class="form-control" id="svc_price" type="number" step="0.01" min="0" placeholder="0,00">
+            <div class="invalid-feedback" id="svc_price_error">Informe um preço válido.</div>
+          </div>
+          <div class="col">
+            <label class="form-label field-required" for="svc_duration">Duração (min)</label>
+            <input class="form-control" id="svc_duration" type="number" min="1" max="480" value="30">
+            <div class="invalid-feedback" id="svc_duration_error">Informe a duração em minutos.</div>
+          </div>
         </div>
         <div class="row g-2 mt-1">
-          <div class="col"><label class="form-label">Idade mínima</label><input class="form-control" id="svc_min_age" type="number" min="0" max="120" placeholder="Opcional"></div>
-          <div class="col"><label class="form-label">Idade máxima</label><input class="form-control" id="svc_max_age" type="number" min="0" max="120" placeholder="Opcional"></div>
-          <div class="col"><label class="form-label">Observação pós-atendimento (min)</label><input class="form-control" id="svc_obs_minutes" type="number" min="0" max="240" value="0"></div>
+          <div class="col">
+            <label class="form-label" for="svc_min_age">Idade mínima</label>
+            <input class="form-control" id="svc_min_age" type="number" min="0" max="120" placeholder="Opcional">
+            <div class="invalid-feedback" id="svc_min_age_error">Idade mínima inválida.</div>
+          </div>
+          <div class="col">
+            <label class="form-label" for="svc_max_age">Idade máxima</label>
+            <input class="form-control" id="svc_max_age" type="number" min="0" max="120" placeholder="Opcional">
+            <div class="invalid-feedback" id="svc_max_age_error">Idade máxima inválida.</div>
+          </div>
+          <div class="col">
+            <label class="form-label" for="svc_obs_minutes">Observação pós-atendimento (min)</label>
+            <input class="form-control" id="svc_obs_minutes" type="number" min="0" max="240" value="0">
+            <div class="invalid-feedback" id="svc_obs_minutes_error">Tempo de observação inválido.</div>
+          </div>
         </div>
         <div class="form-check mt-2"><input class="form-check-input" id="svc_store" type="checkbox" checked><label class="form-check-label" for="svc_store">Disponível na farmácia</label></div>
         <div class="form-check mt-2"><input class="form-check-input" id="svc_home" type="checkbox" checked><label class="form-check-label" for="svc_home">Disponível em domicílio</label></div>
@@ -257,76 +612,60 @@
         <div class="mt-2"><label class="form-label">Insumos necessários</label><textarea class="form-control" id="svc_supplies" rows="2" placeholder="Ex.: seringa, gaze, EPI"></textarea></div>
         <div class="mt-2"><label class="form-label">Observações internas</label><textarea class="form-control" id="svc_notes" rows="2"></textarea></div>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" onclick="salvarServico()">Salvar</button></div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnSalvarServico" onclick="salvarServico()"><i class="bi bi-check-lg me-1"></i> Salvar</button></div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalHoliday" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Feriados bloqueados</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <div class="row g-2 mb-2">
-          <div class="col-5"><input class="form-control" id="hol_date" type="date"></div>
-          <div class="col-7"><input class="form-control" id="hol_name" placeholder="Nome do feriado"></div>
-        </div>
-        <div class="d-grid mb-3"><button type="button" class="btn btn-primary" onclick="salvarFeriado()">Adicionar feriado</button></div>
-        <div class="table-responsive">
-          <table class="table table-sm">
-            <thead><tr><th>Data</th><th>Nome</th><th class="text-end">Ação</th></tr></thead>
-            <tbody>
-              <% (holidays || []).forEach(function(h){ %>
-                <tr>
-                  <td><%= String(h.holiday_date).slice(0, 10) %></td>
-                  <td><%= h.name %></td>
-                  <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removerFeriado(<%= h.id %>)">Remover</button></td>
-                </tr>
-              <% }) %>
-              <% if (!holidays || !holidays.length) { %>
-                <tr><td colspan="3" class="text-muted">Nenhum feriado cadastrado.</td></tr>
-              <% } %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="modalProfessional" tabindex="-1">
+<div class="modal fade modal-cadastro" id="modalProfessional" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Novo profissional</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
+        <div id="proFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
         <input type="hidden" id="pro_id">
-        <div class="mb-2"><label class="form-label">Nome</label><input class="form-control" id="pro_name"></div>
         <div class="mb-2">
-          <label class="form-label">Cargo</label>
+          <label class="form-label field-required" for="pro_name">Nome</label>
+          <input class="form-control" id="pro_name" maxlength="120" placeholder="Nome completo">
+          <div class="invalid-feedback" id="pro_name_error">Informe o nome do profissional.</div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label field-required" for="pro_role">Cargo</label>
           <select class="form-select" id="pro_role">
             <option value="FARMACEUTICO">Farmacêutico</option>
             <option value="ENFERMEIRO">Enfermeiro</option>
           </select>
         </div>
-        <div class="mb-2"><label class="form-label">E-mail</label><input class="form-control" id="pro_email"></div>
-        <div class="mb-2"><label class="form-label">Telefone</label><input class="form-control" id="pro_phone"></div>
+        <div class="mb-2">
+          <label class="form-label" for="pro_email">E-mail</label>
+          <input class="form-control" id="pro_email" type="email" placeholder="contato@email.com">
+          <div class="invalid-feedback" id="pro_email_error">Informe um e-mail válido.</div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label" for="pro_phone">Telefone</label>
+          <input class="form-control" id="pro_phone" placeholder="(11) 99999-9999">
+          <div class="invalid-feedback" id="pro_phone_error">Informe um telefone válido.</div>
+        </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="form-label">Conselho</label>
+            <label class="form-label" for="pro_council_type">Conselho</label>
             <input class="form-control" id="pro_council_type" readonly value="CRF">
           </div>
           <div class="col-md-3">
-            <label class="form-label">UF</label>
+            <label class="form-label field-required" for="pro_council_uf">UF</label>
             <input class="form-control text-uppercase" id="pro_council_uf" maxlength="2" placeholder="SP">
+            <div class="invalid-feedback" id="pro_council_uf_error">Informe a UF com 2 letras.</div>
           </div>
           <div class="col-md-5">
-            <label class="form-label">Registro</label>
+            <label class="form-label field-required" for="pro_council_number">Registro</label>
             <input class="form-control text-uppercase" id="pro_council_number" placeholder="Ex.: 12345 ou 12345-F">
+            <div class="invalid-feedback" id="pro_council_number_error">Informe o número de registro.</div>
           </div>
         </div>
         <div class="small text-muted mt-1">Farmacêutico usa CRF e Enfermeiro usa COREN.</div>
-        <label class="form-label mt-2">Disponibilidade semanal</label>
-        <div class="small text-muted mb-2">Segunda a sábado (HH:MM). Domingo não permite agendamento.</div>
+        <label class="form-label mt-2 field-required">Disponibilidade semanal</label>
+        <div class="small text-muted mb-2">Segunda a sábado (HH:MM). Informe ao menos um dia com horário de início e fim.</div>
+        <div id="pro_availability_error" class="invalid-feedback d-block mb-2" style="display:none !important;">Cadastre ao menos um dia com horário válido.</div>
         <% const weekDays = [{ d: 1, l: 'Seg' }, { d: 2, l: 'Ter' }, { d: 3, l: 'Qua' }, { d: 4, l: 'Qui' }, { d: 5, l: 'Sex' }, { d: 6, l: 'Sáb' }]; %>
         <% weekDays.forEach(function(day) { %>
           <div class="row g-1 mb-1">
@@ -336,121 +675,177 @@
           </div>
         <% }) %>
       </div>
-      <div id="pro_feedback" class="small px-3 pb-1" style="display:none;"></div>
-      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnSalvarProfissional" onclick="salvarProfissional()">Salvar</button></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnSalvarProfissional" onclick="salvarProfissional()"><i class="bi bi-check-lg me-1"></i> Salvar</button></div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalReserve" tabindex="-1">
+<div class="modal fade modal-cadastro" id="modalReserve" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Novo agendamento</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
+        <div id="reserveFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
         <input type="hidden" id="res_id">
         <div class="row g-2">
           <div class="col-md-6">
-            <label class="form-label">Serviço</label>
+            <label class="form-label field-required" for="res_service_id">Serviço</label>
             <select class="form-select" id="res_service_id">
               <% (services || []).filter(function(s){ return s.is_active; }).forEach(function(s){ %>
                 <option value="<%= s.id %>"><%= s.name %> - R$ <%= toMoney(s.price) %></option>
               <% }) %>
             </select>
+            <div class="invalid-feedback" id="res_service_id_error">Selecione o serviço.</div>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Modalidade</label>
+            <label class="form-label field-required" for="res_modality">Modalidade</label>
             <select class="form-select" id="res_modality">
               <option value="IN_STORE">Na farmácia</option>
               <option value="HOME">Em domicílio</option>
             </select>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Forma de pagamento</label>
+            <label class="form-label field-required" for="res_payment_method">Forma de pagamento prevista</label>
             <select class="form-select" id="res_payment_method">
-              <option value="CASH">Dinheiro (presencial)</option>
-              <option value="PIX">PIX</option>
-              <option value="CREDIT_CARD">Cartão de crédito</option>
-              <option value="DEBIT_CARD">Cartão de débito</option>
+              <option value="CASH">Dinheiro — receber no atendimento</option>
+              <option value="PIX">PIX — receber no caixa ou atendimento</option>
+              <option value="CREDIT_CARD">Cartão de crédito — receber no caixa ou atendimento</option>
+              <option value="DEBIT_CARD">Cartão de débito — receber no caixa ou atendimento</option>
             </select>
+            <div id="res_payment_hint" class="form-text mt-1">O horário é confirmado na hora. Registre o recebimento depois, no menu de ações do agendamento.</div>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Profissional</label>
+            <label class="form-label field-required" for="res_professional_id">Profissional</label>
             <select class="form-select" id="res_professional_id">
               <% (professionals || []).filter(function(p){ return p.is_active; }).forEach(function(p){ %>
                 <option value="<%= p.id %>"><%= p.full_name %> - <%= p.role_name %></option>
               <% }) %>
             </select>
+            <div class="invalid-feedback" id="res_professional_id_error">Selecione o profissional.</div>
           </div>
-          <div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control" id="res_customer_name"></div>
-          <div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" id="res_customer_email"></div>
-          <div class="col-md-6"><label class="form-label">Telefone</label><input class="form-control" id="res_customer_phone" placeholder="(11) 99999-9999"></div>
+          <div class="col-md-6">
+            <label class="form-label field-required" for="res_customer_name">Cliente</label>
+            <input class="form-control" id="res_customer_name" maxlength="120" placeholder="Nome completo">
+            <div class="invalid-feedback" id="res_customer_name_error">Informe o nome do cliente.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="res_customer_email">E-mail</label>
+            <input class="form-control" id="res_customer_email" type="email" placeholder="cliente@email.com">
+            <div class="invalid-feedback" id="res_customer_email_error">Informe um e-mail válido.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label field-required" for="res_customer_phone">Telefone</label>
+            <input class="form-control" id="res_customer_phone" placeholder="(11) 99999-9999">
+            <div class="invalid-feedback" id="res_customer_phone_error">Informe um telefone com DDD.</div>
+          </div>
           <div class="col-md-4">
-            <label class="form-label">Data</label>
+            <label class="form-label field-required" for="res_scheduled_date">Data</label>
             <input class="form-control" id="res_scheduled_date" type="date" min="<%= minBookingDate %>" max="<%= maxBookingDate %>">
+            <div class="invalid-feedback" id="res_scheduled_date_error">Selecione a data do agendamento.</div>
           </div>
           <div class="col-md-8">
-            <label class="form-label">Horário disponível</label>
+            <label class="form-label field-required">Horário disponível</label>
             <div id="res_slot_buttons" class="d-flex flex-wrap gap-1"></div>
             <div id="res_slot_hint" class="small text-muted mt-1">Selecione serviço, profissional e data para ver os horários.</div>
+            <div class="invalid-feedback d-block" id="res_scheduled_start_error" style="display:none;">Selecione um horário disponível.</div>
             <input type="hidden" id="res_scheduled_start">
           </div>
-          <div class="col-md-3" id="home_zip_wrap" style="display:none;"><label class="form-label">CEP</label><input class="form-control" id="res_zip_code" placeholder="00000-000"></div>
-          <div class="col-md-6" id="home_street_wrap" style="display:none;"><label class="form-label">Rua</label><input class="form-control" id="res_street"></div>
-          <div class="col-md-3" id="home_number_wrap" style="display:none;"><label class="form-label">Número</label><input class="form-control" id="res_number"></div>
-          <div class="col-md-4" id="home_complement_wrap" style="display:none;"><label class="form-label">Complemento</label><input class="form-control" id="res_complement"></div>
-          <div class="col-md-4" id="home_district_wrap" style="display:none;"><label class="form-label">Bairro</label><input class="form-control" id="res_district"></div>
-          <div class="col-md-3" id="home_city_wrap" style="display:none;"><label class="form-label">Cidade</label><input class="form-control" id="res_city"></div>
-          <div class="col-md-1" id="home_state_wrap" style="display:none;"><label class="form-label">UF</label><input class="form-control" id="res_state" maxlength="2"></div>
+          <div class="col-md-3" id="home_zip_wrap" style="display:none;">
+            <label class="form-label field-required" for="res_zip_code">CEP</label>
+            <input class="form-control" id="res_zip_code" placeholder="00000-000">
+            <div class="invalid-feedback" id="res_zip_code_error">Informe um CEP válido.</div>
+          </div>
+          <div class="col-md-6" id="home_street_wrap" style="display:none;">
+            <label class="form-label field-required" for="res_street">Rua</label>
+            <input class="form-control" id="res_street">
+            <div class="invalid-feedback" id="res_street_error">Informe a rua.</div>
+          </div>
+          <div class="col-md-3" id="home_number_wrap" style="display:none;">
+            <label class="form-label field-required" for="res_number">Número</label>
+            <input class="form-control" id="res_number">
+            <div class="invalid-feedback" id="res_number_error">Informe o número.</div>
+          </div>
+          <div class="col-md-4" id="home_complement_wrap" style="display:none;"><label class="form-label" for="res_complement">Complemento</label><input class="form-control" id="res_complement"></div>
+          <div class="col-md-4" id="home_district_wrap" style="display:none;">
+            <label class="form-label field-required" for="res_district">Bairro</label>
+            <input class="form-control" id="res_district">
+            <div class="invalid-feedback" id="res_district_error">Informe o bairro.</div>
+          </div>
+          <div class="col-md-3" id="home_city_wrap" style="display:none;">
+            <label class="form-label field-required" for="res_city">Cidade</label>
+            <input class="form-control" id="res_city">
+            <div class="invalid-feedback" id="res_city_error">Informe a cidade.</div>
+          </div>
+          <div class="col-md-1" id="home_state_wrap" style="display:none;">
+            <label class="form-label field-required" for="res_state">UF</label>
+            <input class="form-control text-uppercase" id="res_state" maxlength="2">
+            <div class="invalid-feedback" id="res_state_error">Informe a UF.</div>
+          </div>
         </div>
       </div>
-      <div id="reserve_feedback" class="small px-3 pb-1" style="display:none;"></div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnReservarAgendamento" onclick="salvarAgendamento()">Reservar e gerar pagamento</button></div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnReservarAgendamento" onclick="salvarAgendamento()"><i class="bi bi-calendar-check me-1"></i> Reservar e gerar pagamento</button></div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalConcluir" tabindex="-1">
+<div class="modal fade modal-cadastro" id="modalConcluir" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Concluir atendimento</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
+        <div id="finishFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
         <input type="hidden" id="finish_id">
-        <div class="mb-2"><label class="form-label">Registro clínico *</label><textarea class="form-control" id="finish_clinical" rows="3"></textarea></div>
+        <div class="mb-2">
+          <label class="form-label field-required" for="finish_clinical">Registro clínico</label>
+          <textarea class="form-control" id="finish_clinical" rows="3" placeholder="Descreva o atendimento realizado"></textarea>
+          <div class="invalid-feedback" id="finish_clinical_error">Informe o registro clínico.</div>
+        </div>
         <div id="finish_vaccine_wrap">
-          <div class="mb-2"><label class="form-label">Lote da vacina *</label><input class="form-control" id="finish_batch"></div>
+          <div class="mb-2">
+            <label class="form-label field-required" for="finish_batch">Lote da vacina</label>
+            <input class="form-control" id="finish_batch" placeholder="Código do lote">
+            <div class="invalid-feedback" id="finish_batch_error">Informe o lote da vacina.</div>
+          </div>
           <div class="row g-2">
-            <div class="col"><label class="form-label">Validade *</label><input class="form-control" type="date" id="finish_batch_exp"></div>
-            <div class="col"><label class="form-label">Local aplicado</label><input class="form-control" id="finish_site" placeholder="Braço esquerdo"></div>
+            <div class="col">
+              <label class="form-label field-required" for="finish_batch_exp">Validade</label>
+              <input class="form-control" type="date" id="finish_batch_exp">
+              <div class="invalid-feedback" id="finish_batch_exp_error">Informe a validade da vacina.</div>
+            </div>
+            <div class="col"><label class="form-label" for="finish_site">Local aplicado</label><input class="form-control" id="finish_site" placeholder="Braço esquerdo"></div>
           </div>
         </div>
-        <div class="mt-2"><label class="form-label">Observações</label><textarea class="form-control" id="finish_obs" rows="2"></textarea></div>
+        <div class="mt-2"><label class="form-label" for="finish_obs">Observações</label><textarea class="form-control" id="finish_obs" rows="2"></textarea></div>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-success" onclick="concluir()">Concluir</button></div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-success" id="btnConcluirAtendimento" onclick="concluir()"><i class="bi bi-check2-square me-1"></i> Concluir</button></div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalIncompleto" tabindex="-1">
+<div class="modal fade modal-cadastro" id="modalIncompleto" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Marcar como não finalizado</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
+        <div id="incompleteFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
         <input type="hidden" id="incomplete_id">
         <input type="hidden" id="incomplete_payment_status">
-        <label class="form-label">Motivo *</label>
-        <textarea class="form-control" id="incomplete_reason" rows="3" placeholder="Ex.: Paciente apresentou febre e não pôde ser vacinado hoje."></textarea>
+        <label class="form-label field-required" for="incomplete_reason">Motivo</label>
+        <textarea class="form-control" id="incomplete_reason" rows="3" maxlength="500" placeholder="Ex.: Paciente apresentou febre e não pôde ser vacinado hoje."></textarea>
+        <div class="invalid-feedback" id="incomplete_reason_error">Informe o motivo com pelo menos 5 caracteres.</div>
         <div class="mt-2">
-          <label class="form-label">Percentual de estorno (se já pago)</label>
+          <label class="form-label" for="incomplete_refund_percent">Percentual de estorno (se já pago)</label>
           <input type="number" class="form-control" id="incomplete_refund_percent" min="0" max="100" step="1" value="50">
+          <div class="invalid-feedback" id="incomplete_refund_percent_error">Informe um percentual entre 0 e 100.</div>
           <div class="small text-muted">Aplicado apenas quando o pagamento já estiver como pago.</div>
         </div>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-warning" onclick="salvarIncompleto()">Salvar</button></div>
+      <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-warning" id="btnSalvarIncompleto" onclick="salvarIncompleto()"><i class="bi bi-exclamation-square me-1"></i> Salvar</button></div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalViewInfo" tabindex="-1">
+<div class="modal fade modal-cadastro" id="modalViewInfo" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title" id="viewInfoTitle">Detalhes</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -462,6 +857,55 @@
 
 <script src="/assets/js/appointment-scheduling.js"></script>
 <script>
+  var AGENDAMENTOS_VIEW = '<%= currentView %>';
+  var AGENDAMENTOS_STATUS = '<%= statusFilter %>';
+
+  function buildAgendamentosUrl(nextView) {
+    var url = '/admin/agendamentos-servicos?view=' + encodeURIComponent(nextView);
+    if (nextView === 'agenda') url += '&status=' + encodeURIComponent(AGENDAMENTOS_STATUS);
+    return url;
+  }
+
+  function reloadAgendamentosPage() {
+    location.href = buildAgendamentosUrl(AGENDAMENTOS_VIEW);
+  }
+
+  function switchAgendamentosView(nextView, updateHistory) {
+    if (!nextView) return;
+    AGENDAMENTOS_VIEW = nextView;
+
+    document.querySelectorAll('[data-view-panel]').forEach(function (panel) {
+      panel.hidden = panel.getAttribute('data-view-panel') !== nextView;
+    });
+
+    document.querySelectorAll('[data-view-tab]').forEach(function (tab) {
+      tab.classList.toggle('is-active', tab.getAttribute('data-view-tab') === nextView);
+    });
+
+    document.querySelectorAll('[data-header-for]').forEach(function (wrap) {
+      wrap.hidden = wrap.getAttribute('data-header-for') !== nextView;
+    });
+
+    if (updateHistory !== false && window.history && window.history.pushState) {
+      window.history.pushState({ agView: nextView }, '', buildAgendamentosUrl(nextView));
+    }
+  }
+
+  document.querySelectorAll('[data-view-tab]').forEach(function (tab) {
+    tab.addEventListener('click', function (e) {
+      e.preventDefault();
+      switchAgendamentosView(tab.getAttribute('data-view-tab'), true);
+    });
+  });
+
+  window.addEventListener('popstate', function () {
+    var params = new URLSearchParams(window.location.search);
+    var v = params.get('view') || 'agenda';
+    if (['agenda', 'servicos', 'profissionais', 'config'].indexOf(v) >= 0) {
+      switchAgendamentosView(v, false);
+    }
+  });
+
   function safeToast(message, type) {
     if (typeof window.neofarmaToast === 'function') {
       window.neofarmaToast(message, type);
@@ -497,17 +941,371 @@
     }, 3500);
   }
 
-  function setReserveFeedback(message, isError) {
-    var el = document.getElementById('reserve_feedback');
+  function showPageFlash(message, type) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-dismissible fade show mb-0 alert-' + (type === 'danger' ? 'danger' : (type === 'warning' ? 'warning' : 'success'));
+    textEl.textContent = message;
+    wrap.style.display = 'block';
+  }
+
+  (function initPageFlash() {
+    try {
+      var raw = sessionStorage.getItem('agendamentosAdminFlash');
+      if (!raw) return;
+      sessionStorage.removeItem('agendamentosAdminFlash');
+      var data = JSON.parse(raw);
+      if (data && data.view && data.view !== AGENDAMENTOS_VIEW) {
+        switchAgendamentosView(data.view, true);
+      }
+      if (data && data.message) showPageFlash(data.message, data.type || 'success');
+    } catch (e) { /* ignore */ }
+  })();
+
+  function setAgFlashAndReload(message, type) {
+    try {
+      sessionStorage.setItem('agendamentosAdminFlash', JSON.stringify({
+        type: type || 'success',
+        message: message,
+        view: AGENDAMENTOS_VIEW
+      }));
+    } catch (e) { /* ignore */ }
+    reloadAgendamentosPage();
+  }
+
+  function setFormAlert(alertId, message) {
+    var el = document.getElementById(alertId);
     if (!el) return;
-    if (!message) {
-      el.style.display = 'none';
-      el.textContent = '';
-      return;
-    }
-    el.className = 'small px-3 pb-1 ' + (isError ? 'text-danger' : 'text-success');
-    el.textContent = String(message);
+    if (!message) { el.style.display = 'none'; el.textContent = ''; return; }
     el.style.display = 'block';
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+  }
+
+  function clearFieldError(fieldId) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.remove('is-invalid');
+    if (err) err.style.display = 'none';
+  }
+
+  function setFieldError(fieldId, message) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.add('is-invalid');
+    if (err && message) { err.textContent = message; err.style.display = 'block'; }
+  }
+
+  function isValidEmail(value) {
+    if (!value) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+  }
+
+  function isValidTimeHHMM(value) {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || '').trim());
+  }
+
+  function bindFieldClear(fieldIds, alertId) {
+    fieldIds.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', function () { clearFieldError(id); if (alertId) setFormAlert(alertId, ''); });
+      el.addEventListener('change', function () { clearFieldError(id); if (alertId) setFormAlert(alertId, ''); });
+    });
+  }
+
+  bindFieldClear(['svc_name', 'svc_price', 'svc_duration', 'svc_min_age', 'svc_max_age', 'svc_obs_minutes'], 'svcFormAlert');
+  bindFieldClear(['pro_name', 'pro_email', 'pro_phone', 'pro_council_uf', 'pro_council_number'], 'proFormAlert');
+  for (var dBind = 1; dBind <= 6; dBind++) {
+    bindFieldClear(['pro_' + dBind + '_start', 'pro_' + dBind + '_end'], 'proFormAlert');
+  }
+  bindFieldClear([
+    'res_service_id', 'res_professional_id', 'res_customer_name', 'res_customer_email', 'res_customer_phone',
+    'res_scheduled_date', 'res_zip_code', 'res_street', 'res_number', 'res_district', 'res_city', 'res_state'
+  ], 'reserveFormAlert');
+  bindFieldClear(['finish_clinical', 'finish_batch', 'finish_batch_exp'], 'finishFormAlert');
+  bindFieldClear(['incomplete_reason', 'incomplete_refund_percent'], 'incompleteFormAlert');
+  bindFieldClear(['hol_date', 'hol_name'], 'holFormAlert');
+
+  function clearSvcValidation() {
+    setFormAlert('svcFormAlert', '');
+    ['svc_name', 'svc_price', 'svc_duration', 'svc_min_age', 'svc_max_age', 'svc_obs_minutes'].forEach(clearFieldError);
+  }
+
+  function validateSvcForm() {
+    clearSvcValidation();
+    var errors = {};
+    var name = (document.getElementById('svc_name').value || '').trim();
+    var price = Number(document.getElementById('svc_price').value);
+    var duration = Number(document.getElementById('svc_duration').value);
+    var minAgeRaw = document.getElementById('svc_min_age').value;
+    var maxAgeRaw = document.getElementById('svc_max_age').value;
+    var obs = Number(document.getElementById('svc_obs_minutes').value || 0);
+
+    if (!name || name.length < 2) errors.svc_name = 'Informe o nome do serviço (mín. 2 caracteres).';
+    if (!Number.isFinite(price) || price < 0) errors.svc_price = 'Informe um preço válido (zero ou maior).';
+    if (!Number.isFinite(duration) || duration <= 0) errors.svc_duration = 'Informe a duração em minutos (maior que zero).';
+    if (minAgeRaw !== '' && (!Number.isFinite(Number(minAgeRaw)) || Number(minAgeRaw) < 0 || Number(minAgeRaw) > 120)) {
+      errors.svc_min_age = 'Idade mínima deve estar entre 0 e 120.';
+    }
+    if (maxAgeRaw !== '' && (!Number.isFinite(Number(maxAgeRaw)) || Number(maxAgeRaw) < 0 || Number(maxAgeRaw) > 120)) {
+      errors.svc_max_age = 'Idade máxima deve estar entre 0 e 120.';
+    }
+    if (minAgeRaw !== '' && maxAgeRaw !== '' && Number(maxAgeRaw) < Number(minAgeRaw)) {
+      errors.svc_max_age = 'Idade máxima não pode ser menor que a mínima.';
+    }
+    if (!Number.isFinite(obs) || obs < 0 || obs > 240) errors.svc_obs_minutes = 'Tempo de observação deve estar entre 0 e 240 min.';
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setFormAlert('svcFormAlert', 'Revise os campos destacados antes de salvar.');
+      return false;
+    }
+    return true;
+  }
+
+  function clearProValidation() {
+    setFormAlert('proFormAlert', '');
+    ['pro_name', 'pro_email', 'pro_phone', 'pro_council_uf', 'pro_council_number'].forEach(clearFieldError);
+    var avErr = document.getElementById('pro_availability_error');
+    if (avErr) avErr.style.display = 'none';
+  }
+
+  function validateProForm() {
+    clearProValidation();
+    var errors = {};
+    var name = (document.getElementById('pro_name').value || '').trim();
+    var email = (document.getElementById('pro_email').value || '').trim();
+    var phone = onlyDigits(document.getElementById('pro_phone').value);
+    var uf = (document.getElementById('pro_council_uf').value || '').trim().toUpperCase();
+    var council = (document.getElementById('pro_council_number').value || '').trim();
+
+    if (!name || name.length < 3) errors.pro_name = 'Informe o nome completo do profissional.';
+    if (email && !isValidEmail(email)) errors.pro_email = 'Informe um e-mail válido.';
+    if (phone && phone.length < 10) errors.pro_phone = 'Informe um telefone com DDD (mín. 10 dígitos).';
+    if (!/^[A-Z]{2}$/.test(uf)) errors.pro_council_uf = 'Informe a UF com 2 letras (ex.: SP).';
+    if (!council || council.length < 3) errors.pro_council_number = 'Informe o número de registro profissional.';
+
+    var availability = [];
+    for (var d = 1; d <= 6; d++) {
+      var start = (document.getElementById('pro_' + d + '_start').value || '').trim();
+      var end = (document.getElementById('pro_' + d + '_end').value || '').trim();
+      if (start || end) {
+        if (!isValidTimeHHMM(start) || !isValidTimeHHMM(end)) {
+          errors['pro_' + d + '_start'] = 'Horário inválido. Use HH:MM.';
+          break;
+        }
+        if (start >= end) {
+          errors['pro_' + d + '_end'] = 'Horário final deve ser após o inicial.';
+          break;
+        }
+        availability.push({ day_of_week: d, start_time: start, end_time: end });
+      }
+    }
+    if (!availability.length) {
+      var avErr = document.getElementById('pro_availability_error');
+      if (avErr) avErr.style.display = 'block';
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length || !availability.length) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setFormAlert('proFormAlert', !availability.length
+        ? 'Cadastre ao menos um dia com horário de início e fim válidos.'
+        : 'Revise os campos destacados antes de salvar.');
+      return false;
+    }
+    return true;
+  }
+
+  function clearReserveValidation() {
+    setFormAlert('reserveFormAlert', '');
+    [
+      'res_service_id', 'res_professional_id', 'res_customer_name', 'res_customer_email', 'res_customer_phone',
+      'res_scheduled_date', 'res_zip_code', 'res_street', 'res_number', 'res_district', 'res_city', 'res_state'
+    ].forEach(clearFieldError);
+    var slotErr = document.getElementById('res_scheduled_start_error');
+    if (slotErr) slotErr.style.display = 'none';
+  }
+
+  function validateReserveForm() {
+    clearReserveValidation();
+    var errors = {};
+    var serviceId = document.getElementById('res_service_id').value;
+    var professionalId = document.getElementById('res_professional_id').value;
+    var customerName = (document.getElementById('res_customer_name').value || '').trim();
+    var customerEmail = (document.getElementById('res_customer_email').value || '').trim();
+    var customerPhone = onlyDigits(document.getElementById('res_customer_phone').value);
+    var scheduledDate = document.getElementById('res_scheduled_date').value;
+    var whenStr = document.getElementById('res_scheduled_start').value;
+    var modality = document.getElementById('res_modality').value;
+
+    if (!serviceId) errors.res_service_id = 'Selecione o serviço.';
+    if (!professionalId) errors.res_professional_id = 'Selecione o profissional.';
+    if (!customerName || customerName.length < 2) errors.res_customer_name = 'Informe o nome do cliente.';
+    if (customerEmail && !isValidEmail(customerEmail)) errors.res_customer_email = 'Informe um e-mail válido.';
+    if (!customerPhone || customerPhone.length < 10) errors.res_customer_phone = 'Informe um telefone com DDD.';
+    if (!scheduledDate) errors.res_scheduled_date = 'Selecione a data do agendamento.';
+    if (!whenStr) {
+      var slotErr = document.getElementById('res_scheduled_start_error');
+      if (slotErr) slotErr.style.display = 'block';
+    }
+
+    if (modality === 'HOME') {
+      var zip = onlyDigits(document.getElementById('res_zip_code').value);
+      if (zip.length !== 8) errors.res_zip_code = 'Informe um CEP válido com 8 dígitos.';
+      if (!(document.getElementById('res_street').value || '').trim()) errors.res_street = 'Informe a rua.';
+      if (!(document.getElementById('res_number').value || '').trim()) errors.res_number = 'Informe o número.';
+      if (!(document.getElementById('res_district').value || '').trim()) errors.res_district = 'Informe o bairro.';
+      if (!(document.getElementById('res_city').value || '').trim()) errors.res_city = 'Informe a cidade.';
+      if (!/^[A-Za-z]{2}$/.test((document.getElementById('res_state').value || '').trim())) errors.res_state = 'Informe a UF com 2 letras.';
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length || !whenStr) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setFormAlert('reserveFormAlert', 'Revise os campos destacados antes de reservar.');
+      return false;
+    }
+    return true;
+  }
+
+  function clearFinishValidation() {
+    setFormAlert('finishFormAlert', '');
+    ['finish_clinical', 'finish_batch', 'finish_batch_exp'].forEach(clearFieldError);
+  }
+
+  function validateFinishForm() {
+    clearFinishValidation();
+    var errors = {};
+    var clinical = (document.getElementById('finish_clinical').value || '').trim();
+    var vaccineWrap = document.getElementById('finish_vaccine_wrap');
+    var isVaccination = vaccineWrap && vaccineWrap.style.display !== 'none';
+
+    if (!clinical || clinical.length < 5) errors.finish_clinical = 'Descreva o registro clínico (mín. 5 caracteres).';
+    if (isVaccination) {
+      if (!(document.getElementById('finish_batch').value || '').trim()) errors.finish_batch = 'Informe o lote da vacina.';
+      if (!(document.getElementById('finish_batch_exp').value || '').trim()) errors.finish_batch_exp = 'Informe a validade da vacina.';
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setFormAlert('finishFormAlert', 'Revise os campos obrigatórios antes de concluir.');
+      return false;
+    }
+    return true;
+  }
+
+  function clearIncompleteValidation() {
+    setFormAlert('incompleteFormAlert', '');
+    ['incomplete_reason', 'incomplete_refund_percent'].forEach(clearFieldError);
+  }
+
+  function validateIncompleteForm() {
+    clearIncompleteValidation();
+    var errors = {};
+    var reason = (document.getElementById('incomplete_reason').value || '').trim();
+    var refundPercent = Number(document.getElementById('incomplete_refund_percent').value);
+    var paymentStatus = String(document.getElementById('incomplete_payment_status').value || '').toUpperCase();
+
+    if (!reason || reason.length < 5) errors.incomplete_reason = 'Informe o motivo com pelo menos 5 caracteres.';
+    if (paymentStatus === 'PAID' && (!Number.isFinite(refundPercent) || refundPercent < 0 || refundPercent > 100)) {
+      errors.incomplete_refund_percent = 'Informe um percentual entre 0 e 100.';
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setFormAlert('incompleteFormAlert', 'Revise os campos destacados antes de salvar.');
+      return false;
+    }
+    return true;
+  }
+
+  function clearHolValidation() {
+    setFormAlert('holFormAlert', '');
+    ['hol_date', 'hol_name'].forEach(clearFieldError);
+  }
+
+  function validateHolForm() {
+    clearHolValidation();
+    var errors = {};
+    var date = document.getElementById('hol_date').value;
+    var name = (document.getElementById('hol_name').value || '').trim();
+
+    if (!date) errors.hol_date = 'Selecione a data do feriado.';
+    if (!name || name.length < 2) errors.hol_name = 'Informe o nome do feriado (mín. 2 caracteres).';
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setFormAlert('holFormAlert', 'Revise os campos destacados antes de adicionar.');
+      return false;
+    }
+    return true;
+  }
+
+  function setReserveFeedback(message, isError) {
+    if (isError) setFormAlert('reserveFormAlert', message);
+    else setFormAlert('reserveFormAlert', '');
+  }
+
+  async function askConfirm(title, message) {
+    if (typeof window.neofarmaConfirm === 'function') {
+      return window.neofarmaConfirm({ title: title, message: message });
+    }
+    return window.confirm(message);
+  }
+
+  async function postAct(url, body, opts) {
+    opts = opts || {};
+    const method = opts.method || 'POST';
+    try {
+      const resp = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : JSON.stringify(body || {}) });
+      const text = await resp.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (e) { data = {}; }
+      if (!resp.ok && !data.message) data.message = 'Erro na operação (HTTP ' + resp.status + ').';
+      if (data.ok) {
+        if (opts.reload !== false) {
+          setAgFlashAndReload(data.message || 'Operação realizada.', 'success');
+        } else {
+          safeToast(data.message || 'Operação realizada.', 'success');
+        }
+      } else {
+        safeToast(data.message || 'Erro na operação.', 'danger');
+      }
+      return data;
+    } catch (err) {
+      safeToast('Erro de conexão. Tente novamente.', 'danger');
+      return { ok: false };
+    }
+  }
+
+  async function confirmarPagamento(id, approved) {
+    var ok = await askConfirm(
+      approved ? 'Confirmar pagamento online' : 'Recusar pagamento',
+      approved
+        ? 'Confirmar o pagamento online e efetivar este agendamento?'
+        : 'Recusar o pagamento? A reserva será cancelada ou marcada como falha.'
+    );
+    if (!ok) return;
+    await postAct('/admin/agendamentos-servicos/' + id + '/pagamento', { approved: !!approved });
+  }
+
+  async function iniciarAtendimento(id) {
+    var ok = await askConfirm('Iniciar atendimento', 'Iniciar o atendimento deste agendamento agora?');
+    if (!ok) return;
+    await postAct('/admin/agendamentos-servicos/' + id + '/iniciar');
+  }
+
+  async function marcarAusente(id) {
+    var ok = await askConfirm('Marcar ausente', 'Marcar o cliente como ausente? Será aplicado estorno parcial conforme a política.');
+    if (!ok) return;
+    await postAct('/admin/agendamentos-servicos/' + id + '/ausente');
   }
 
   function updateHomeAddressVisibility() {
@@ -534,6 +1332,12 @@
   var proRoleEl = document.getElementById('pro_role');
   if (proRoleEl) proRoleEl.addEventListener('change', updateCouncilByRole);
   updateCouncilByRole();
+  var proUfEl = document.getElementById('pro_council_uf');
+  if (proUfEl) {
+    proUfEl.addEventListener('input', function () {
+      this.value = String(this.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+    });
+  }
   document.getElementById('modalService').addEventListener('show.bs.modal', function () {
     if (!document.getElementById('svc_id').value) {
       document.querySelector('#modalService .modal-title').textContent = 'Novo serviço';
@@ -547,7 +1351,7 @@
   document.getElementById('modalReserve').addEventListener('show.bs.modal', function () {
     if (!document.getElementById('res_id').value) {
       document.querySelector('#modalReserve .modal-title').textContent = 'Novo agendamento';
-      document.getElementById('btnReservarAgendamento').textContent = 'Reservar e gerar pagamento';
+      document.getElementById('btnReservarAgendamento').innerHTML = '<i class="bi bi-calendar-check me-1"></i> Reservar e gerar pagamento';
     }
   });
 
@@ -570,6 +1374,13 @@
   const resPhoneEl = document.getElementById('res_customer_phone');
   if (resPhoneEl) {
     resPhoneEl.addEventListener('input', function () {
+      this.value = formatPhoneBr(this.value);
+    });
+  }
+
+  const proPhoneEl = document.getElementById('pro_phone');
+  if (proPhoneEl) {
+    proPhoneEl.addEventListener('input', function () {
       this.value = formatPhoneBr(this.value);
     });
   }
@@ -599,21 +1410,6 @@
     });
   }
 
-  async function postAct(url, body, opts) {
-    opts = opts || {};
-    const method = opts.method || 'POST';
-    const resp = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : JSON.stringify(body || {}) });
-    const text = await resp.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch (e) { data = {}; }
-    if (data.ok) {
-      safeToast(data.message || 'Operação realizada.', 'success');
-      if (opts.reload !== false) setTimeout(function(){ location.reload(); }, opts.reloadDelayMs || 600);
-    }
-    else safeToast(data.message || 'Erro na operação.', 'danger');
-    return data;
-  }
-
   function abrirConcluir(appointment) {
     var id = appointment && appointment.id ? appointment.id : appointment;
     var isVaccination = appointment && String(appointment.service_group || '').toUpperCase() === 'VACINACAO';
@@ -624,18 +1420,29 @@
     document.getElementById('finish_site').value = '';
     document.getElementById('finish_obs').value = '';
     document.getElementById('finish_vaccine_wrap').style.display = isVaccination ? '' : 'none';
+    clearFinishValidation();
     new bootstrap.Modal(document.getElementById('modalConcluir')).show();
   }
 
   async function concluir() {
-    const id = document.getElementById('finish_id').value;
-    await postAct('/admin/agendamentos-servicos/' + id + '/concluir', {
-      clinical_record: document.getElementById('finish_clinical').value,
-      vaccine_batch_code: document.getElementById('finish_batch').value,
-      vaccine_expiry_date: document.getElementById('finish_batch_exp').value,
-      application_site: document.getElementById('finish_site').value,
-      observations: document.getElementById('finish_obs').value
-    });
+    if (!validateFinishForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
+    var btn = document.getElementById('btnConcluirAtendimento');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Concluindo...'; }
+    try {
+      const id = document.getElementById('finish_id').value;
+      await postAct('/admin/agendamentos-servicos/' + id + '/concluir', {
+        clinical_record: document.getElementById('finish_clinical').value.trim(),
+        vaccine_batch_code: document.getElementById('finish_batch').value.trim(),
+        vaccine_expiry_date: document.getElementById('finish_batch_exp').value,
+        application_site: document.getElementById('finish_site').value.trim(),
+        observations: document.getElementById('finish_obs').value.trim()
+      });
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check2-square me-1"></i> Concluir'; }
+    }
   }
 
   function abrirIncompleto(item) {
@@ -645,48 +1452,70 @@
     document.getElementById('incomplete_payment_status').value = paymentStatus;
     document.getElementById('incomplete_reason').value = '';
     document.getElementById('incomplete_refund_percent').value = '50';
+    clearIncompleteValidation();
     new bootstrap.Modal(document.getElementById('modalIncompleto')).show();
   }
 
   async function salvarIncompleto() {
-    const id = document.getElementById('incomplete_id').value;
-    const reason = document.getElementById('incomplete_reason').value.trim();
-    if (!reason) return safeToast('Informe o motivo.', 'danger');
-    const status = String(document.getElementById('incomplete_payment_status').value || '').toUpperCase();
-    const refundPercent = Number(document.getElementById('incomplete_refund_percent').value || 50);
-    const body = { reason: reason };
-    if (status === 'PAID') body.refund_percent = refundPercent;
-    await postAct('/admin/agendamentos-servicos/' + id + '/nao-finalizado', body);
+    if (!validateIncompleteForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
+    var btn = document.getElementById('btnSalvarIncompleto');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
+    try {
+      const id = document.getElementById('incomplete_id').value;
+      const reason = document.getElementById('incomplete_reason').value.trim();
+      const status = String(document.getElementById('incomplete_payment_status').value || '').toUpperCase();
+      const refundPercent = Number(document.getElementById('incomplete_refund_percent').value || 50);
+      const body = { reason: reason };
+      if (status === 'PAID') body.refund_percent = refundPercent;
+      await postAct('/admin/agendamentos-servicos/' + id + '/nao-finalizado', body);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-exclamation-square me-1"></i> Salvar'; }
+    }
   }
 
   async function salvarServico() {
-    var id = document.getElementById('svc_id').value;
-    await postAct('/admin/agendamentos-servicos/servicos', {
-      id: id ? Number(id) : null,
-      name: document.getElementById('svc_name').value,
-      price: document.getElementById('svc_price').value,
-      duration_minutes: document.getElementById('svc_duration').value,
-      service_group: document.getElementById('svc_group').value,
-      in_store_available: document.getElementById('svc_store').checked,
-      home_available: document.getElementById('svc_home').checked,
-      requires_prescription: document.getElementById('svc_rx').checked,
-      min_age_years: document.getElementById('svc_min_age').value,
-      max_age_years: document.getElementById('svc_max_age').value,
-      post_observation_minutes: document.getElementById('svc_obs_minutes').value,
-      prep_instructions: document.getElementById('svc_prep').value,
-      contraindications: document.getElementById('svc_contra').value,
-      required_supplies: document.getElementById('svc_supplies').value,
-      notes: document.getElementById('svc_notes').value,
-      is_active: true
-    });
+    if (!validateSvcForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
+    var btn = document.getElementById('btnSalvarServico');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
+    try {
+      var id = document.getElementById('svc_id').value;
+      await postAct('/admin/agendamentos-servicos/servicos', {
+        id: id ? Number(id) : null,
+        name: document.getElementById('svc_name').value.trim(),
+        price: document.getElementById('svc_price').value,
+        duration_minutes: document.getElementById('svc_duration').value,
+        service_group: document.getElementById('svc_group').value,
+        in_store_available: document.getElementById('svc_store').checked,
+        home_available: document.getElementById('svc_home').checked,
+        requires_prescription: document.getElementById('svc_rx').checked,
+        min_age_years: document.getElementById('svc_min_age').value,
+        max_age_years: document.getElementById('svc_max_age').value,
+        post_observation_minutes: document.getElementById('svc_obs_minutes').value,
+        prep_instructions: document.getElementById('svc_prep').value.trim(),
+        contraindications: document.getElementById('svc_contra').value.trim(),
+        required_supplies: document.getElementById('svc_supplies').value.trim(),
+        notes: document.getElementById('svc_notes').value.trim(),
+        is_active: true
+      });
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar'; }
+    }
   }
 
   async function salvarProfissional() {
+    if (!validateProForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
     const btn = document.getElementById('btnSalvarProfissional');
-    const fb = document.getElementById('pro_feedback');
     if (btn && btn.disabled) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
-    if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
     try {
       const availability = [];
       for (let d = 1; d <= 6; d++) {
@@ -696,13 +1525,13 @@
       }
       const payload = {
         id: document.getElementById('pro_id').value ? Number(document.getElementById('pro_id').value) : null,
-        full_name: document.getElementById('pro_name').value,
+        full_name: document.getElementById('pro_name').value.trim(),
         role_name: document.getElementById('pro_role').value,
-        email: document.getElementById('pro_email').value,
-        phone: document.getElementById('pro_phone').value,
+        email: document.getElementById('pro_email').value.trim(),
+        phone: onlyDigits(document.getElementById('pro_phone').value),
         council_type: document.getElementById('pro_council_type').value,
-        council_uf: document.getElementById('pro_council_uf').value,
-        council_number: document.getElementById('pro_council_number').value,
+        council_uf: document.getElementById('pro_council_uf').value.trim().toUpperCase(),
+        council_number: document.getElementById('pro_council_number').value.trim(),
         availability: availability
       };
 
@@ -717,96 +1546,70 @@
       try { result = txt ? JSON.parse(txt) : {}; } catch (e) { result = {}; }
 
       if (resp.ok && result && result.ok) {
-        const okMsg = result.message || 'Profissional cadastrado com sucesso.';
-        if (fb) {
-          fb.className = 'small px-3 pb-1 text-success';
-          fb.textContent = okMsg;
-          fb.style.display = 'block';
-        }
-      safeToast(okMsg, 'success');
+        setAgFlashAndReload(result.message || 'Profissional salvo com sucesso.', 'success');
       } else {
         const errMsg = (result && result.message) || ('Não foi possível salvar o profissional. (HTTP ' + resp.status + ')');
-        if (fb) {
-          fb.className = 'small px-3 pb-1 text-danger';
-          fb.textContent = errMsg;
-          fb.style.display = 'block';
-        }
+        setFormAlert('proFormAlert', errMsg);
         safeToast(errMsg, 'danger');
       }
     } catch (err) {
-      var netMsg = 'Erro de comunicação ao salvar profissional.';
-      if (err && err.message) netMsg += ' (' + err.message + ')';
-      if (fb) {
-        fb.className = 'small px-3 pb-1 text-danger';
-        fb.textContent = netMsg;
-        fb.style.display = 'block';
-      }
+      var netMsg = 'Erro de conexão. Tente novamente.';
+      setFormAlert('proFormAlert', netMsg);
       safeToast(netMsg, 'danger');
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar'; }
     }
   }
 
   async function reservar() {
     const btn = document.getElementById('btnReservarAgendamento');
     if (btn && btn.disabled) return;
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Reservando...'; }
-    setReserveFeedback('', false);
-    try {
-    if (window.adminSlotPicker && !window.adminSlotPicker.validateBeforeSubmit()) return;
-    const whenStr = document.getElementById('res_scheduled_start').value;
-    const when = whenStr ? new Date(whenStr) : null;
-    if (!when || Number.isNaN(when.getTime())) {
-      safeToast('Selecione um horário disponível.', 'danger');
+    if (!validateReserveForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
       return;
     }
-    const body = {
-      service_id: document.getElementById('res_service_id').value,
-      professional_id: document.getElementById('res_professional_id').value,
-      modality: document.getElementById('res_modality').value,
-      payment_method: document.getElementById('res_payment_method').value,
-      booking_channel: 'ADMIN',
-      customer_name: document.getElementById('res_customer_name').value,
-      customer_email: document.getElementById('res_customer_email').value,
-      customer_phone: onlyDigits(document.getElementById('res_customer_phone').value),
-      scheduled_start: whenStr,
-      zip_code: document.getElementById('res_zip_code').value,
-      street: document.getElementById('res_street').value,
-      number: document.getElementById('res_number').value,
-      complement: document.getElementById('res_complement').value,
-      district: document.getElementById('res_district').value,
-      city: document.getElementById('res_city').value,
-      state: document.getElementById('res_state').value
-    };
-    if (body.modality === 'HOME') {
-      const required = [body.zip_code, body.street, body.number, body.district, body.city, body.state];
-      if (required.some(function(v){ return !String(v || '').trim(); })) {
-        safeToast('Preencha endereço completo para atendimento em domicílio.', 'danger');
-        return;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Reservando...'; }
+    clearReserveValidation();
+    try {
+      const whenStr = document.getElementById('res_scheduled_start').value;
+      const body = {
+        service_id: document.getElementById('res_service_id').value,
+        professional_id: document.getElementById('res_professional_id').value,
+        modality: document.getElementById('res_modality').value,
+        payment_method: document.getElementById('res_payment_method').value,
+        booking_channel: 'ADMIN',
+        customer_name: document.getElementById('res_customer_name').value.trim(),
+        customer_email: document.getElementById('res_customer_email').value.trim(),
+        customer_phone: onlyDigits(document.getElementById('res_customer_phone').value),
+        scheduled_start: whenStr,
+        zip_code: document.getElementById('res_zip_code').value,
+        street: document.getElementById('res_street').value.trim(),
+        number: document.getElementById('res_number').value.trim(),
+        complement: document.getElementById('res_complement').value.trim(),
+        district: document.getElementById('res_district').value.trim(),
+        city: document.getElementById('res_city').value.trim(),
+        state: document.getElementById('res_state').value.trim().toUpperCase()
+      };
+      const resp = await fetch('/admin/agendamentos-servicos/reservar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const txt = await resp.text();
+      let data = {};
+      try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+      if (!resp.ok && !data.message) data.message = 'Falha ao reservar (HTTP ' + resp.status + ').';
+      if (data.ok) {
+        var okMessage = data.payment_link
+          ? ('Reserva criada. Link de pagamento: ' + data.payment_link)
+          : (data.message || 'Agendamento confirmado.');
+        setAgFlashAndReload(okMessage, 'success');
+      } else {
+        setFormAlert('reserveFormAlert', data.message || 'Erro ao reservar.');
+        safeToast(data.message || 'Erro ao reservar.', 'danger');
       }
-    }
-    const resp = await fetch('/admin/agendamentos-servicos/reservar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const txt = await resp.text();
-    let data = {};
-    try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
-    if (!resp.ok && !data.message) data.message = 'Falha ao reservar (HTTP ' + resp.status + ').';
-    if (data.ok) {
-      var okMessage = data.payment_link
-        ? ('Reserva criada. Link de pagamento: ' + data.payment_link)
-        : (data.message || 'Agendamento confirmado.');
-      setReserveFeedback(okMessage, false);
-      safeToast(okMessage, 'success');
-      setTimeout(function(){ location.reload(); }, 1000);
-    } else {
-      setReserveFeedback(data.message || 'Erro ao reservar.', true);
-      safeToast(data.message || 'Erro ao reservar.', 'danger');
-    }
     } catch (err) {
-      var failMessage = 'Erro de comunicação ao reservar: ' + (err && err.message ? err.message : 'falha desconhecida');
-      setReserveFeedback(failMessage, true);
+      var failMessage = 'Erro de conexão. Tente novamente.';
+      setFormAlert('reserveFormAlert', failMessage);
       safeToast(failMessage, 'danger');
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = 'Reservar e gerar pagamento'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-calendar-check me-1"></i> Reservar e gerar pagamento'; }
     }
   }
 
@@ -819,35 +1622,49 @@
   async function editarAgendamentoSalvar(id) {
     const btn = document.getElementById('btnReservarAgendamento');
     if (btn && btn.disabled) return;
-    if (window.adminSlotPicker && !window.adminSlotPicker.validateBeforeSubmit()) return;
+    if (!validateReserveForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...'; }
-    setReserveFeedback('', false);
+    clearReserveValidation();
     try {
       const body = {
         service_id: document.getElementById('res_service_id').value,
         professional_id: document.getElementById('res_professional_id').value,
         modality: document.getElementById('res_modality').value,
-        customer_name: document.getElementById('res_customer_name').value,
-        customer_email: document.getElementById('res_customer_email').value,
+        customer_name: document.getElementById('res_customer_name').value.trim(),
+        customer_email: document.getElementById('res_customer_email').value.trim(),
         customer_phone: onlyDigits(document.getElementById('res_customer_phone').value),
         scheduled_start: document.getElementById('res_scheduled_start').value,
         zip_code: document.getElementById('res_zip_code').value,
-        street: document.getElementById('res_street').value,
-        number: document.getElementById('res_number').value,
-        complement: document.getElementById('res_complement').value,
-        district: document.getElementById('res_district').value,
-        city: document.getElementById('res_city').value,
-        state: document.getElementById('res_state').value
+        street: document.getElementById('res_street').value.trim(),
+        number: document.getElementById('res_number').value.trim(),
+        complement: document.getElementById('res_complement').value.trim(),
+        district: document.getElementById('res_district').value.trim(),
+        city: document.getElementById('res_city').value.trim(),
+        state: document.getElementById('res_state').value.trim().toUpperCase()
       };
-      const data = await postAct('/admin/agendamentos-servicos/' + id, body, { method: 'PUT', reload: false });
+      const resp = await fetch('/admin/agendamentos-servicos/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const txt = await resp.text();
+      let data = {};
+      try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+      if (!resp.ok && !data.message) data.message = 'Erro ao atualizar agendamento.';
       if (data.ok) {
-        setReserveFeedback(data.message || 'Agendamento atualizado.', false);
-        setTimeout(function(){ location.reload(); }, 800);
+        setAgFlashAndReload(data.message || 'Agendamento atualizado.', 'success');
       } else {
-        setReserveFeedback(data.message || 'Erro ao atualizar agendamento.', true);
+        setFormAlert('reserveFormAlert', data.message || 'Erro ao atualizar agendamento.');
+        safeToast(data.message || 'Erro ao atualizar agendamento.', 'danger');
       }
+    } catch (err) {
+      setFormAlert('reserveFormAlert', 'Erro de conexão. Tente novamente.');
+      safeToast('Erro de conexão. Tente novamente.', 'danger');
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar agendamento'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar agendamento'; }
     }
   }
 
@@ -872,6 +1689,7 @@
   function novoServico() {
     preencherFormServico({});
     document.getElementById('svc_id').value = '';
+    clearSvcValidation();
     document.querySelector('#modalService .modal-title').textContent = 'Novo serviço';
   }
 
@@ -890,6 +1708,7 @@
   function novoProfissional() {
     preencherFormProfissional({});
     document.getElementById('pro_id').value = '';
+    clearProValidation();
     document.querySelector('#modalProfessional .modal-title').textContent = 'Novo profissional';
     for (var d = 1; d <= 6; d++) {
       document.getElementById('pro_' + d + '_start').value = '';
@@ -938,14 +1757,13 @@
 
   function editarServico(s) {
     preencherFormServico(s || {});
+    clearSvcValidation();
     document.querySelector('#modalService .modal-title').textContent = 'Editar serviço';
     new bootstrap.Modal(document.getElementById('modalService')).show();
   }
 
   async function excluirServico(id) {
-    const ok = (typeof window.neofarmaConfirm === 'function')
-      ? await window.neofarmaConfirm({ title: 'Excluir serviço', message: 'Deseja realmente excluir este serviço?' })
-      : true;
+    const ok = await askConfirm('Excluir serviço', 'Deseja realmente excluir este serviço? Agendamentos vinculados impedem a exclusão.');
     if (!ok) return;
     await postAct('/admin/agendamentos-servicos/servicos/' + id, {}, { method: 'DELETE' });
   }
@@ -984,39 +1802,44 @@
       }
     }
     document.querySelector('#modalProfessional .modal-title').textContent = 'Editar profissional';
+    clearProValidation();
     new bootstrap.Modal(document.getElementById('modalProfessional')).show();
   }
 
   async function excluirProfissional(id) {
-    const ok = (typeof window.neofarmaConfirm === 'function')
-      ? await window.neofarmaConfirm({ title: 'Excluir profissional', message: 'Deseja realmente excluir este profissional?' })
-      : true;
+    const ok = await askConfirm('Excluir profissional', 'Deseja realmente excluir este profissional?');
     if (!ok) return;
     await postAct('/admin/agendamentos-servicos/profissionais/' + id, {}, { method: 'DELETE' });
   }
 
   function verAgendamento(a) {
     document.getElementById('viewInfoTitle').textContent = 'Detalhes do agendamento #' + a.id;
+    var L = window.NeoLabels || {};
     var refundInfo = '';
     if (String(a.payment_status || '').toUpperCase() === 'REFUNDED_PARTIAL' && Number(a.refund_amount || 0) > 0) {
       refundInfo = '<div><strong>Estorno parcial:</strong> R$ ' + Number(a.refund_amount || 0).toFixed(2).replace('.', ',') + '</div>';
     }
+    var payMethod = L.paymentMethod ? L.paymentMethod(a.payment_method) : (a.payment_method || '—');
+    var stLabel = L.appointmentStatus ? L.appointmentStatus(a.status) : (a.status || '—');
+    var payLabel = L.paymentStatus ? L.paymentStatus(a.payment_status) : (a.payment_status || '—');
+    var channelLabel = L.bookingChannel ? L.bookingChannel(a.booking_channel) : (a.booking_channel || '—');
+    var modalityLabel = L.modality ? L.modality(a.modality) : (a.modality || '—');
     document.getElementById('viewInfoBody').innerHTML =
       '<div><strong>Cliente:</strong> ' + (a.customer_name || '-') + '</div>' +
       '<div><strong>Serviço:</strong> ' + (a.service_name || '-') + '</div>' +
       '<div><strong>Profissional:</strong> ' + (a.professional_name || '-') + '</div>' +
-      '<div><strong>Horário:</strong> ' + new Date(a.scheduled_start).toLocaleString('pt-BR') + '</div>' +
-      '<div><strong>Status:</strong> ' + (a.status || '-') + ' | <strong>Pagamento:</strong> ' + (a.payment_status || '-') + '</div>' +
+      '<div><strong>Horário:</strong> ' + (window.NeoDates ? NeoDates.formatDateTime(a.scheduled_start) : a.scheduled_start) + '</div>' +
+      '<div><strong>Modalidade:</strong> ' + modalityLabel + ' · ' + channelLabel + '</div>' +
+      '<div><strong>Status do agendamento:</strong> ' + stLabel + '</div>' +
+      '<div><strong>Forma de pagamento:</strong> ' + payMethod + '</div>' +
+      '<div><strong>Situação do pagamento:</strong> ' + payLabel + '</div>' +
       refundInfo;
     new bootstrap.Modal(document.getElementById('modalViewInfo')).show();
   }
 
   function toDatetimeLocal(value) {
-    if (!value) return '';
-    var d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
-    var pad = function(n){ return String(n).padStart(2, '0'); };
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (window.NeoDates && NeoDates.toDatetimeLocal) return NeoDates.toDatetimeLocal(value);
+    return '';
   }
 
   function editarAgendamento(a) {
@@ -1044,7 +1867,8 @@
     }
     updateHomeAddressVisibility();
     document.querySelector('#modalReserve .modal-title').textContent = 'Editar agendamento';
-    document.getElementById('btnReservarAgendamento').textContent = 'Salvar agendamento';
+    document.getElementById('btnReservarAgendamento').innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar agendamento';
+    clearReserveValidation();
     new bootstrap.Modal(document.getElementById('modalReserve')).show();
   }
 
@@ -1055,6 +1879,7 @@
     document.getElementById('res_customer_phone').value = '';
     document.getElementById('res_scheduled_date').value = '';
     document.getElementById('res_scheduled_start').value = '';
+    clearReserveValidation();
     if (window.adminSlotPicker) {
       window.adminSlotPicker.ignoreAppointmentId = null;
       window.adminSlotPicker.renderSlots([], 'Selecione serviço, profissional e data.');
@@ -1067,37 +1892,73 @@
     document.getElementById('res_city').value = '';
     document.getElementById('res_state').value = '';
     document.querySelector('#modalReserve .modal-title').textContent = 'Novo agendamento';
-    document.getElementById('btnReservarAgendamento').textContent = 'Reservar e gerar pagamento';
+    document.getElementById('btnReservarAgendamento').innerHTML = '<i class="bi bi-calendar-check me-1"></i> Reservar e gerar pagamento';
     updateHomeAddressVisibility();
   }
 
   async function excluirAgendamento(id) {
-    const ok = (typeof window.neofarmaConfirm === 'function')
-      ? await window.neofarmaConfirm({ title: 'Excluir agendamento', message: 'Deseja realmente excluir este agendamento?' })
-      : true;
+    const ok = await askConfirm('Excluir agendamento', 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.');
     if (!ok) return;
     await postAct('/admin/agendamentos-servicos/' + id, {}, { method: 'DELETE' });
   }
 
   async function salvarFeriado() {
-    await postAct('/admin/agendamentos-servicos/feriados', {
-      holiday_date: document.getElementById('hol_date').value,
-      name: document.getElementById('hol_name').value
-    });
+    if (!validateHolForm()) {
+      safeToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
+    var btn = document.getElementById('btnSalvarFeriado');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Adicionando...'; }
+    try {
+      const resp = await fetch('/admin/agendamentos-servicos/feriados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          holiday_date: document.getElementById('hol_date').value,
+          name: document.getElementById('hol_name').value.trim()
+        })
+      });
+      const txt = await resp.text();
+      let data = {};
+      try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+      if (!resp.ok && !data.message) data.message = 'Erro ao cadastrar feriado.';
+      if (data.ok) {
+        AGENDAMENTOS_VIEW = 'config';
+        setAgFlashAndReload(data.message || 'Feriado cadastrado.', 'success');
+      } else {
+        setFormAlert('holFormAlert', data.message || 'Erro ao cadastrar feriado.');
+        safeToast(data.message || 'Erro ao cadastrar feriado.', 'danger');
+      }
+    } catch (e) {
+      setFormAlert('holFormAlert', 'Erro de conexão. Tente novamente.');
+      safeToast('Erro de conexão. Tente novamente.', 'danger');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i> Adicionar feriado'; }
+    }
   }
 
   async function removerFeriado(id) {
-    const ok = (typeof window.neofarmaConfirm === 'function')
-      ? await window.neofarmaConfirm({ title: 'Remover feriado', message: 'Deseja remover este feriado?' })
-      : true;
+    const ok = await askConfirm('Remover feriado', 'Deseja remover este feriado da agenda?');
     if (!ok) return;
-    const resp = await fetch('/admin/agendamentos-servicos/feriados/' + id, { method: 'DELETE' });
-    const data = await resp.json();
-    if (data.ok) { safeToast(data.message || 'Feriado removido.', 'success'); setTimeout(function(){ location.reload(); }, 600); }
-    else safeToast(data.message || 'Erro ao remover feriado.', 'danger');
+    try {
+      const resp = await fetch('/admin/agendamentos-servicos/feriados/' + id, { method: 'DELETE' });
+      const data = await resp.json();
+      if (data.ok) {
+        AGENDAMENTOS_VIEW = 'config';
+        setAgFlashAndReload(data.message || 'Feriado removido.', 'success');
+      } else {
+        safeToast(data.message || 'Erro ao remover feriado.', 'danger');
+      }
+    } catch (e) {
+      safeToast('Erro de conexão. Tente novamente.', 'danger');
+    }
   }
 
   async function confirmarRecebimento(id, paymentMethod) {
+    var labels = { CASH: 'dinheiro', PIX: 'PIX', CREDIT_CARD: 'cartão de crédito', DEBIT_CARD: 'cartão de débito' };
+    var label = labels[paymentMethod] || paymentMethod;
+    var ok = await askConfirm('Confirmar recebimento', 'Confirmar pagamento recebido em ' + label + ' neste agendamento?');
+    if (!ok) return;
     await postAct('/admin/agendamentos-servicos/' + id + '/confirmar-pagamento', { payment_method: paymentMethod });
   }
 
@@ -1233,6 +2094,29 @@
         }
       });
     }
+  })();
+
+  (function initAptActionDropdowns() {
+    var table = document.getElementById('table_appointments');
+    if (!table) return;
+
+    table.addEventListener('show.bs.dropdown', function (e) {
+      var dropdown = e.target.closest('.apt-actions-dropdown');
+      if (!dropdown || !table.contains(dropdown)) return;
+      var menu = dropdown.querySelector('.dropdown-menu');
+      if (!menu || dropdown._aptMenu === menu) return;
+      dropdown._aptMenu = menu;
+      document.body.appendChild(menu);
+      menu.classList.add('apt-actions-menu--floating');
+    }, true);
+
+    table.addEventListener('hidden.bs.dropdown', function (e) {
+      var dropdown = e.target.closest('.apt-actions-dropdown');
+      if (!dropdown || !dropdown._aptMenu) return;
+      dropdown.appendChild(dropdown._aptMenu);
+      dropdown._aptMenu.classList.remove('apt-actions-menu--floating');
+      dropdown._aptMenu = null;
+    });
   })();
 </script>
 <%- include('partials/footer') %>

@@ -1,0 +1,40 @@
+<%
+  var brand = typeof lab !== 'undefined' ? lab : {};
+  var compact = typeof compact !== 'undefined' ? compact : false;
+  var btnLabel = typeof buttonText !== 'undefined' ? buttonText : 'Explorar marca';
+  var promoCount = brand.promo_count != null ? Number(brand.promo_count) : 0;
+  var samples = brand.samples || [];
+%>
+<a href="/category?lab=<%= encodeURIComponent(brand.name || '') %>" class="sf-brand-card<%= compact ? ' sf-brand-card--compact' : '' %>" data-aos="fade-up">
+  <div class="sf-brand-card__glow" aria-hidden="true"></div>
+  <div class="sf-brand-card__top">
+    <div class="sf-brand-card__logo" aria-hidden="true"><%= brand.initials || 'NF' %></div>
+    <div class="sf-brand-card__meta">
+      <h3 class="sf-brand-card__name"><%= brand.name %></h3>
+      <div class="sf-brand-card__stats">
+        <span><i class="bi bi-box-seam"></i> <%= brand.count || 0 %> produto<%= (brand.count || 0) === 1 ? '' : 's' %></span>
+        <% if (promoCount > 0) { %>
+        <span class="sf-brand-card__promo"><i class="bi bi-tag-fill"></i> <%= promoCount %> em oferta</span>
+        <% } %>
+      </div>
+    </div>
+    <span class="sf-brand-card__arrow"><i class="bi bi-arrow-up-right"></i></span>
+  </div>
+  <% if (samples.length) { %>
+  <div class="sf-brand-card__gallery" aria-label="Produtos desta marca">
+    <% samples.forEach(function(s, idx) { %>
+    <div class="sf-brand-card__thumb" style="--i: <%= idx %>">
+      <img src="<%= s.thumb_url || s.image_url %>" alt="<%= s.name %>" loading="lazy">
+    </div>
+    <% }) %>
+  </div>
+  <% } %>
+  <div class="sf-brand-card__foot">
+    <% if (brand.min_price_display) { %>
+    <span class="sf-brand-card__from">A partir de <strong>R$ <%= brand.min_price_display %></strong></span>
+    <% } else { %>
+    <span class="sf-brand-card__from sf-brand-card__from--muted">Catálogo disponível online</span>
+    <% } %>
+    <span class="sf-brand-card__cta"><%= btnLabel %> <i class="bi bi-chevron-right"></i></span>
+  </div>
+</a>

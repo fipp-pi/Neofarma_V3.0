@@ -1,78 +1,245 @@
 <%- include('partials/header') %>
-<div class="container">
-  <div class="list-header">
-    <div>
-      <h2 class="neo-heading">Produtos</h2>
-      <p class="text-muted mb-0">Cadastre e edite produtos do catálogo.</p>
+<%
+  const prodList = typeof list !== 'undefined' ? list : [];
+  const prodStats = typeof stats !== 'undefined' ? stats : { total: prodList.length, active: 0, inactive: 0, expired: 0, expiring: 0, filtered: prodList.length };
+  const riskFilterVal = typeof riskFilter !== 'undefined' ? riskFilter : 'ALL';
+  const labsList = typeof labs !== 'undefined' ? labs : [];
+  const categoriesList = typeof categories !== 'undefined' ? categories : [];
+  const typesList = typeof productTypes !== 'undefined' ? productTypes : [];
+  const catNameMap = categoriesList.reduce(function(acc, c){ acc[c.id] = c.name; return acc; }, {});
+  const typeNameMap = typesList.reduce(function(acc, t){ acc[t.id] = t.name; return acc; }, {});
+  function prodUrl(extra) {
+    var risk = extra && extra.batchRisk ? extra.batchRisk : 'ALL';
+    if (risk === 'ALL') return '/admin/produtos';
+    return '/admin/produtos?batchRisk=' + encodeURIComponent(risk);
+  }
+%>
+<script src="/assets/js/admin-catalog-filters.js"></script>
+<div class="container admin-catalog">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     </div>
-    <div class="d-flex align-items-center gap-3">
-      <div class="search-box">
-        <i class="bi bi-search"></i>
-        <input type="text" class="form-control" id="buscaInput" placeholder="Buscar..." onkeyup="filtrarTabela()">
-      </div>
-      <button type="button" class="btn btn-success d-flex align-items-center" onclick="abrirModalProd()" data-bs-toggle="modal" data-bs-target="#modalEditar">
-        <i class="bi bi-plus-lg me-2"></i> Novo
-      </button>
-    </div>
-  </div>
-  <div class="d-flex gap-2 mb-3">
-    <a href="/admin/produtos" class="btn btn-sm <%= (riskFilter || 'ALL') === 'ALL' ? 'btn-dark' : 'btn-outline-dark' %>">Todos</a>
-    <a href="/admin/produtos?batchRisk=EXPIRING" class="btn btn-sm <%= (riskFilter || 'ALL') === 'EXPIRING' ? 'btn-warning' : 'btn-outline-warning' %>">Próx. vencimento</a>
-    <a href="/admin/produtos?batchRisk=EXPIRED" class="btn btn-sm <%= (riskFilter || 'ALL') === 'EXPIRED' ? 'btn-danger' : 'btn-outline-danger' %>">Vencidos</a>
   </div>
 
-  <div class="table-container">
-    <div class="table-responsive">
-      <table class="table table-hover table-custom align-middle" id="tabelaProd">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Nome</th>
-            <th>SKU</th>
-            <th>Laboratório</th>
-            <th>Preço</th>
-            <th>Status</th>
-            <th>Lotes (risco)</th>
-            <th class="text-end">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (list && list.length) { list.forEach(function(item) { %>
-            <tr>
-              <td><%= item.id %></td>
-              <td class="fw-bold"><%= item.name %></td>
-              <td><%= item.sku || '-' %></td>
-              <td><%= item.lab_name || '-' %></td>
-              <td>R$ <%= Number(item.unit_price).toFixed(2).replace('.', ',') %></td>
-              <td><span class="badge bg-<%= item.status === 'ACTIVE' ? 'success' : (item.status === 'INACTIVE' ? 'secondary' : 'danger') %>"><%= item.status %></span></td>
-              <td>
-                <% if ((item.expired_batches || 0) > 0) { %>
-                  <span class="badge bg-danger me-1">Vencidos: <%= item.expired_batches %></span>
-                <% } %>
-                <% if ((item.expiring_batches || 0) > 0) { %>
-                  <span class="badge bg-warning text-dark">30 dias: <%= item.expiring_batches %></span>
-                <% } %>
-                <% if ((item.expired_batches || 0) === 0 && (item.expiring_batches || 0) === 0) { %>
-                  <span class="badge bg-success">Sem risco</span>
-                <% } %>
-              </td>
-              <td class="text-end">
-                <button type="button" class="btn-action btn-stock" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="abrirModalLotes(this)" title="Lotes"><i class="bi bi-archive"></i></button>
-                <button type="button" class="btn-action btn-view" onclick="verProd(<%= item.id %>)" title="Ver"><i class="bi bi-eye"></i></button>
-                <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarProd(this)" title="Editar"><i class="bi bi-pencil"></i></button>
-                <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
-              </td>
-            </tr>
-          <% }); } %>
-        </tbody>
-      </table>
+  <div class="list-header mb-4">
+    <div>
+      <h2 class="neo-heading">Produtos</h2>
+      <p class="text-muted mb-0">Cadastre e mantenha os produtos da loja, com preços, imagens, estoque e vínculos com laboratório, categoria e tipo.</p>
     </div>
-    <div id="mensagemVazia" class="text-center py-5" style="display: <%= (list && list.length) ? 'none' : 'block' %>;">
-      <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
-      <p class="text-muted mt-2">Nenhum produto cadastrado.</p>
-      <button type="button" class="btn btn-outline-success btn-sm mt-2" onclick="abrirModalProd()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeiro produto</button>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="/admin/categorias" class="btn btn-outline-primary btn-sm"><i class="bi bi-tags me-1"></i> Categorias</a>
+      <a href="/admin/lotes" class="btn btn-outline-primary btn-sm"><i class="bi bi-archive me-1"></i> Lotes</a>
     </div>
   </div>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--primary">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-box-seam"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= prodStats.total %></div><div class="admin-catalog__stat-label">Total no catálogo</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--success">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-check-circle"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= prodStats.active %></div><div class="admin-catalog__stat-label">Ativos</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="<%= prodUrl({ batchRisk: 'EXPIRING' }) %>" class="admin-catalog__stat admin-catalog__stat--warning text-decoration-none">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-hourglass-split"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= prodStats.expiring %></div><div class="admin-catalog__stat-label">Próx. vencimento</div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="<%= prodUrl({ batchRisk: 'EXPIRED' }) %>" class="admin-catalog__stat admin-catalog__stat--danger text-decoration-none">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-exclamation-octagon"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= prodStats.expired %></div><div class="admin-catalog__stat-label">Lotes vencidos</div></div>
+      </a>
+    </div>
+  </div>
+
+  <% if ((prodStats.expired || 0) > 0 || (prodStats.expiring || 0) > 0) { %>
+  <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div><strong><i class="bi bi-exclamation-triangle me-1"></i> Atenção ao estoque:</strong> há produtos com lotes vencidos ou a vencer nos próximos 30 dias.</div>
+    <div class="d-flex gap-2">
+      <% if (prodStats.expiring > 0) { %><a class="btn btn-sm btn-warning" href="<%= prodUrl({ batchRisk: 'EXPIRING' }) %>">Ver a vencer</a><% } %>
+      <% if (prodStats.expired > 0) { %><a class="btn btn-sm btn-danger" href="<%= prodUrl({ batchRisk: 'EXPIRED' }) %>">Ver vencidos</a><% } %>
+    </div>
+  </div>
+  <% } %>
+
+  <div class="admin-catalog__tabs mb-3">
+    <a href="<%= prodUrl({ batchRisk: 'ALL' }) %>" class="admin-catalog__tab <%= riskFilterVal === 'ALL' ? 'is-active' : '' %>"><i class="bi bi-grid me-1"></i> Todos</a>
+    <a href="<%= prodUrl({ batchRisk: 'EXPIRING' }) %>" class="admin-catalog__tab <%= riskFilterVal === 'EXPIRING' ? 'is-active' : '' %>"><i class="bi bi-hourglass me-1"></i> Próx. vencimento</a>
+    <a href="<%= prodUrl({ batchRisk: 'EXPIRED' }) %>" class="admin-catalog__tab <%= riskFilterVal === 'EXPIRED' ? 'is-active' : '' %>"><i class="bi bi-exclamation-octagon me-1"></i> Vencidos</a>
+  </div>
+
+  <section class="admin-catalog__panel mb-3">
+    <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-funnel me-2"></i>Filtros avançados</h3>
+      <button type="button" class="admin-catalog__filters-toggle" id="prodFiltersToggle" aria-expanded="true"><i class="bi bi-sliders"></i> Recolher filtros</button>
+    </div>
+    <div class="admin-catalog__panel-body" id="prodFiltersPanel">
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <label class="form-label" for="filtro_q">Busca geral</label>
+          <div class="admin-catalog__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" id="filtro_q" placeholder="Nome, SKU, EAN, laboratório...">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_lab">Laboratório</label>
+          <select class="form-select form-select-sm" id="filtro_lab">
+            <option value="ALL">Todos</option>
+            <% labsList.forEach(function(l){ %><option value="<%= l.id %>"><%= l.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_cat">Categoria</label>
+          <select class="form-select form-select-sm" id="filtro_cat">
+            <option value="ALL">Todas</option>
+            <% categoriesList.forEach(function(c){ %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_type">Tipo</label>
+          <select class="form-select form-select-sm" id="filtro_type">
+            <option value="ALL">Todos</option>
+            <% typesList.forEach(function(t){ %><option value="<%= t.id %>"><%= t.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label" for="filtro_status">Status</label>
+          <select class="form-select form-select-sm" id="filtro_status">
+            <option value="ALL">Todos</option>
+            <option value="ACTIVE">Ativo</option>
+            <option value="INACTIVE">Inativo</option>
+            <option value="DISCONTINUED">Descontinuado</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_rx">Receita</label>
+          <select class="form-select form-select-sm" id="filtro_rx">
+            <option value="ALL">Qualquer</option>
+            <option value="1">Exige receita</option>
+            <option value="0">Livre</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_risk">Risco lote</label>
+          <select class="form-select form-select-sm" id="filtro_risk">
+            <option value="ALL">Qualquer</option>
+            <option value="none">Sem risco</option>
+            <option value="expiring">A vencer</option>
+            <option value="expired">Vencido</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_price_min">Preço mín. (R$)</label>
+          <input type="number" step="0.01" min="0" class="form-control form-control-sm" id="filtro_price_min" placeholder="0,00">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_price_max">Preço máx. (R$)</label>
+          <input type="number" step="0.01" min="0" class="form-control form-control-sm" id="filtro_price_max" placeholder="999,99">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="prodClearFilters"><i class="bi bi-x-lg me-1"></i> Limpar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="admin-catalog__panel admin-catalog__panel--table">
+    <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-list-ul me-2"></i>Produtos cadastrados</h3>
+      <div class="admin-catalog__panel-actions">
+        <span class="admin-catalog__panel-meta" id="prodResultsCount"><%= prodList.length %> registro(s)</span>
+        <button type="button" class="btn btn-save btn-sm" onclick="abrirModalProd()" data-bs-toggle="modal" data-bs-target="#modalEditar">
+          <i class="bi bi-plus-lg me-1"></i> Novo produto
+        </button>
+      </div>
+    </div>
+    <div class="admin-catalog__results-bar">
+      <span>Exibindo <strong id="prodResultsVisible"><%= prodList.length %></strong> produto(s) · filtro servidor: <strong><%= riskFilterVal === 'ALL' ? 'todos' : (riskFilterVal === 'EXPIRED' ? 'vencidos' : 'a vencer') %></strong></span>
+    </div>
+    <div id="catalogTableWrap">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaProd">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Produto</th>
+              <th>SKU</th>
+              <th>Laboratório</th>
+              <th>Categoria / Tipo</th>
+              <th>Preço</th>
+              <th class="col-status">Status</th>
+              <th>Lotes</th>
+              <th class="col-actions text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (prodList.length) { prodList.forEach(function(item) {
+              var catName = catNameMap[item.category_id] || '';
+              var typeName = typeNameMap[item.product_type_id] || '';
+              var riskKey = (item.expired_batches > 0 && item.expiring_batches > 0) ? 'both' : (item.expired_batches > 0 ? 'expired' : (item.expiring_batches > 0 ? 'expiring' : 'none'));
+              var stBadge = item.status === 'ACTIVE' ? 'success' : (item.status === 'INACTIVE' ? 'muted' : 'danger');
+              var searchBlob = [item.id, item.name, item.sku, item.ean13, item.lab_name, catName, typeName, item.status].filter(Boolean).join(' ');
+            %>
+              <tr
+                data-filter-search="<%= searchBlob.toLowerCase() %>"
+                data-filter-lab="<%= item.lab_id || '' %>"
+                data-filter-cat="<%= item.category_id || '' %>"
+                data-filter-type="<%= item.product_type_id || '' %>"
+                data-filter-status="<%= item.status || '' %>"
+                data-filter-rx="<%= item.prescription_required ? '1' : '0' %>"
+                data-filter-risk="<%= riskKey %>"
+                data-filter-price="<%= Number(item.unit_price || 0) %>"
+              >
+                <td class="col-id"><%= item.id %></td>
+                <td class="fw-bold"><span class="cell-truncate-wide" title="<%= item.name %>"><%= item.name %></span></td>
+                <td><code class="small"><%= item.sku || '—' %></code></td>
+                <td><span class="cell-truncate" title="<%= item.lab_name || '' %>"><%= item.lab_name || '—' %></span></td>
+                <td>
+                  <div class="small"><%= catName || '—' %></div>
+                  <% if (typeName) { %><span class="admin-catalog__badge admin-catalog__badge--info mt-1"><%= typeName %></span><% } %>
+                </td>
+                <td class="fw-semibold">R$ <%= Number(item.unit_price).toFixed(2).replace('.', ',') %></td>
+                <td class="col-status"><span class="admin-catalog__badge admin-catalog__badge--<%= stBadge %>"><%= t('productStatus', item.status) %></span></td>
+                <td>
+                  <% if ((item.expired_batches || 0) > 0) { %><span class="admin-catalog__badge admin-catalog__badge--danger me-1">Venc.: <%= item.expired_batches %></span><% } %>
+                  <% if ((item.expiring_batches || 0) > 0) { %><span class="admin-catalog__badge admin-catalog__badge--warning">30d: <%= item.expiring_batches %></span><% } %>
+                  <% if ((item.expired_batches || 0) === 0 && (item.expiring_batches || 0) === 0) { %><span class="admin-catalog__badge admin-catalog__badge--success">OK</span><% } %>
+                </td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--4">
+                  <button type="button" class="btn-action btn-stock" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="abrirModalLotes(this)" title="Lotes"><i class="bi bi-archive"></i></button>
+                  <button type="button" class="btn-action btn-view" onclick="verProd(<%= item.id %>)" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
+                  <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarProd(this)" title="Editar"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="mensagemVazia" class="admin-catalog__empty" style="display: <%= prodList.length ? 'none' : 'block' %>;">
+      <i class="bi bi-box-seam main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum produto cadastrado</p>
+      <button type="button" class="btn btn-save btn-sm mt-2" onclick="abrirModalProd()" data-bs-toggle="modal" data-bs-target="#modalEditar">Cadastrar primeiro produto</button>
+    </div>
+    <div id="mensagemVaziaFilter" class="admin-catalog__empty" style="display:none;">
+      <i class="bi bi-search main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum resultado para os filtros</p>
+      <p class="text-muted small mb-0">Ajuste os critérios ou limpe os filtros locais.</p>
+    </div>
+  </section>
 </div>
 
 <style>
@@ -103,6 +270,13 @@
   .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
   .modal-header-danger { background: #dc3545; color: #fff; }
   .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+  .form-control.is-invalid, .form-select.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12); }
+  .invalid-feedback { display: none; font-size: 0.8rem; color: #dc3545; margin-top: 0.2rem; }
+  .form-control.is-invalid ~ .invalid-feedback,
+  .form-select.is-invalid ~ .invalid-feedback,
+  .was-validated .form-control:invalid ~ .invalid-feedback { display: block; }
+  #prodFormAlert:empty { display: none !important; }
 </style>
 
 <!-- Modal Ver -->
@@ -131,52 +305,72 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="prod_id">
+        <div id="prodFormAlert" class="alert alert-danger py-2 px-3 small mb-0 mx-3 mt-3" role="alert" style="display:none;"></div>
         <div class="cadastro-edit">
           <div class="cadastro-edit-section">
             <div class="cadastro-edit-section-title">Dados do produto</div>
             <div class="row g-3">
               <div class="col-md-8">
-                <label for="prod_name" class="form-label">Nome *</label>
-                <input type="text" class="form-control" id="prod_name" required placeholder="Nome do produto">
+                <label for="prod_name" class="form-label field-required">Nome</label>
+                <input type="text" class="form-control" id="prod_name" placeholder="Nome do produto" autocomplete="off">
+                <div class="invalid-feedback" id="prod_name_error">Informe o nome do produto.</div>
               </div>
               <div class="col-md-4">
-                <label for="prod_sku" class="form-label">SKU</label>
-                <input type="text" class="form-control" id="prod_sku" placeholder="SKU">
+                <label for="prod_sku" class="form-label field-required">SKU</label>
+                <input type="text" class="form-control" id="prod_sku" placeholder="Ex.: SKU-0001" autocomplete="off">
+                <div class="invalid-feedback" id="prod_sku_error">Informe o SKU do produto.</div>
+                <div class="form-text">Código único para estoque e vendas.</div>
               </div>
               <div class="col-md-6">
-                <label for="prod_lab_id" class="form-label">Laboratório</label>
+                <label for="prod_lab_id" class="form-label field-required">Laboratório</label>
                 <select class="form-select" id="prod_lab_id">
-                  <option value="">-- Selecione --</option>
+                  <option value="">— Selecione o laboratório —</option>
                   <% if (typeof labs !== 'undefined' && labs) { labs.forEach(function(l) { %>
                     <option value="<%= l.id %>"><%= l.name %></option>
                   <% }); } %>
                 </select>
+                <div class="invalid-feedback" id="prod_lab_id_error">Selecione o laboratório fabricante.</div>
               </div>
               <div class="col-md-6">
-                <label for="prod_supplier_id" class="form-label">Fornecedor principal</label>
+                <label for="prod_supplier_id" class="form-label field-required">Fornecedor principal</label>
                 <select class="form-select" id="prod_supplier_id">
-                  <option value="">-- Selecione --</option>
+                  <option value="">— Selecione o fornecedor —</option>
                   <% if (typeof suppliers !== 'undefined' && suppliers) { suppliers.forEach(function(s) { %>
                     <option value="<%= s.id %>"><%= s.corporate_name %></option>
                   <% }); } %>
                 </select>
+                <div class="invalid-feedback" id="prod_supplier_id_error">Selecione o fornecedor principal.</div>
               </div>
               <div class="col-md-6">
-                <label for="prod_category_id" class="form-label">Categoria *</label>
-                <select class="form-select" id="prod_category_id" required>
-                  <option value="">-- Selecione --</option>
+                <label for="prod_category_id" class="form-label field-required">Categoria</label>
+                <select class="form-select" id="prod_category_id">
+                  <option value="">— Selecione uma categoria —</option>
                   <% if (typeof categories !== 'undefined' && categories) { categories.forEach(function(c) { %>
                     <option value="<%= c.id %>"><%= c.name %></option>
                   <% }); } %>
                 </select>
+                <div class="invalid-feedback" id="prod_category_id_error">Selecione uma categoria.</div>
+              </div>
+              <div class="col-md-6">
+                <label for="prod_type_id" class="form-label field-required">Tipo de produto</label>
+                <select class="form-select" id="prod_type_id">
+                  <option value="">— Selecione o tipo —</option>
+                  <% if (typeof productTypes !== 'undefined' && productTypes) { productTypes.forEach(function(t) { %>
+                    <option value="<%= t.id %>" data-slug="<%= t.slug %>"><%= t.name %></option>
+                  <% }); } %>
+                </select>
+                <div class="invalid-feedback" id="prod_type_id_error">Selecione o tipo de produto.</div>
               </div>
               <div class="col-md-4">
-                <label for="prod_unit_price" class="form-label">Preço unitário *</label>
-                <input type="text" class="form-control" id="prod_unit_price" placeholder="0,00" required>
+                <label for="prod_unit_price" class="form-label field-required">Preço unitário (R$)</label>
+                <input type="text" class="form-control" id="prod_unit_price" placeholder="0,00" inputmode="decimal">
+                <div class="invalid-feedback" id="prod_unit_price_error">Informe um preço válido maior que zero.</div>
               </div>
               <div class="col-md-4">
-                <label for="prod_promotional_price" class="form-label">Preço promocional</label>
-                <input type="text" class="form-control" id="prod_promotional_price" placeholder="0,00">
+                <label for="prod_promotional_price" class="form-label">Preço promocional (R$)</label>
+                <input type="text" class="form-control" id="prod_promotional_price" placeholder="Opcional" inputmode="decimal">
+                <div class="invalid-feedback" id="prod_promotional_price_error">Preço promocional inválido.</div>
+                <div class="form-text">Deve ser menor que o preço unitário.</div>
               </div>
               <div class="col-md-4">
                 <label for="prod_status" class="form-label">Status</label>
@@ -193,8 +387,16 @@
                 </div>
               </div>
               <div class="col-md-6">
-                <label for="prod_ean13" class="form-label">EAN-13</label>
-                <input type="text" class="form-control" id="prod_ean13" maxlength="20" placeholder="EAN-13">
+                <label for="prod_ean13" class="form-label" id="prod_ean13_label">EAN-13</label>
+                <input type="text" class="form-control" id="prod_ean13" maxlength="13" placeholder="Somente números (13 dígitos)" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <div class="invalid-feedback" id="prod_ean13_error">Informe um EAN-13 válido com 13 dígitos.</div>
+                <div class="form-text" id="prod_ean13_hint">Opcional para cosméticos e higiene. Obrigatório para medicamentos e produtos com receita. Validação GS1 (dígito verificador).</div>
+              </div>
+              <div class="col-md-6">
+                <label for="prod_gtin14" class="form-label">GTIN-14 (caixa de distribuição)</label>
+                <input type="text" class="form-control" id="prod_gtin14" maxlength="14" placeholder="Somente números (14 dígitos)" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <div class="invalid-feedback" id="prod_gtin14_error">Informe um GTIN-14 válido com 14 dígitos.</div>
+                <div class="form-text">Opcional. Código de embalagem para recebimento em caixa master (validação GS1).</div>
               </div>
               <div class="col-12">
                 <label for="prod_description" class="form-label">Descrição</label>
@@ -269,18 +471,26 @@
           </div>
           <div class="row g-2 mb-2">
             <div class="col-md-3">
-              <input type="text" class="form-control form-control-sm" id="batch_code" placeholder="Código do lote">
-            </div>
-            <div class="col-md-3">
-              <input type="date" class="form-control form-control-sm" id="batch_mfg_date" title="Fabricação">
-            </div>
-            <div class="col-md-3">
-              <input type="date" class="form-control form-control-sm" id="batch_expiry_date" title="Validade">
+              <label for="batch_code" class="form-label form-label-sm mb-0 field-required">Código do lote</label>
+              <input type="text" class="form-control form-control-sm" id="batch_code" placeholder="Ex.: LOTE-001">
+              <div class="invalid-feedback" id="batch_code_error">Informe o código do lote.</div>
             </div>
             <div class="col-md-2">
-              <input type="number" min="0" class="form-control form-control-sm" id="batch_quantity" placeholder="Qtd">
+              <label for="batch_mfg_date" class="form-label form-label-sm mb-0">Fabricação</label>
+              <input type="date" class="form-control form-control-sm" id="batch_mfg_date">
+              <div class="invalid-feedback" id="batch_mfg_date_error">Fabricação posterior à validade.</div>
             </div>
-            <div class="col-md-1 d-grid">
+            <div class="col-md-2">
+              <label for="batch_expiry_date" class="form-label form-label-sm mb-0 field-required">Validade</label>
+              <input type="date" class="form-control form-control-sm" id="batch_expiry_date">
+              <div class="invalid-feedback" id="batch_expiry_date_error">Informe a data de validade.</div>
+            </div>
+            <div class="col-md-2">
+              <label for="batch_quantity" class="form-label form-label-sm mb-0 field-required">Quantidade</label>
+              <input type="number" min="0" class="form-control form-control-sm" id="batch_quantity" placeholder="0">
+              <div class="invalid-feedback" id="batch_quantity_error">Quantidade inválida.</div>
+            </div>
+            <div class="col-md-1 d-grid align-items-end">
               <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddBatch" title="Adicionar lote"><i class="bi bi-plus-lg"></i></button>
             </div>
           </div>
@@ -292,12 +502,13 @@
                   <th>Fabricação</th>
                   <th>Validade</th>
                   <th>Status</th>
+                  <th>Descarte</th>
                   <th>Qtd</th>
                   <th class="text-end">Ações</th>
                 </tr>
               </thead>
               <tbody id="prodBatchList">
-                <tr><td colspan="6" class="text-muted small">Carregando lotes...</td></tr>
+                <tr><td colspan="7" class="text-muted small">Carregando lotes...</td></tr>
               </tbody>
             </table>
           </div>
@@ -331,28 +542,326 @@
 
 <%- include('partials/footer') %>
 <script>
+  var PROD_FIELD_IDS = {
+    name: 'prod_name',
+    sku: 'prod_sku',
+    lab_id: 'prod_lab_id',
+    main_supplier_id: 'prod_supplier_id',
+    product_type_id: 'prod_type_id',
+    category_id: 'prod_category_id',
+    unit_price: 'prod_unit_price',
+    promotional_price: 'prod_promotional_price',
+    ean13: 'prod_ean13',
+    gtin14: 'prod_gtin14'
+  };
+  var BATCH_FIELD_IDS = ['batch_code', 'batch_mfg_date', 'batch_expiry_date', 'batch_quantity'];
+  var MEDICATION_TYPE_RE = /medicament|homeopat|fitoterap|manipulad|medicin|controlad|cha-medicinal/i;
+
+  function isMedicationProduct() {
+    if (document.getElementById('prod_prescription').checked) return true;
+    var sel = document.getElementById('prod_type_id');
+    if (!sel || !sel.value) return false;
+    var opt = sel.options[sel.selectedIndex];
+    var slug = (opt && opt.getAttribute('data-slug')) || '';
+    var name = (opt && opt.textContent) || '';
+    return MEDICATION_TYPE_RE.test(slug) || MEDICATION_TYPE_RE.test(name);
+  }
+
+  function isValidGtinChecksum(digits, expectedLength) {
+    if (!digits || digits.length !== expectedLength) return false;
+    if (/^(\d)\1+$/.test(digits)) return false;
+    var sum = 0;
+    for (var i = 0; i < expectedLength - 1; i++) {
+      var n = parseInt(digits.charAt(i), 10);
+      sum += i % 2 === 0 ? n : n * 3;
+    }
+    var check = (10 - (sum % 10)) % 10;
+    return check === parseInt(digits.charAt(expectedLength - 1), 10);
+  }
+
+  function isValidEan13Checksum(digits) {
+    return isValidGtinChecksum(digits, 13);
+  }
+
+  function isValidGtin14Checksum(digits) {
+    return isValidGtinChecksum(digits, 14);
+  }
+
+  function bindDigitsInput(fieldId, maxLen) {
+    var el = document.getElementById(fieldId);
+    if (!el) return;
+    el.setAttribute('maxlength', String(maxLen));
+    el.setAttribute('inputmode', 'numeric');
+    el.setAttribute('pattern', '[0-9]*');
+    el.addEventListener('input', function() {
+      var cleaned = el.value.replace(/\D/g, '').slice(0, maxLen);
+      if (el.value !== cleaned) el.value = cleaned;
+      clearFieldError(fieldId);
+      setProdFormAlert('');
+    });
+    el.addEventListener('paste', function(e) {
+      e.preventDefault();
+      var pasted = (e.clipboardData || window.clipboardData).getData('text') || '';
+      el.value = pasted.replace(/\D/g, '').slice(0, maxLen);
+      clearFieldError(fieldId);
+      setProdFormAlert('');
+    });
+  }
+  bindDigitsInput('prod_ean13', 13);
+  bindDigitsInput('prod_gtin14', 14);
+
+  function syncEanFieldRequirement() {
+    var label = document.getElementById('prod_ean13_label');
+    var required = isMedicationProduct();
+    if (label) {
+      label.classList.toggle('field-required', required);
+    }
+  }
+
+  function showPageFlash(message, type) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-dismissible fade show mb-0 alert-' + (type === 'danger' ? 'danger' : 'success');
+    textEl.textContent = message;
+    wrap.style.display = 'block';
+  }
+
+  (function initPageFlash() {
+    try {
+      var raw = sessionStorage.getItem('prodAdminFlash');
+      if (!raw) return;
+      sessionStorage.removeItem('prodAdminFlash');
+      var data = JSON.parse(raw);
+      if (data && data.message) showPageFlash(data.message, data.type || 'success');
+    } catch (e) { /* ignore */ }
+  })();
+
+  function setProdFormAlert(message) {
+    var el = document.getElementById('prodFormAlert');
+    if (!el) return;
+    if (!message) {
+      el.style.display = 'none';
+      el.textContent = '';
+      return;
+    }
+    el.style.display = 'block';
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+  }
+
+  function clearFieldError(fieldId) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.remove('is-invalid');
+    if (err) err.style.display = 'none';
+  }
+
+  function setFieldError(fieldId, message) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) {
+      input.classList.add('is-invalid');
+      input.focus({ preventScroll: true });
+    }
+    if (err && message) {
+      err.textContent = message;
+      err.style.display = 'block';
+    }
+  }
+
+  function clearProdValidation() {
+    setProdFormAlert('');
+    Object.keys(PROD_FIELD_IDS).forEach(function(k) { clearFieldError(PROD_FIELD_IDS[k]); });
+  }
+
+  function clearBatchValidation() {
+    BATCH_FIELD_IDS.forEach(function(id) { clearFieldError(id); });
+  }
+
+  function applyServerFieldErrors(fields) {
+    if (!fields || typeof fields !== 'object') return;
+    Object.keys(fields).forEach(function(key) {
+      var fieldId = PROD_FIELD_IDS[key] || key;
+      setFieldError(fieldId, fields[key]);
+    });
+  }
+
+  function numBr(v) {
+    if (v === '' || v === null || v === undefined) return null;
+    var n = parseFloat(String(v).replace(',', '.'));
+    return Number.isNaN(n) ? null : n;
+  }
+
+  function validateProdFormClient() {
+    clearProdValidation();
+    var errors = {};
+    var name = document.getElementById('prod_name').value.trim();
+    var sku = document.getElementById('prod_sku').value.trim();
+    var categoryId = document.getElementById('prod_category_id').value;
+    var labId = document.getElementById('prod_lab_id').value;
+    var supplierId = document.getElementById('prod_supplier_id').value;
+    var productTypeId = document.getElementById('prod_type_id').value;
+    var unitPrice = numBr(document.getElementById('prod_unit_price').value);
+    var promoPrice = numBr(document.getElementById('prod_promotional_price').value);
+    var eanDigits = document.getElementById('prod_ean13').value.replace(/\D/g, '');
+    var gtin14Digits = document.getElementById('prod_gtin14').value.replace(/\D/g, '');
+
+    if (!name) errors.name = 'Informe o nome do produto.';
+    else if (name.length < 2) errors.name = 'O nome deve ter pelo menos 2 caracteres.';
+
+    if (!sku) errors.sku = 'Informe o SKU do produto.';
+    else if (sku.length < 2) errors.sku = 'O SKU deve ter pelo menos 2 caracteres.';
+
+    if (!labId) errors.lab_id = 'Selecione o laboratório fabricante.';
+    if (!supplierId) errors.main_supplier_id = 'Selecione o fornecedor principal.';
+    if (!productTypeId) errors.product_type_id = 'Selecione o tipo de produto.';
+    if (!categoryId) errors.category_id = 'Selecione uma categoria.';
+
+    if (unitPrice === null) errors.unit_price = 'Informe o preço unitário.';
+    else if (unitPrice <= 0) errors.unit_price = 'O preço unitário deve ser maior que zero.';
+
+    if (promoPrice !== null && promoPrice >= 0 && unitPrice !== null && promoPrice >= unitPrice) {
+      errors.promotional_price = 'O preço promocional deve ser menor que o preço unitário.';
+    }
+
+    if (eanDigits) {
+      if (eanDigits.length !== 13) {
+        errors.ean13 = 'O EAN-13 deve conter exatamente 13 dígitos.';
+      } else if (!isValidEan13Checksum(eanDigits)) {
+        errors.ean13 = 'EAN-13 inválido — verifique o dígito verificador.';
+      }
+    } else if (isMedicationProduct()) {
+      errors.ean13 = 'Informe o EAN-13 para medicamentos e produtos sujeitos a receita.';
+    }
+
+    if (gtin14Digits) {
+      if (gtin14Digits.length !== 14) {
+        errors.gtin14 = 'O GTIN-14 deve conter exatamente 14 dígitos.';
+      } else if (!isValidGtin14Checksum(gtin14Digits)) {
+        errors.gtin14 = 'GTIN-14 inválido — verifique o dígito verificador.';
+      }
+    }
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      applyServerFieldErrors(errors);
+      setProdFormAlert('Revise os campos destacados em vermelho antes de continuar.');
+      var first = PROD_FIELD_IDS[keys[0]] || keys[0];
+      var firstEl = document.getElementById(first);
+      if (firstEl) firstEl.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function validateBatchFormClient() {
+    clearBatchValidation();
+    var batch_code = document.getElementById('batch_code').value.trim();
+    var mfg_date = document.getElementById('batch_mfg_date').value;
+    var expiry_date = document.getElementById('batch_expiry_date').value;
+    var quantity = parseInt(document.getElementById('batch_quantity').value || '0', 10);
+    var ok = true;
+
+    if (!batch_code) { setFieldError('batch_code', 'Informe o código do lote.'); ok = false; }
+    if (!expiry_date) { setFieldError('batch_expiry_date', 'Informe a data de validade.'); ok = false; }
+    if (Number.isNaN(quantity) || quantity < 0) { setFieldError('batch_quantity', 'Informe uma quantidade válida (0 ou mais).'); ok = false; }
+    if (mfg_date && expiry_date && mfg_date > expiry_date) {
+      setFieldError('batch_mfg_date', 'A fabricação não pode ser posterior à validade.');
+      ok = false;
+    }
+    if (!ok) setProdBatchFeedback('Corrija os campos de lote destacados.', true);
+    return ok;
+  }
+
+  Object.keys(PROD_FIELD_IDS).forEach(function(k) {
+    var el = document.getElementById(PROD_FIELD_IDS[k]);
+    if (!el) return;
+    el.addEventListener('input', function() { clearFieldError(PROD_FIELD_IDS[k]); setProdFormAlert(''); });
+    el.addEventListener('change', function() {
+      clearFieldError(PROD_FIELD_IDS[k]);
+      setProdFormAlert('');
+      if (k === 'product_type_id') syncEanFieldRequirement();
+    });
+  });
+  var rxEl = document.getElementById('prod_prescription');
+  if (rxEl) {
+    rxEl.addEventListener('change', function() {
+      clearFieldError('prod_ean13');
+      syncEanFieldRequirement();
+    });
+  }
+  BATCH_FIELD_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', function() { clearFieldError(id); });
+    el.addEventListener('change', function() { clearFieldError(id); });
+  });
+
   function filtrarTabela() {
-    var q = (document.getElementById('buscaInput').value || '').toLowerCase();
-    document.querySelectorAll('#tabelaProd tbody tr').forEach(function(tr) {
-      tr.style.display = tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+    if (window.__prodFilters) window.__prodFilters.apply();
+  }
+
+  if (window.NeoFarmaCatalogFilters) {
+    window.__prodFilters = NeoFarmaCatalogFilters.init({
+      tableBodySelector: '#tabelaProd tbody tr',
+      resultsId: 'prodResultsCount',
+      emptyFilterId: 'mensagemVaziaFilter',
+      tableWrapId: 'catalogTableWrap',
+      clearBtnId: 'prodClearFilters',
+      filtersToggleId: 'prodFiltersToggle',
+      filtersPanelId: 'prodFiltersPanel',
+      inputs: {
+        q: 'filtro_q', lab: 'filtro_lab', cat: 'filtro_cat', type: 'filtro_type',
+        status: 'filtro_status', rx: 'filtro_rx', risk: 'filtro_risk',
+        priceMin: 'filtro_price_min', priceMax: 'filtro_price_max',
+      },
+      matchRow: function (tr, v) {
+        var F = NeoFarmaCatalogFilters;
+        if (!F.textMatch(tr, v.q)) return false;
+        if (v.lab && v.lab !== 'ALL' && String(tr.getAttribute('data-filter-lab')) !== String(v.lab)) return false;
+        if (v.cat && v.cat !== 'ALL' && String(tr.getAttribute('data-filter-cat')) !== String(v.cat)) return false;
+        if (v.type && v.type !== 'ALL' && String(tr.getAttribute('data-filter-type')) !== String(v.type)) return false;
+        if (v.status && v.status !== 'ALL' && tr.getAttribute('data-filter-status') !== v.status) return false;
+        if (v.rx === '1' && tr.getAttribute('data-filter-rx') !== '1') return false;
+        if (v.rx === '0' && tr.getAttribute('data-filter-rx') !== '0') return false;
+        var risk = tr.getAttribute('data-filter-risk') || 'none';
+        if (v.risk === 'none' && risk !== 'none') return false;
+        if (v.risk === 'expiring' && risk !== 'expiring' && risk !== 'both') return false;
+        if (v.risk === 'expired' && risk !== 'expired' && risk !== 'both') return false;
+        var price = F.parseNum(tr.getAttribute('data-filter-price'));
+        var minP = F.parseNum(v.priceMin);
+        var maxP = F.parseNum(v.priceMax);
+        if (minP != null && price != null && price < minP) return false;
+        if (maxP != null && price != null && price > maxP) return false;
+        return true;
+      },
+      onApply: function (visible) {
+        var el = document.getElementById('prodResultsVisible');
+        if (el) el.textContent = visible;
+      },
     });
   }
   function abrirModalProd() {
+    clearProdValidation();
     document.getElementById('prod_id').value = '';
     document.getElementById('prod_name').value = '';
     document.getElementById('prod_sku').value = '';
     document.getElementById('prod_lab_id').value = '';
     document.getElementById('prod_supplier_id').value = '';
     document.getElementById('prod_category_id').value = '';
+    document.getElementById('prod_type_id').value = '';
     document.getElementById('prod_unit_price').value = '';
     document.getElementById('prod_promotional_price').value = '';
     document.getElementById('prod_status').value = 'ACTIVE';
     document.getElementById('prod_prescription').checked = false;
     document.getElementById('prod_ean13').value = '';
+    document.getElementById('prod_gtin14').value = '';
     document.getElementById('prod_description').value = '';
     document.getElementById('prod_composition').value = '';
     document.getElementById('prod_usage_info').value = '';
     document.getElementById('modalEditarTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Novo produto';
+    syncEanFieldRequirement();
     document.getElementById('prodImagensSection').style.display = 'none';
     document.getElementById('prod_image_file').value = '';
     document.getElementById('prod_image_url').value = '';
@@ -407,17 +916,20 @@
   }
   function editarProd(btn) {
     try { var item = JSON.parse(decodeURIComponent(btn.getAttribute('data-item') || '{}')); } catch (e) { return; }
+    clearProdValidation();
     document.getElementById('prod_id').value = item.id;
     document.getElementById('prod_name').value = item.name || '';
     document.getElementById('prod_sku').value = item.sku || '';
     document.getElementById('prod_lab_id').value = item.lab_id || '';
     document.getElementById('prod_supplier_id').value = item.main_supplier_id || '';
     document.getElementById('prod_category_id').value = item.category_id || '';
+    document.getElementById('prod_type_id').value = item.product_type_id || '';
     document.getElementById('prod_unit_price').value = item.unit_price != null ? String(item.unit_price).replace('.', ',') : '';
     document.getElementById('prod_promotional_price').value = item.promotional_price != null ? String(item.promotional_price).replace('.', ',') : '';
     document.getElementById('prod_status').value = item.status || 'ACTIVE';
     document.getElementById('prod_prescription').checked = !!item.prescription_required;
     document.getElementById('prod_ean13').value = item.ean13 || '';
+    document.getElementById('prod_gtin14').value = item.gtin14 || '';
     document.getElementById('prod_description').value = item.description || '';
     document.getElementById('prod_composition').value = item.composition || '';
     document.getElementById('prod_usage_info').value = item.usage_info || '';
@@ -427,6 +939,7 @@
     document.getElementById('prod_image_url').value = '';
     setProdImageFeedback('', false);
     carregarProdImagens(item.id);
+    syncEanFieldRequirement();
     new bootstrap.Modal(document.getElementById('modalEditar')).show();
   }
   function carregarProdImagens(prodId) {
@@ -517,9 +1030,7 @@
   }
   function formatDateBr(iso) {
     if (!iso) return '-';
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString('pt-BR');
+    return window.NeoDates ? NeoDates.formatDate(iso) : iso;
   }
   function batchStatus(expiryDate) {
     if (!expiryDate) return { label: '-', cls: 'secondary' };
@@ -543,36 +1054,43 @@
     var tbody = document.getElementById('prodBatchList');
     var status = document.getElementById('batchFilterStatus').value;
     var sort = document.getElementById('batchSort').value;
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted small">Carregando lotes...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted small">Carregando lotes...</td></tr>';
     fetch('/admin/produtos/' + prodId + '/lotes?status=' + encodeURIComponent(status) + '&sort=' + encodeURIComponent(sort), { headers: { 'Accept': 'application/json' } })
       .then(function(r) { return r.json(); })
       .then(function(res) {
         tbody.innerHTML = '';
         if (!res.ok || !res.batches || !res.batches.length) {
           document.getElementById('batchRiskSummary').textContent = '';
-          tbody.innerHTML = '<tr><td colspan="6" class="text-muted small">Nenhum lote cadastrado.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="text-muted small">Nenhum lote cadastrado.</td></tr>';
           return;
         }
         document.getElementById('batchRiskSummary').textContent = summarizeRisk(res.batches);
         res.batches.forEach(function(b) {
           var s = batchStatus(b.expiry_date);
+          var disp = '—';
+          if (b.disposal_status === 'FULL') {
+            disp = '<span class="badge bg-secondary">Total (' + Number(b.disposed_qty || 0) + ' un.)</span>';
+          } else if (b.disposal_status === 'PARTIAL') {
+            disp = '<span class="badge bg-info text-dark">Parcial (' + Number(b.disposed_qty || 0) + ' un.)</span>';
+          }
           var tr = document.createElement('tr');
           tr.innerHTML =
             '<td>' + (b.batch_code || '-') + '</td>' +
             '<td>' + formatDateBr(b.mfg_date) + '</td>' +
             '<td>' + formatDateBr(b.expiry_date) + '</td>' +
             '<td><span class="badge bg-' + s.cls + '">' + s.label + '</span></td>' +
+            '<td>' + disp + '</td>' +
             '<td>' + Number(b.quantity || 0) + '</td>' +
-            '<td class="text-end">' +
-              '<button type="button" class="btn btn-outline-secondary btn-sm me-1" title="Editar"><i class="bi bi-pencil"></i></button>' +
+            '<td class="col-actions"><div class="table-actions table-actions--2">' +
+              '<button type="button" class="btn btn-outline-secondary btn-sm" title="Editar"><i class="bi bi-pencil"></i></button>' +
               '<button type="button" class="btn btn-outline-danger btn-sm" title="Excluir"><i class="bi bi-trash"></i></button>' +
-            '</td>';
+            '</div></td>';
           var btnEdit = tr.querySelector('.btn-outline-secondary');
           var btnDel = tr.querySelector('.btn-outline-danger');
           btnEdit.onclick = function() {
             document.getElementById('batch_code').value = b.batch_code || '';
-            document.getElementById('batch_mfg_date').value = b.mfg_date ? String(b.mfg_date).slice(0, 10) : '';
-            document.getElementById('batch_expiry_date').value = b.expiry_date ? String(b.expiry_date).slice(0, 10) : '';
+            document.getElementById('batch_mfg_date').value = b.mfg_date ? (window.NeoDates ? NeoDates.formatDateInput(b.mfg_date) : String(b.mfg_date).slice(0, 10)) : '';
+            document.getElementById('batch_expiry_date').value = b.expiry_date ? (window.NeoDates ? NeoDates.formatDateInput(b.expiry_date) : String(b.expiry_date).slice(0, 10)) : '';
             document.getElementById('batch_quantity').value = Number(b.quantity || 0);
             document.getElementById('btnAddBatch').setAttribute('data-edit-id', b.id);
             document.getElementById('btnAddBatch').innerHTML = '<i class="bi bi-check2"></i>';
@@ -602,7 +1120,7 @@
       })
       .catch(function() {
         document.getElementById('batchRiskSummary').textContent = '';
-        tbody.innerHTML = '<tr><td colspan="6" class="text-danger small">Erro ao carregar lotes.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-danger small">Erro ao carregar lotes.</td></tr>';
       });
   }
   document.getElementById('batchFilterStatus').addEventListener('change', function() {
@@ -616,12 +1134,12 @@
   document.getElementById('btnAddBatch').addEventListener('click', function() {
     var prodId = lotesProdId;
     if (!prodId) { setProdBatchFeedback('Salve o produto antes de gerenciar lotes.', true); return; }
+    if (!validateBatchFormClient()) return;
+
     var batch_code = document.getElementById('batch_code').value.trim();
     var mfg_date = document.getElementById('batch_mfg_date').value || null;
     var expiry_date = document.getElementById('batch_expiry_date').value;
     var quantity = parseInt(document.getElementById('batch_quantity').value || '0', 10);
-    if (!batch_code || !expiry_date) { setProdBatchFeedback('Informe código do lote e validade.', true); return; }
-    if (isNaN(quantity) || quantity < 0) { setProdBatchFeedback('Quantidade inválida.', true); return; }
 
     var editId = this.getAttribute('data-edit-id');
     var url = editId ? ('/admin/produtos/lotes/' + editId) : ('/admin/produtos/' + prodId + '/lotes');
@@ -639,12 +1157,15 @@
           document.getElementById('batch_mfg_date').value = '';
           document.getElementById('batch_expiry_date').value = '';
           document.getElementById('batch_quantity').value = '';
+          clearBatchValidation();
           document.getElementById('btnAddBatch').removeAttribute('data-edit-id');
           document.getElementById('btnAddBatch').innerHTML = '<i class="bi bi-plus-lg"></i>';
           setProdBatchFeedback(editId ? 'Lote atualizado com sucesso.' : 'Lote adicionado com sucesso.', false);
+          if (window.neofarmaToast) window.neofarmaToast(editId ? 'Lote atualizado.' : 'Lote adicionado ao estoque.', 'success');
           carregarProdLotes(prodId);
         } else {
           setProdBatchFeedback(d.message || 'Erro ao salvar lote.', true);
+          if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro ao salvar lote.', 'danger');
         }
       })
       .catch(function() { setProdBatchFeedback('Erro ao salvar lote.', true); });
@@ -712,24 +1233,43 @@
       if (d.ok) location.reload(); else window.neofarmaToast(d.message, 'danger');
     }).catch(function() { window.neofarmaToast('Erro ao excluir.', 'danger'); });
   });
-  function numBr(v) { if (!v) return null; var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
+    if (!exclusaoId) return;
+    var id = exclusaoId;
+    var nome = document.getElementById('exclusaoNome').textContent;
+    exclusaoId = null;
+    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
+    fetch('/admin/produtos/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        sessionStorage.setItem('prodAdminFlash', JSON.stringify({ type: 'success', message: 'Produto "' + nome + '" removido com sucesso.' }));
+        location.reload();
+      } else {
+        window.neofarmaToast(d.message || 'Não foi possível excluir o produto.', 'danger');
+      }
+    }).catch(function() { window.neofarmaToast('Erro de conexão ao excluir. Tente novamente.', 'danger'); });
+  });
+
   document.getElementById('btnSalvarProd').addEventListener('click', function() {
+    if (!validateProdFormClient()) {
+      if (window.neofarmaToast) window.neofarmaToast('Preencha os campos obrigatórios.', 'warning');
+      return;
+    }
     var id = document.getElementById('prod_id').value;
     var name = document.getElementById('prod_name').value.trim();
     var categoryId = document.getElementById('prod_category_id').value;
-    if (!name) { window.neofarmaToast('Nome do produto é obrigatório.', 'danger'); return; }
-    if (!categoryId) { window.neofarmaToast('Categoria é obrigatória.', 'danger'); return; }
     var body = {
       name: name,
       sku: document.getElementById('prod_sku').value.trim() || null,
       lab_id: document.getElementById('prod_lab_id').value || null,
       main_supplier_id: document.getElementById('prod_supplier_id').value || null,
       category_id: categoryId,
-      unit_price: numBr(document.getElementById('prod_unit_price').value) || 0,
+      product_type_id: document.getElementById('prod_type_id').value || null,
+      unit_price: numBr(document.getElementById('prod_unit_price').value),
       promotional_price: numBr(document.getElementById('prod_promotional_price').value),
       status: document.getElementById('prod_status').value,
       prescription_required: document.getElementById('prod_prescription').checked,
-      ean13: document.getElementById('prod_ean13').value.trim() || null,
+      ean13: document.getElementById('prod_ean13').value.replace(/\D/g, '') || null,
+      gtin14: document.getElementById('prod_gtin14').value.replace(/\D/g, '') || null,
       description: document.getElementById('prod_description').value.trim() || null,
       composition: document.getElementById('prod_composition').value.trim() || null,
       usage_info: document.getElementById('prod_usage_info').value.trim() || null
@@ -755,13 +1295,25 @@
       .then(function(d) {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
-        if (d.ok) { bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide(); location.reload(); }
-        else window.neofarmaToast(d.message || 'Não foi possível salvar.', 'danger');
+        if (d.ok) {
+          bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
+          sessionStorage.setItem('prodAdminFlash', JSON.stringify({
+            type: 'success',
+            message: d.message || ('Produto "' + (d.name || name) + '" salvo com sucesso.')
+          }));
+          location.reload();
+        } else {
+          applyServerFieldErrors(d.fields);
+          setProdFormAlert(d.message || 'Não foi possível salvar.');
+          window.neofarmaToast(d.message || 'Não foi possível salvar.', 'danger');
+        }
       })
       .catch(function(err) {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
-        window.neofarmaToast((err && err.message) || 'Erro ao salvar.', 'danger');
+        if (err.payload && err.payload.fields) applyServerFieldErrors(err.payload.fields);
+        setProdFormAlert((err && err.message) || 'Erro ao salvar.');
+        window.neofarmaToast((err && err.message) || 'Erro de conexão. Tente novamente.', 'danger');
       });
   });
 </script>

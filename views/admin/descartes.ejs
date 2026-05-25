@@ -1,0 +1,713 @@
+<%- include('partials/header') %>
+
+<% var statsData = typeof stats !== 'undefined' ? stats : {}; %>
+<% var historyList = typeof history !== 'undefined' ? history : []; %>
+
+<div class="container admin-descartes">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
+
+  <div class="list-header">
+    <div>
+      <h2 class="neo-heading">Descarte de estoque</h2>
+      <p class="text-muted mb-0">Registre a baixa de produtos vencidos ou avariados, informando o motivo do descarte e atualizando o saldo em estoque.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="/admin/lotes?status=EXPIRED" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-archive me-1"></i> Ver lotes vencidos
+      </a>
+    </div>
+  </div>
+
+  <div class="admin-descartes__stats row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="admin-descartes__stat admin-descartes__stat--danger">
+        <span class="admin-descartes__stat-icon"><i class="bi bi-exclamation-triangle"></i></span>
+        <div>
+          <div class="admin-descartes__stat-value"><%= statsData.expiredAwaiting || 0 %></div>
+          <div class="admin-descartes__stat-label">Lotes vencidos com saldo</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="admin-descartes__stat admin-descartes__stat--neutral">
+        <span class="admin-descartes__stat-icon"><i class="bi bi-box-seam"></i></span>
+        <div>
+          <div class="admin-descartes__stat-value"><%= statsData.productsEligible || 0 %></div>
+          <div class="admin-descartes__stat-label">Produtos com lotes disponíveis</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="admin-descartes__stat admin-descartes__stat--success">
+        <span class="admin-descartes__stat-icon"><i class="bi bi-journal-check"></i></span>
+        <div>
+          <div class="admin-descartes__stat-value"><%= statsData.historyCount || 0 %></div>
+          <div class="admin-descartes__stat-label">Registros no histórico recente</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <% if ((statsData.expiredAwaiting || 0) > 0) { %>
+  <div class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <strong><i class="bi bi-exclamation-octagon me-1"></i> Atenção:</strong>
+      existem <strong><%= statsData.expiredAwaiting %></strong> lote(s) vencido(s) ainda com quantidade em estoque. Confira fisicamente e registre o descarte abaixo.
+    </div>
+    <a class="btn btn-sm btn-danger" href="/admin/lotes?status=EXPIRED">Conferir lotes</a>
+  </div>
+  <% } %>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <section class="admin-descartes__panel">
+        <div class="admin-descartes__panel-head">
+          <h3 class="admin-descartes__panel-title"><i class="bi bi-trash3 me-2"></i>Registrar descarte</h3>
+        </div>
+        <div class="admin-descartes__panel-body">
+          <div id="dispFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
+
+          <div class="admin-descartes__section-title">Identificação</div>
+
+          <div class="mb-3">
+            <label for="disp_product" class="form-label field-required">Produto</label>
+            <select class="form-select" id="disp_product" onchange="carregarLotes()">
+              <option value="">Selecione um produto</option>
+              <% (products || []).forEach(function (p) {
+                var statusLabels = { DISCONTINUED: 'Descontinuado', INACTIVE: 'Inativo' };
+                var tag = p.status && p.status !== 'ACTIVE' ? ' [' + (statusLabels[p.status] || p.status) + ']' : '';
+              %><option value="<%= p.id %>"><%= p.name %><%= tag %></option><% }); %>
+            </select>
+            <div class="invalid-feedback" id="disp_product_error">Selecione o produto.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="disp_batch" class="form-label field-required">Lote</label>
+            <select class="form-select" id="disp_batch" onchange="atualizarInfoLote()" disabled>
+              <option value="">Selecione o produto primeiro</option>
+            </select>
+            <div class="invalid-feedback" id="disp_batch_error">Selecione o lote.</div>
+          </div>
+
+          <div class="admin-descartes__batch-hint" id="disp_batch_hint" hidden>
+            <i class="bi bi-info-circle me-1"></i>
+            <span id="disp_batch_hint_text"></span>
+          </div>
+
+          <div class="admin-descartes__section-title mt-4">Baixa</div>
+
+          <div class="mb-3">
+            <label for="disp_qty" class="form-label field-required">Quantidade</label>
+            <input type="number" min="1" class="form-control" id="disp_qty" placeholder="Informe a quantidade a descartar">
+            <div class="invalid-feedback" id="disp_qty_error">Informe uma quantidade válida.</div>
+          </div>
+
+          <div class="mb-4">
+            <label for="disp_reason" class="form-label field-required">Motivo do descarte</label>
+            <textarea class="form-control" id="disp_reason" rows="3" maxlength="500" placeholder="Ex.: Produto vencido identificado em conferência de estoque"></textarea>
+            <div class="invalid-feedback" id="disp_reason_error">Informe o motivo do descarte.</div>
+          </div>
+
+          <button type="button" class="btn btn-save w-100" id="btnRegistrarDescarte" onclick="registrarDescarte()">
+            <i class="bi bi-check-lg me-1"></i> Registrar descarte
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-7">
+      <section class="admin-descartes__panel admin-descartes__panel--table">
+        <div class="admin-descartes__panel-head admin-descartes__panel-head--table">
+          <h3 class="admin-descartes__panel-title"><i class="bi bi-clock-history me-2"></i>Histórico recente</h3>
+          <div class="search-box admin-descartes__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" id="buscaHistorico" placeholder="Buscar produto, lote, motivo..." onkeyup="filtrarHistorico()">
+          </div>
+        </div>
+
+        <% if (!historyList.length) { %>
+          <div class="admin-descartes__empty">
+            <i class="bi bi-inbox d-block mb-2"></i>
+            Nenhum descarte registrado ainda.
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle mb-0" id="tabelaHistorico">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Produto</th>
+                  <th>Lote</th>
+                  <th class="text-center">Qtd</th>
+                  <th>Responsável</th>
+                  <th class="col-actions text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% historyList.forEach(function (h) { %>
+                  <tr data-id="<%= h.id %>">
+                    <td class="text-nowrap small text-muted">
+                      <%= fmtDateTime(h.created_at) %>
+                    </td>
+                    <td><span class="cell-truncate-wide" title="<%= h.product_name %>"><%= h.product_name %></span></td>
+                    <td><code class="admin-descartes__batch-code"><%= h.batch_code %></code></td>
+                    <td class="text-center"><span class="badge admin-descartes__qty-badge"><%= h.quantity %></span></td>
+                    <td class="small text-muted"><%= h.disposed_by_name || '—' %></td>
+                    <td class="col-actions text-end">
+                      <div class="table-actions justify-content-end">
+                        <button type="button" class="btn-action btn-view" onclick="abrirDetalheDescarte(<%= h.id %>)" title="Ver detalhes" aria-label="Ver detalhes do descarte">
+                          <i class="bi bi-info-circle"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalhe do descarte -->
+<div class="modal fade modal-cadastro" id="modalDetalheDescarte" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-trash3 me-2"></i>Detalhe do descarte</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="detalheDescarteBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .admin-descartes__stats { margin-top: 0.25rem; }
+
+  .admin-descartes__stat {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: #fff;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    min-height: 88px;
+  }
+
+  .admin-descartes__stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  .admin-descartes__stat--danger .admin-descartes__stat-icon {
+    background: #fdecec;
+    color: color-mix(in srgb, var(--accent-color), #a3343f 45%);
+  }
+
+  .admin-descartes__stat--neutral .admin-descartes__stat-icon {
+    background: color-mix(in srgb, var(--accent-color), transparent 88%);
+    color: var(--accent-color);
+  }
+
+  .admin-descartes__stat--success .admin-descartes__stat-icon {
+    background: #e8f6ee;
+    color: #198754;
+  }
+
+  .admin-descartes__stat-value {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    line-height: 1.1;
+  }
+
+  .admin-descartes__stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.15rem;
+  }
+
+  .admin-descartes__panel {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    height: 100%;
+  }
+
+  .admin-descartes__panel-head {
+    padding: 0.95rem 1.15rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), #fff 92%) 0%, #fff 100%);
+  }
+
+  .admin-descartes__panel-head--table {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .admin-descartes__panel-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--heading-color);
+  }
+
+  .admin-descartes__panel-body {
+    padding: 1.15rem 1.15rem 1.25rem;
+  }
+
+  .admin-descartes__section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent-color);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%);
+  }
+
+  .admin-descartes__panel-body .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.3rem;
+  }
+
+  .admin-descartes__panel-body .form-control,
+  .admin-descartes__panel-body .form-select {
+    border-radius: 8px;
+    border-color: #dee2e6;
+    font-size: 0.9rem;
+  }
+
+  .admin-descartes__panel-body .form-control:focus,
+  .admin-descartes__panel-body .form-select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%);
+  }
+
+  .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
+
+  .form-control.is-invalid,
+  .form-select.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12);
+  }
+
+  .admin-descartes__panel-body .invalid-feedback { display: none; font-size: 0.8rem; }
+
+  .form-control.is-invalid ~ .invalid-feedback,
+  .form-select.is-invalid ~ .invalid-feedback { display: block; }
+
+  .btn-save {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--contrast-color);
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    border-radius: 8px;
+  }
+
+  .btn-save:hover {
+    background: color-mix(in srgb, var(--accent-color), black 12%);
+    border-color: color-mix(in srgb, var(--accent-color), black 12%);
+    color: var(--contrast-color);
+  }
+
+  .admin-descartes__batch-hint {
+    font-size: 0.82rem;
+    color: #495057;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .admin-descartes__search {
+    min-width: min(100%, 240px);
+  }
+
+  .admin-descartes__search .form-control {
+    padding-left: 2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+  }
+
+  .admin-descartes__panel--table .table-custom th {
+    font-size: 0.72rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .admin-descartes__panel--table .table-custom td {
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  .admin-descartes__panel--table .col-actions {
+    width: 72px;
+    white-space: nowrap;
+  }
+
+  .admin-descartes__detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 1.25rem;
+  }
+
+  .admin-descartes__detail-item {
+    min-width: 0;
+  }
+
+  .admin-descartes__detail-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    margin-bottom: 0.2rem;
+  }
+
+  .admin-descartes__detail-value {
+    font-size: 0.92rem;
+    color: var(--heading-color);
+    word-break: break-word;
+  }
+
+  .admin-descartes__detail-reason {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #495057;
+    white-space: pre-wrap;
+  }
+
+  @media (max-width: 575.98px) {
+    .admin-descartes__detail-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .admin-descartes__batch-code {
+    font-size: 0.78rem;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color), transparent 92%);
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+  }
+
+  .admin-descartes__qty-badge {
+    background: color-mix(in srgb, var(--accent-color), transparent 86%);
+    color: var(--accent-color);
+    font-weight: 700;
+    min-width: 2rem;
+  }
+
+  .admin-descartes__empty {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: #868e96;
+    font-size: 0.92rem;
+  }
+
+  .admin-descartes__empty i {
+    font-size: 2.2rem;
+    opacity: 0.65;
+  }
+
+  #dispFormAlert:empty { display: none !important; }
+
+  @media (max-width: 991.98px) {
+    .admin-descartes__panel-head--table {
+      align-items: stretch;
+    }
+
+    .admin-descartes__search {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  var dispBatchCache = {};
+  var dispHistoryMap = <%- JSON.stringify(Object.fromEntries(historyList.map(function (h) {
+    return [String(h.id), {
+      id: h.id,
+      created_at: h.created_at,
+      product_name: h.product_name,
+      sku: h.sku || null,
+      batch_code: h.batch_code,
+      expiry_date: h.expiry_date,
+      quantity: h.quantity,
+      reason: h.reason,
+      disposed_by_name: h.disposed_by_name || null
+    }];
+  }))) %>;
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatDispDate(value) {
+    if (!value) return '—';
+    if (window.NeoDates && NeoDates.formatDate) return NeoDates.formatDate(value);
+    var s = String(value).slice(0, 10);
+    var p = s.split('-');
+    return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : s;
+  }
+
+  function formatDispDateTime(value) {
+    if (!value) return '—';
+    if (window.NeoDates && NeoDates.formatDateTime) return NeoDates.formatDateTime(value);
+    return String(value);
+  }
+
+  function abrirDetalheDescarte(id) {
+    var h = dispHistoryMap[String(id)];
+    if (!h) return;
+
+    var html = '';
+    html += '<div class="cadastro-edit-section-title">Registro #' + escapeHtml(h.id) + '</div>';
+    html += '<div class="admin-descartes__detail-grid">';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">Data do descarte</span><span class="admin-descartes__detail-value">' + escapeHtml(formatDispDateTime(h.created_at)) + '</span></div>';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">Responsável</span><span class="admin-descartes__detail-value">' + escapeHtml(h.disposed_by_name || '—') + '</span></div>';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">Produto</span><span class="admin-descartes__detail-value">' + escapeHtml(h.product_name) + '</span></div>';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">SKU</span><span class="admin-descartes__detail-value">' + escapeHtml(h.sku || '—') + '</span></div>';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">Lote</span><span class="admin-descartes__detail-value"><code class="admin-descartes__batch-code">' + escapeHtml(h.batch_code) + '</code></span></div>';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">Validade do lote</span><span class="admin-descartes__detail-value">' + escapeHtml(formatDispDate(h.expiry_date)) + '</span></div>';
+    html += '<div class="admin-descartes__detail-item"><span class="admin-descartes__detail-label">Quantidade descartada</span><span class="admin-descartes__detail-value"><span class="badge admin-descartes__qty-badge">' + escapeHtml(h.quantity) + '</span></span></div>';
+    html += '</div>';
+    html += '<div class="mt-3"><span class="admin-descartes__detail-label">Motivo do descarte</span><div class="admin-descartes__detail-reason">' + escapeHtml(h.reason || '—') + '</div></div>';
+
+    document.getElementById('detalheDescarteBody').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalDetalheDescarte')).show();
+  }
+
+  function showPageFlash(message, type) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-dismissible fade show mb-0 alert-' + (type === 'danger' ? 'danger' : 'success');
+    textEl.textContent = message;
+    wrap.style.display = 'block';
+  }
+
+  (function initPageFlash() {
+    try {
+      var raw = sessionStorage.getItem('dispAdminFlash');
+      if (!raw) return;
+      sessionStorage.removeItem('dispAdminFlash');
+      var data = JSON.parse(raw);
+      if (data && data.message) showPageFlash(data.message, data.type || 'success');
+    } catch (e) { /* ignore */ }
+  })();
+
+  function setDispFormAlert(message) {
+    var el = document.getElementById('dispFormAlert');
+    if (!el) return;
+    if (!message) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + message;
+  }
+
+  function clearFieldError(fieldId) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.remove('is-invalid');
+    if (err) err.style.display = 'none';
+  }
+
+  function setFieldError(fieldId, message) {
+    var input = document.getElementById(fieldId);
+    var err = document.getElementById(fieldId + '_error');
+    if (input) input.classList.add('is-invalid');
+    if (err && message) { err.textContent = message; err.style.display = 'block'; }
+  }
+
+  function clearDispValidation() {
+    setDispFormAlert('');
+    ['disp_product', 'disp_batch', 'disp_qty', 'disp_reason'].forEach(clearFieldError);
+  }
+
+  function validateDispForm() {
+    clearDispValidation();
+    var errors = {};
+    var productId = document.getElementById('disp_product').value;
+    var batchId = document.getElementById('disp_batch').value;
+    var qty = Number(document.getElementById('disp_qty').value);
+    var reason = document.getElementById('disp_reason').value.trim();
+    var batch = dispBatchCache[batchId];
+
+    if (!productId) errors.disp_product = 'Selecione o produto.';
+    if (!batchId) errors.disp_batch = 'Selecione o lote.';
+    if (!Number.isFinite(qty) || qty <= 0) errors.disp_qty = 'Informe uma quantidade maior que zero.';
+    else if (batch && qty > Number(batch.quantity)) {
+      errors.disp_qty = 'Quantidade superior ao saldo disponível (' + batch.quantity + ').';
+    }
+    if (!reason) errors.disp_reason = 'Informe o motivo do descarte.';
+    else if (reason.length < 5) errors.disp_reason = 'Descreva o motivo com pelo menos 5 caracteres.';
+
+    var keys = Object.keys(errors);
+    if (keys.length) {
+      keys.forEach(function (k) { setFieldError(k, errors[k]); });
+      setDispFormAlert('Revise os campos destacados antes de registrar o descarte.');
+      return false;
+    }
+    return true;
+  }
+
+  ['disp_product', 'disp_batch', 'disp_qty', 'disp_reason'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', function () { clearFieldError(id); setDispFormAlert(''); });
+    el.addEventListener('change', function () { clearFieldError(id); setDispFormAlert(''); });
+  });
+
+  function atualizarInfoLote() {
+    var batchId = document.getElementById('disp_batch').value;
+    var hint = document.getElementById('disp_batch_hint');
+    var hintText = document.getElementById('disp_batch_hint_text');
+    var batch = dispBatchCache[batchId];
+    if (!batch) {
+      hint.hidden = true;
+      return;
+    }
+    var valBr = window.NeoDates ? NeoDates.formatDate(batch.expiry_date) : (function () {
+      var val = String(batch.expiry_date || '').slice(0, 10);
+      var valParts = val.split('-');
+      return valParts.length === 3 ? (valParts[2] + '/' + valParts[1] + '/' + valParts[0]) : val;
+    })();
+    var statusLabel = batch.validity_status === 'EXPIRED'
+      ? 'Vencido'
+      : (batch.validity_status === 'EXPIRING' ? 'Próximo do vencimento' : 'Válido');
+    hintText.textContent = 'Validade: ' + valBr + ' · Status: ' + statusLabel + ' · Saldo disponível: ' + batch.quantity + ' un.';
+    hint.hidden = false;
+  }
+
+  async function carregarLotes() {
+    var pid = document.getElementById('disp_product').value;
+    var sel = document.getElementById('disp_batch');
+    var hint = document.getElementById('disp_batch_hint');
+    dispBatchCache = {};
+    hint.hidden = true;
+    sel.disabled = true;
+    sel.innerHTML = '<option value="">Carregando lotes...</option>';
+    clearFieldError('disp_batch');
+
+    if (!pid) {
+      sel.innerHTML = '<option value="">Selecione o produto primeiro</option>';
+      return;
+    }
+
+    try {
+      var r = await fetch('/admin/descartes/produtos/' + pid + '/lotes');
+      var d = await r.json();
+      if (!d.ok) {
+        sel.innerHTML = '<option value="">Erro ao carregar lotes</option>';
+        return;
+      }
+      if (!d.batches.length) {
+        sel.innerHTML = '<option value="">Nenhum lote com saldo disponível</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">Selecione o lote</option>' + d.batches.map(function (b) {
+        dispBatchCache[String(b.id)] = b;
+        var val = window.NeoDates ? NeoDates.formatDate(b.expiry_date) : String(b.expiry_date).slice(0, 10);
+        var tag = b.validity_status === 'EXPIRED' ? ' · Vencido' : (b.validity_status === 'EXPIRING' ? ' · A vencer' : '');
+        return '<option value="' + b.id + '">' + b.batch_code + tag + ' (val. ' + val + ', saldo ' + b.quantity + ')</option>';
+      }).join('');
+      sel.disabled = false;
+    } catch (e) {
+      sel.innerHTML = '<option value="">Falha ao carregar lotes</option>';
+    }
+  }
+
+  async function registrarDescarte() {
+    if (!validateDispForm()) {
+      if (window.neofarmaToast) window.neofarmaToast('Revise os campos do formulário.', 'warning');
+      return;
+    }
+
+    var btn = document.getElementById('btnRegistrarDescarte');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Registrando...';
+
+    try {
+      var r = await fetch('/admin/descartes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: document.getElementById('disp_product').value,
+          batch_id: document.getElementById('disp_batch').value,
+          quantity: document.getElementById('disp_qty').value,
+          reason: document.getElementById('disp_reason').value.trim()
+        })
+      });
+      var d = await r.json();
+      if (!d.ok) {
+        setDispFormAlert(d.message || 'Não foi possível registrar o descarte.');
+        if (window.neofarmaToast) window.neofarmaToast(d.message || 'Erro ao registrar descarte.', 'danger');
+        return;
+      }
+      sessionStorage.setItem('dispAdminFlash', JSON.stringify({
+        type: 'success',
+        message: d.message || 'Descarte registrado e estoque atualizado.'
+      }));
+      location.reload();
+    } catch (e) {
+      setDispFormAlert('Erro de conexão. Tente novamente.');
+      if (window.neofarmaToast) window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Registrar descarte';
+    }
+  }
+
+  function filtrarHistorico() {
+    var q = (document.getElementById('buscaHistorico').value || '').toLowerCase();
+    document.querySelectorAll('#tabelaHistorico tbody tr').forEach(function (tr) {
+      var h = dispHistoryMap[String(tr.getAttribute('data-id') || '')];
+      var blob = h
+        ? [h.product_name, h.batch_code, h.reason, h.disposed_by_name, h.sku].filter(Boolean).join(' ').toLowerCase()
+        : (tr.textContent || '').toLowerCase();
+      tr.style.display = blob.indexOf(q) >= 0 ? '' : 'none';
+    });
+  }
+</script>
+
+<%- include('partials/footer') %>

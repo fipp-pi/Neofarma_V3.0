@@ -9,8 +9,10 @@ const { pool } = require('../config/database');
 const Customer = require('../models/Customer');
 const User = require('../models/User');
 const Order = require('../models/Order');
+const OrderPendingItem = require('../models/OrderPendingItem');
 const Payment = require('../models/Payment');
 const InventoryBatch = require('../models/InventoryBatch');
+const ServiceAppointment = require('../models/ServiceAppointment');
 
 /**
  * Traduz `orders.status` + `orders.payment_status` para texto e estilo de badge na interface.
@@ -60,8 +62,35 @@ async function getAccount(req, res, next) {
         ...o,
         status_ui: mapOrderStatus(o),
         can_cancel,
+        pay_status: pay,
+        order_status: st,
       };
     });
+
+    let upcomingAppointments = [];
+    if (profile.customer_id) {
+      const allAppts = await ServiceAppointment.listByCustomerId(profile.customer_id);
+      const now = Date.now();
+      upcomingAppointments = allAppts
+        .filter((a) => {
+          const st = String(a.status || '').toUpperCase();
+          return ['CONFIRMED', 'RESERVED', 'IN_PROGRESS'].includes(st)
+            && new Date(a.scheduled_start).getTime() >= now;
+        })
+        .slice(0, 3);
+    }
+
+    const paidOrders = orders.filter((o) => o.pay_status === 'PAID');
+    const stats = {
+      ordersTotal: orders.length,
+      ordersPending: orders.filter((o) => o.pay_status === 'PENDING' && o.order_status !== 'CANCELLED').length,
+      ordersDelivered: orders.filter((o) => o.order_status === 'DELIVERED').length,
+      totalSpent: paidOrders.reduce((acc, o) => acc + Number(o.total || 0), 0),
+      addressesCount: addresses.length,
+      appointmentsUpcoming: upcomingAppointments.length,
+      loyaltyPoints: Number(profile.loyalty_points || 0),
+    };
+
     res.render('account', {
       title: 'Minha Conta - NeoFarma',
       bodyClass: 'account-page',
@@ -69,6 +98,9 @@ async function getAccount(req, res, next) {
       addresses,
       orders,
       ordersCount: orders.length,
+      recentOrders: orders.slice(0, 3),
+      upcomingAppointments,
+      stats,
     });
   } catch (err) {
     next(err);
@@ -318,16 +350,18 @@ async function postCancelOrder(req, res, next) {
       });
     }
 
-    // Itens travados para leitura consistente das alocações a devolver.
     const [itemRows] = await connection.execute(
       'SELECT batch_id, quantity FROM order_items WHERE order_id = ? FOR UPDATE',
       [orderId]
     );
-    const allocations = (itemRows || []).map((row) => ({
-      batch_id: row.batch_id,
-      quantity: row.quantity,
-    }));
-    await InventoryBatch.restoreAllocations(connection, allocations);
+    if (itemRows && itemRows.length) {
+      const allocations = itemRows.map((row) => ({
+        batch_id: row.batch_id,
+        quantity: row.quantity,
+      }));
+      await InventoryBatch.restoreAllocations(connection, allocations);
+    }
+    await OrderPendingItem.deleteByOrderId(orderId, connection);
 
     await Payment.updateStatusByOrderId(orderId, 'FAILED', connection);
     const cancelled = await Order.cancelPendingByIdForCustomer(orderId, profile.customer_id, connection);

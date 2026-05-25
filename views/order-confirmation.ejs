@@ -22,7 +22,7 @@
                   <img src="<%= i.image_url %>" alt="<%= i.product_name %>" style="width:56px;height:56px;object-fit:cover;">
                   <div>
                     <strong><%= i.product_name %></strong><br>
-                    <small>Lote: <%= i.batch_id %> | Qtd: <%= i.quantity %></small>
+                    <small><% if (i.batch_id) { %>Lote: <%= i.batch_id %> | <% } else if (typeof stockPending !== 'undefined' && stockPending) { %>Aguardando confirmação do pagamento | <% } %>Qtd: <%= i.quantity %></small>
                   </div>
                 </div>
                 <div>R$ <%= Number(i.line_total).toFixed(2).replace('.', ',') %></div>
@@ -37,8 +37,8 @@
         <div class="col-lg-5">
           <div class="border rounded p-3">
             <h5 class="mb-3">Pagamento</h5>
-            <p><strong>Método:</strong> <%= order.payment_method %></p>
-            <p><strong>Status:</strong> <%= payment ? payment.status : order.payment_status %></p>
+            <p><strong>Método:</strong> <%= t('paymentMethod', order.payment_method) %></p>
+            <p><strong>Status:</strong> <%= t('paymentStatus', payment ? payment.status : order.payment_status) %></p>
             <% if (payment && payment.method === 'PIX') { %>
               <div class="small">
                 <% const qr = payment.pix_qr_code || ''; const isDataUri = String(qr).startsWith('data:image'); %>
@@ -69,7 +69,7 @@
                 %>
                 <p><strong>Código de barras:</strong><br><code class="boleto-barcode-code"><%= payment.boleto_barcode %></code></p>
                 <p><strong>Linha digitável (simulada):</strong><br><code class="boleto-linha-digitavel-code"><%= linhaDigitavelSimulada %></code></p>
-                <p><strong>Vencimento:</strong> <%= payment.boleto_due_date %></p>
+                <p><strong>Vencimento:</strong> <%= fmtDate(payment.boleto_due_date) %></p>
 
                 <div class="mt-3 border rounded p-3 bg-light">
                   <div class="d-flex justify-content-between align-items-start gap-2">
@@ -98,6 +98,12 @@
                   </div>
                 </div>
               </div>
+            <% } %>
+            <% if (typeof stockPending !== 'undefined' && stockPending && String(order.payment_status || '').toUpperCase() === 'PENDING') { %>
+              <div class="alert alert-warning small">
+                O estoque será baixado após a confirmação do pagamento (conforme ERS).
+              </div>
+              <button type="button" class="btn btn-success w-100" id="btnConfirmPixPay">Confirmar pagamento (simulação)</button>
             <% } %>
             <% if (payment && payment.method === 'CREDIT_CARD') { %>
               <div class="small">
@@ -153,6 +159,27 @@
         toast(ok ? 'Copiado com sucesso.' : 'Não foi possível copiar.', ok ? 'success' : 'danger');
       });
     });
+
+    var btnPay = document.getElementById('btnConfirmPixPay');
+    if (btnPay) {
+      btnPay.addEventListener('click', async function () {
+        btnPay.disabled = true;
+        try {
+          var resp = await fetch('/api/checkout/orders/<%= order.id %>/confirm-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+          var data = await resp.json();
+          if (data.ok) {
+            toast(data.message || 'Pagamento confirmado.', 'success');
+            setTimeout(function () { location.href = data.redirect || location.href; }, 600);
+          } else {
+            toast(data.message || 'Falha ao confirmar pagamento.', 'danger');
+            btnPay.disabled = false;
+          }
+        } catch (e) {
+          toast('Erro de comunicação.', 'danger');
+          btnPay.disabled = false;
+        }
+      });
+    }
 
     document.querySelectorAll('.btn-copy-boleto-linha').forEach(function (btn) {
       btn.addEventListener('click', async function () {

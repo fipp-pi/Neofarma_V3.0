@@ -186,59 +186,19 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function applyPromo() {
-  const input = document.getElementById("promoInput").value.trim().toUpperCase();
+  const input = document.getElementById("promoInput");
   const message = document.getElementById("promoMessage");
   const error = document.getElementById("promoError");
 
-  //Cupons e descontos
-  const validCodes = {
-    "PROMO25": 0.25,
-    "DESCONTO25": 0.25,
-    "SUPER25": 0.25
-  };
-
-  const orderTotalElement = document.querySelector(".order-total span:last-child");
-  const buttonPriceElement = document.querySelector(".btn-price");
-
-  const orderTotalsContainer = document.querySelector(".order-totals");
-  // Obtém valor atual do TOTAL
-  let totalAtual = parseFloat(
-    orderTotalElement.textContent.replace("R$", "").replace(",", ".")
-  );
-  message.style.display = "none";
-  error.style.display = "none";
-
-  // Verifica cupom
-  if (validCodes[input]) {
-    // Porcentagem
-    const desconto = validCodes[input];
-    // Calcula o valor descontado
-    const valorDesconto = (totalAtual * desconto).toFixed(2);
-    // Calcula novo total
-    const novoTotal = (totalAtual - valorDesconto).toFixed(2);
-    // REMOVE desconto antigo
-    const descontoAntigo = document.querySelector(".order-discount");
-    if (descontoAntigo) descontoAntigo.remove();
-    // CRIA linha de desconto
-    const descontoElement = document.createElement("div");
-    descontoElement.className = "order-discount d-flex justify-content-between";
-    descontoElement.innerHTML = `
-      <span>Desconto (${(desconto * 100).toFixed(0)}%)</span>
-      <span>-R$${valorDesconto.replace(".", ",")}</span>
-    `;
-    // Insere ANTES do TOTAL
-    const totalDiv = document.querySelector(".order-total");
-    orderTotalsContainer.insertBefore(descontoElement, totalDiv);
-    // Atualiza TOTAL
-    orderTotalElement.textContent = "R$" + novoTotal.replace(".", ",");
-    // Atualiza valor no botão
-    buttonPriceElement.textContent = "R$" + novoTotal.replace(".", ",");
-    // Mensagem de sucesso
-    message.style.display = "block";
-
-  } else {
-    error.style.display = "block";
+  if (input) {
+    input.disabled = true;
+    input.placeholder = "Promoções via preço promocional no produto";
   }
+  if (message) {
+    message.style.display = "block";
+    message.textContent = "Use o preço promocional cadastrado em Admin > Produtos.";
+  }
+  if (error) error.style.display = "none";
 }
 // --- VALIDAÇÃO GERAL ANTES DE FAZER O PEDIDO ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -694,7 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <i class="bi bi-trash me-1"></i>
           </a>
           <a href="#popup-visualizar" class="btn-visualizar" onclick="visualizarCliente(${cliente.id})">
-            <i class="bi bi-eye me-1"></i>
+            <i class="bi bi-info-circle me-1"></i>
           </a>
         </td>
       `;

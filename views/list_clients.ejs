@@ -1,255 +1,474 @@
 <%- include(typeof useAdminLayout !== 'undefined' && useAdminLayout ? 'admin/partials/header' : 'partials/header') %>
+<%
+  const clientList = typeof clients !== 'undefined' ? clients : [];
+  const clientStats = typeof stats !== 'undefined' ? stats : { total: clientList.length, withEmail: 0, withPhone: 0, withCity: 0, withDocument: 0 };
+  const clientStates = [];
+  clientList.forEach(function (item) {
+    var uf = String(item.state || '').trim().toUpperCase();
+    if (uf && clientStates.indexOf(uf) === -1) clientStates.push(uf);
+  });
+  clientStates.sort();
+%>
 <% if (typeof useAdminLayout === 'undefined' || !useAdminLayout) { %><main class="main main-container"><% } %>
-  <div class="container">
-    
-    <div class="list-header">
-      <div>
-        <h2 class="neo-heading">Base de Clientes</h2>
-        <p class="text-muted mb-0">Gerencie seus registros com facilidade.</p>
-      </div>
-      
-      <div class="d-flex align-items-center gap-3">
-        <button id="btnExcluirMassa" class="btn btn-danger d-none animate-fade" onclick="abrirModalExclusaoMassa()">
-          <i class="bi bi-trash-fill me-2"></i>Excluir Selecionados (<span id="contadorSelecao">0</span>)
-        </button>
+<script src="/assets/js/admin-catalog-filters.js"></script>
+<div class="container admin-catalog">
+  <div id="pageFlash" class="mb-3" style="display:none;">
+    <div class="alert alert-dismissible fade show mb-0" id="pageFlashAlert" role="alert">
+      <span id="pageFlashText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  </div>
 
-        <div class="search-box">
-          <i class="bi bi-search"></i>
-          <input type="text" class="form-control" id="buscaInput" placeholder="Buscar..." onkeyup="filtrarTabela()">
-        </div>
-        
-        <a href="/admin/clientes/novo" class="btn btn-success d-flex align-items-center">
-          <i class="bi bi-plus-lg me-2"></i> Novo
-        </a>
+  <div class="list-header mb-4">
+    <div>
+      <h2 class="neo-heading">Clientes</h2>
+      <p class="text-muted mb-0">Consulte, cadastre e atualize a carteira de clientes com dados pessoais, contato e endereço.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="/admin/financas/relatorios?report=customers" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up me-1"></i> Relatório de clientes</a>
+    </div>
+  </div>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--primary">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-people"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= clientStats.total %></div><div class="admin-catalog__stat-label">Total cadastrados</div></div>
       </div>
     </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--info">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-envelope"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= clientStats.withEmail %></div><div class="admin-catalog__stat-label">Com e-mail</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--success">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-telephone"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= clientStats.withPhone %></div><div class="admin-catalog__stat-label">Com telefone</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--neutral">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-geo-alt"></i></span>
+        <div><div class="admin-catalog__stat-value"><%= clientStats.withCity %></div><div class="admin-catalog__stat-label">Com cidade</div></div>
+      </div>
+    </div>
+  </div>
 
-    <div class="table-container">
+  <section class="admin-catalog__panel mb-3">
+    <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-funnel me-2"></i>Filtros avançados</h3>
+      <button type="button" class="admin-catalog__filters-toggle" id="cliFiltersToggle" aria-expanded="true"><i class="bi bi-sliders"></i> Recolher filtros</button>
+    </div>
+    <div class="admin-catalog__panel-body" id="cliFiltersPanel">
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <label class="form-label" for="filtro_q">Busca geral</label>
+          <div class="admin-catalog__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" id="filtro_q" placeholder="Nome, e-mail, telefone, documento...">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_uf">UF</label>
+          <select class="form-select form-select-sm" id="filtro_uf">
+            <option value="ALL">Todas</option>
+            <% clientStates.forEach(function(uf){ %><option value="<%= uf %>"><%= uf %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_city">Cidade contém</label>
+          <input type="text" class="form-control form-control-sm" id="filtro_city" placeholder="Cidade">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="filtro_has">Completude</label>
+          <select class="form-select form-select-sm" id="filtro_has">
+            <option value="ALL">Qualquer</option>
+            <option value="phone">Com telefone</option>
+            <option value="document">Com documento</option>
+            <option value="email">Com e-mail</option>
+            <option value="city">Com cidade</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <input type="hidden" id="filtro_tab" value="ALL">
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="cliClearFilters"><i class="bi bi-x-lg me-1"></i> Limpar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="admin-catalog__tabs mb-3">
+    <button type="button" class="admin-catalog__tab is-active" id="cliTabAll">Todos</button>
+    <button type="button" class="admin-catalog__tab" id="cliTabCity">Com endereço</button>
+    <button type="button" class="admin-catalog__tab" id="cliTabDoc">Com documento</button>
+  </div>
+
+  <section class="admin-catalog__panel admin-catalog__panel--table">
+    <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-list-ul me-2"></i>Clientes cadastrados</h3>
+      <div class="admin-catalog__panel-actions">
+        <span class="admin-catalog__panel-meta" id="cliResultsCount"><%= clientList.length %> registro(s)</span>
+        <button type="button" id="btnExcluirMassa" class="btn btn-outline-danger btn-sm d-none" onclick="abrirModalExclusaoMassa()">
+          <i class="bi bi-trash me-1"></i> Excluir (<span id="contadorSelecao">0</span>)
+        </button>
+        <a href="/admin/clientes/novo" class="btn btn-save btn-sm"><i class="bi bi-plus-lg me-1"></i> Novo cliente</a>
+      </div>
+    </div>
+    <div class="admin-catalog__results-bar">
+      <span>Exibindo <strong id="cliResultsVisible"><%= clientList.length %></strong> cliente(s).</span>
+    </div>
+    <div id="catalogTableWrap">
       <div class="table-responsive">
-        <table class="table table-hover table-custom align-middle">
+        <table class="table table-hover table-custom align-middle mb-0" id="tabelaClientes">
           <thead>
             <tr>
               <th style="width: 40px;">
-                  <input type="checkbox" class="form-check-input" id="checkAll" onclick="alternarTodos(this)">
+                <input type="checkbox" class="form-check-input" id="checkAll" onclick="alternarTodos(this)" aria-label="Selecionar todos">
               </th>
               <th>Nome</th>
-              <th>Email</th>
+              <th>E-mail</th>
               <th>Telefone</th>
-              <th>Cidade/UF</th>
-              <th class="text-end">Ações</th>
+              <th>Cidade / UF</th>
+              <th class="col-actions text-end">Ações</th>
             </tr>
           </thead>
           <tbody id="tabelaClientesBody">
-            <% if (typeof clients !== 'undefined' && clients && clients.length) { %>
-              <% clients.forEach(function(c) { %>
-                <tr>
-                  <td>
-                    <input type="checkbox" class="form-check-input check-item" value="<%= c.customer_id %>" onclick="verificarSelecao()">
-                  </td>
-                  <td class="fw-bold"><%= c.full_name %></td>
-                  <td><%= c.email %></td>
-                  <td><%= c.phone || '-' %></td>
-                  <td><%= (c.city || '-') + '/' + (c.state || '-') %></td>
-                  <td class="text-end">
-                    <button class="btn-action btn-view" onclick="verDetalhes(<%= c.customer_id %>)" title="Ver Detalhes"><i class="bi bi-eye"></i></button>
-                    <button class="btn-action btn-edit" onclick="prepararEdicao(<%= c.customer_id %>)" title="Editar"><i class="bi bi-pencil"></i></button>
-                  </td>
-                </tr>
-              <% }); %>
-            <% } %>
-            </tbody>
+            <% if (clientList.length) { clientList.forEach(function(c) {
+              var searchBlob = [c.customer_id, c.full_name, c.email, c.phone, c.document, c.city, c.state].filter(Boolean).join(' ');
+            %>
+              <tr
+                data-filter-search="<%= searchBlob.toLowerCase() %>"
+                data-filter-uf="<%= (c.state || '').toUpperCase() %>"
+                data-filter-city="<%= (c.city || '').toLowerCase() %>"
+                data-filter-has-phone="<%= c.phone ? '1' : '0' %>"
+                data-filter-has-document="<%= c.document ? '1' : '0' %>"
+                data-filter-has-email="<%= c.email ? '1' : '0' %>"
+                data-filter-has-city="<%= c.city ? '1' : '0' %>"
+              >
+                <td>
+                  <input type="checkbox" class="form-check-input check-item" value="<%= c.customer_id %>" onclick="verificarSelecao()">
+                </td>
+                <td class="fw-bold"><span class="cell-truncate-wide" title="<%= c.full_name %>"><%= c.full_name %></span></td>
+                <td><span class="cell-truncate" title="<%= c.email || '' %>"><%= c.email || '—' %></span></td>
+                <td><%= c.phone || '—' %></td>
+                <td>
+                  <span class="cell-truncate">
+                    <%= c.city || '—' %><% if (c.state) { %> <span class="text-muted small">/<%= c.state %></span><% } %>
+                  </span>
+                </td>
+                <td class="col-actions text-end">
+                  <div class="table-actions table-actions--2">
+                    <button type="button" class="btn-action btn-view" onclick="verDetalhes(<%= c.customer_id %>)" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
+                    <button type="button" class="btn-action btn-edit" onclick="prepararEdicao(<%= c.customer_id %>)" title="Editar"><i class="bi bi-pencil"></i></button>
+                  </div>
+                </td>
+              </tr>
+            <% }); } %>
+          </tbody>
         </table>
       </div>
-      
-      <div id="mensagemVazia" class="text-center py-5" style="display: <%= (typeof clients !== 'undefined' && clients && clients.length === 0) ? 'block' : 'none' %>;">
-        <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
-        <p class="text-muted mt-2">Nenhum cliente encontrado.</p>
-        <a href="/admin/clientes/novo" class="btn btn-outline-success btn-sm mt-2">Cadastrar Primeiro Cliente</a>
+    </div>
+    <div id="mensagemVazia" class="admin-catalog__empty" style="display: <%= clientList.length ? 'none' : 'block' %>;">
+      <i class="bi bi-people main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum cliente cadastrado</p>
+      <a href="/admin/clientes/novo" class="btn btn-save btn-sm mt-2">Cadastrar primeiro cliente</a>
+    </div>
+    <div id="mensagemVaziaFilter" class="admin-catalog__empty" style="display:none;">
+      <i class="bi bi-search main-icon"></i>
+      <p class="fw-semibold mb-1">Nenhum resultado para os filtros</p>
+      <p class="text-muted small mb-0">Tente outros critérios ou limpe os filtros.</p>
+    </div>
+  </section>
+</div>
+
+<style>
+  .modal-cadastro .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+  .modal-cadastro .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
+  .modal-cadastro .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
+  .modal-cadastro .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
+  .modal-cadastro .modal-body { padding: 0; }
+  .modal-cadastro .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+  .cadastro-view { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+  .cadastro-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
+  .cadastro-view-section { margin-bottom: 1.25rem; }
+  .cadastro-view-section:last-child { margin-bottom: 0; }
+  .cadastro-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
+  .cadastro-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
+  .cadastro-view-row:last-child { border-bottom: none; }
+  .cadastro-view-label { font-size: 0.85rem; color: #6c757d; min-width: 110px; flex-shrink: 0; }
+  .cadastro-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
+  .cadastro-view-value i { color: var(--accent-color); margin-right: 0.35rem; width: 1.1em; }
+  .cadastro-edit { padding: 1.5rem 1.5rem 1.25rem; }
+  .cadastro-edit-section { margin-bottom: 1.5rem; }
+  .cadastro-edit-section:last-of-type { margin-bottom: 0; }
+  .cadastro-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
+  .cadastro-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; margin-bottom: 0.25rem; }
+  .cadastro-edit .form-control, .cadastro-edit .form-select { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
+  .cadastro-edit .form-control:focus, .cadastro-edit .form-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
+  .modal-cadastro .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
+  .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
+</style>
+
+<div class="modal fade modal-cadastro" id="modalVisualizar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Dados do cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="conteudoVisualizacao">
+        <div class="cadastro-view"><div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Carregando...</div></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
       </div>
     </div>
-
   </div>
+</div>
 
-  <style>
-    /* Modais Cliente - Visualizar e Editar */
-    .modal-clientes .modal-content { border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
-    .modal-clientes .modal-header { background: var(--accent-color); color: var(--contrast-color); padding: 1rem 1.25rem; border-bottom: none; }
-    .modal-clientes .modal-header .modal-title { font-weight: 600; font-size: 1.1rem; }
-    .modal-clientes .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 0.9; }
-    .modal-clientes .modal-body { padding: 0; }
-    .modal-clientes .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
-    /* Visualizar: conteúdo */
-    .cliente-view { padding: 1.5rem 1.5rem 1.25rem; }
-    .cliente-view-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent-color), transparent 88%); color: var(--accent-color); font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
-    .cliente-view-nome { font-size: 1.25rem; font-weight: 600; color: var(--heading-color); margin-bottom: 1.25rem; }
-    .cliente-view-section { margin-bottom: 1.25rem; }
-    .cliente-view-section:last-child { margin-bottom: 0; }
-    .cliente-view-section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-color); margin-bottom: 0.6rem; }
-    .cliente-view-row { display: flex; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; gap: 0.75rem; }
-    .cliente-view-row:last-child { border-bottom: none; }
-    .cliente-view-label { font-size: 0.85rem; color: #6c757d; min-width: 110px; flex-shrink: 0; }
-    .cliente-view-value { font-size: 0.95rem; color: #212529; font-weight: 500; }
-    .cliente-view-value i { color: var(--accent-color); margin-right: 0.35rem; width: 1.1em; }
-    /* Editar: formulário */
-    .cliente-edit { padding: 1.5rem 1.5rem 1.25rem; }
-    .cliente-edit-section { margin-bottom: 1.5rem; }
-    .cliente-edit-section:last-of-type { margin-bottom: 0; }
-    .cliente-edit-section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-color); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid color-mix(in srgb, var(--accent-color), transparent 85%); }
-    .cliente-edit .form-label { font-size: 0.875rem; font-weight: 500; color: #495057; margin-bottom: 0.25rem; }
-    .cliente-edit .form-control, .cliente-edit .form-select { border-radius: 8px; border-color: #dee2e6; font-size: 0.9rem; }
-    .cliente-edit .form-control:focus, .cliente-edit .form-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color), transparent 88%); }
-    .modal-clientes .btn-save { background: var(--accent-color); border-color: var(--accent-color); color: var(--contrast-color); font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 8px; }
-    .modal-clientes .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
-  </style>
-
-  <div class="modal fade modal-clientes" id="modalVisualizar" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Dados do cliente</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-        </div>
-        <div class="modal-body" id="conteudoVisualizacao">
-          <div class="cliente-view"><div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Carregando...</div></div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-        </div>
+<div class="modal fade modal-cadastro" id="modalEditar" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
-    </div>
-  </div>
-
-  <div class="modal fade modal-clientes" id="modalEditar" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar cliente</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-        </div>
-        <div class="modal-body">
-          <form id="formEdicao" class="cliente-edit">
-            <input type="hidden" id="edit-id">
-            <div class="cliente-edit-section">
-              <div class="cliente-edit-section-title">Dados pessoais</div>
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label" for="edit-nome">Nome completo</label>
-                  <input type="text" class="form-control" id="edit-nome" placeholder="Nome do cliente">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label" for="edit-email">E-mail</label>
-                  <input type="email" class="form-control" id="edit-email" placeholder="email@exemplo.com">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label" for="edit-telefone">Telefone</label>
-                  <input type="tel" class="form-control" id="edit-telefone" placeholder="(00) 00000-0000" maxlength="16" oninput="aplicarMascaraTelefone(this)">
-                </div>
+      <div class="modal-body">
+        <form id="formEdicao" class="cadastro-edit">
+          <input type="hidden" id="edit-id">
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Dados pessoais</div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label field-required" for="edit-nome">Nome completo</label>
+                <input type="text" class="form-control" id="edit-nome" placeholder="Nome do cliente">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label field-required" for="edit-email">E-mail</label>
+                <input type="email" class="form-control" id="edit-email" placeholder="email@exemplo.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="edit-telefone">Telefone</label>
+                <input type="tel" class="form-control" id="edit-telefone" placeholder="(00) 00000-0000" maxlength="16" oninput="aplicarMascaraTelefone(this)">
               </div>
             </div>
-            <div class="cliente-edit-section">
-              <div class="cliente-edit-section-title">Endereço</div>
-              <div class="row g-3">
-                <div class="col-md-3">
-                  <label class="form-label" for="edit-cep">CEP</label>
-                  <input type="text" class="form-control" id="edit-cep" maxlength="9" placeholder="00000-000" oninput="aplicarMascaraCep(this); buscarCep(this.value, 'edicao')">
-                </div>
-                <div class="col-md-9">
-                  <label class="form-label" for="edit-rua">Rua / Logradouro</label>
-                  <input type="text" class="form-control" id="edit-rua" placeholder="Preenchido pelo CEP">
-                </div>
-                <div class="col-md-2">
-                  <label class="form-label" for="edit-numero">Número</label>
-                  <input type="text" class="form-control" id="edit-numero" placeholder="Nº">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="edit-complement">Complemento</label>
-                  <input type="text" class="form-control" id="edit-complement" placeholder="Apto, bloco...">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label" for="edit-bairro">Bairro</label>
-                  <input type="text" class="form-control" id="edit-bairro">
-                </div>
-                <div class="col-md-5">
-                  <label class="form-label" for="edit-cidade">Cidade</label>
-                  <input type="text" class="form-control" id="edit-cidade">
-                </div>
-                <div class="col-md-2">
-                  <label class="form-label" for="edit-estado">UF</label>
-                  <input type="text" class="form-control" id="edit-estado" placeholder="UF" maxlength="2">
-                </div>
-                <div class="col-md-5">
-                  <label class="form-label" for="edit-pais">País</label>
-                  <select class="form-select" id="edit-pais">
-                    <option value="Brasil">Brasil</option>
-                    <option value="Portugal">Portugal</option>
-                    <option value="Outro">Outro</option>
-                  </select>
-                </div>
+          </div>
+          <div class="cadastro-edit-section">
+            <div class="cadastro-edit-section-title">Endereço</div>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label" for="edit-cep">CEP</label>
+                <input type="text" class="form-control" id="edit-cep" maxlength="9" placeholder="00000-000" oninput="aplicarMascaraCep(this); buscarCep(this.value, 'edicao')">
+              </div>
+              <div class="col-md-9">
+                <label class="form-label" for="edit-rua">Rua / Logradouro</label>
+                <input type="text" class="form-control" id="edit-rua" placeholder="Preenchido pelo CEP">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" for="edit-numero">Número</label>
+                <input type="text" class="form-control" id="edit-numero" placeholder="Nº">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="edit-complement">Complemento</label>
+                <input type="text" class="form-control" id="edit-complement" placeholder="Apto, bloco...">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="edit-bairro">Bairro</label>
+                <input type="text" class="form-control" id="edit-bairro">
+              </div>
+              <div class="col-md-5">
+                <label class="form-label" for="edit-cidade">Cidade</label>
+                <input type="text" class="form-control" id="edit-cidade">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" for="edit-estado">UF</label>
+                <input type="text" class="form-control" id="edit-estado" placeholder="UF" maxlength="2">
+              </div>
+              <div class="col-md-5">
+                <label class="form-label" for="edit-pais">País</label>
+                <select class="form-select" id="edit-pais">
+                  <option value="Brasil">Brasil</option>
+                  <option value="Portugal">Portugal</option>
+                  <option value="Outro">Outro</option>
+                </select>
               </div>
             </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-save" id="btnSalvarEdicao" onclick="salvarEdicao()"><i class="bi bi-check-lg me-1"></i> Salvar alterações</button>
-        </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="btnSalvarEdicao" onclick="salvarEdicao()"><i class="bi bi-check-lg me-1"></i> Salvar alterações</button>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="modal fade" id="modalExclusaoMassa" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header modal-header-danger">
-          <h5 class="modal-title"><i class="bi bi-trash-fill me-2"></i>Exclusão Múltipla</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-0">Tem certeza que deseja remover <strong>todos os itens selecionados</strong>? <br>Essa ação não pode ser desfeita.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" onclick="executarExclusaoMassa()">Sim, Excluir Todos</button>
-        </div>
+<div class="modal fade" id="modalExclusaoMassa" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header modal-header-danger">
+        <h5 class="modal-title"><i class="bi bi-trash-fill me-2"></i>Exclusão em massa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Tem certeza que deseja remover <strong>todos os clientes selecionados</strong>? Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" onclick="executarExclusaoMassa()">Sim, excluir</button>
       </div>
     </div>
   </div>
-
-  <div class="modal fade" id="modalSucesso" tabindex="-1">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content text-center">
-            <div class="modal-body p-4">
-                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
-                <h5 class="mt-2" id="msgSucesso">Sucesso!</h5>
-            </div>
-        </div>
-    </div>
-  </div>
+</div>
 
 <% if (typeof useAdminLayout === 'undefined' || !useAdminLayout) { %></main><% } %>
 <% if (typeof useAdminLayout !== 'undefined' && useAdminLayout) { %>
   <script src="/assets/js/main.js"></script>
-  <script src="/assets/js/script.js"></script>
 <% } %>
-<!-- Override Ver/Editar para usar API (dados reais do banco) -->
 <script>
-(function() {
+(function () {
+  function showPageFlash(type, message) {
+    var wrap = document.getElementById('pageFlash');
+    var alertEl = document.getElementById('pageFlashAlert');
+    var textEl = document.getElementById('pageFlashText');
+    if (!wrap || !alertEl || !textEl) return;
+    alertEl.className = 'alert alert-' + (type || 'success') + ' alert-dismissible fade show mb-0';
+    textEl.textContent = message || '';
+    wrap.style.display = message ? 'block' : 'none';
+  }
+  try {
+    var raw = sessionStorage.getItem('clientAdminFlash');
+    if (raw) {
+      sessionStorage.removeItem('clientAdminFlash');
+      var flash = JSON.parse(raw);
+      showPageFlash(flash.type || 'success', flash.message);
+    }
+  } catch (e) {}
+
+  window.alternarTodos = function (source) {
+    document.querySelectorAll('#tabelaClientesBody tr').forEach(function (tr) {
+      if (tr.style.display === 'none') return;
+      var cb = tr.querySelector('.check-item');
+      if (cb) cb.checked = source.checked;
+    });
+    verificarSelecao();
+  };
+
+  window.verificarSelecao = function () {
+    var selecionados = document.querySelectorAll('.check-item:checked');
+    var btnExcluir = document.getElementById('btnExcluirMassa');
+    var contador = document.getElementById('contadorSelecao');
+    if (selecionados.length > 0) {
+      btnExcluir.classList.remove('d-none');
+      contador.textContent = selecionados.length;
+    } else {
+      btnExcluir.classList.add('d-none');
+    }
+  };
+
+  window.abrirModalExclusaoMassa = function () {
+    new bootstrap.Modal(document.getElementById('modalExclusaoMassa')).show();
+  };
+
+  window.aplicarMascaraTelefone = function (input) {
+    var v = input.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+    else if (v.length > 5) v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+    else if (v.length > 2) v = v.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+    input.value = v;
+  };
+
+  window.aplicarMascaraCep = function (input) {
+    var v = input.value.replace(/\D/g, '');
+    if (v.length > 8) v = v.slice(0, 8);
+    v = v.replace(/^(\d{5})(\d)/, '$1-$2');
+    input.value = v;
+  };
+
+  window.buscarCep = function (valor, contexto) {
+    var cep = String(valor || '').replace(/\D/g, '');
+    var prefixo = contexto === 'edicao' ? 'edit-' : '';
+    if (cep.length !== 8) return;
+    var ruaEl = document.getElementById(prefixo + 'rua');
+    if (ruaEl) ruaEl.value = '...';
+    fetch('https://viacep.com.br/ws/' + cep + '/json/')
+      .then(function (res) { return res.json(); })
+      .then(function (d) {
+        if (!d.erro) {
+          if (ruaEl) ruaEl.value = d.logradouro || '';
+          var bairroEl = document.getElementById(prefixo + 'bairro');
+          var cidadeEl = document.getElementById(prefixo + 'cidade');
+          var estadoEl = document.getElementById(prefixo + 'estado');
+          if (bairroEl) bairroEl.value = d.bairro || '';
+          if (cidadeEl) cidadeEl.value = d.localidade || '';
+          if (estadoEl) estadoEl.value = d.uf || '';
+          var numEl = document.getElementById(prefixo + 'numero');
+          if (numEl) numEl.focus();
+        } else if (ruaEl) {
+          ruaEl.value = '';
+          window.neofarmaToast('CEP não encontrado', 'danger');
+        }
+      })
+      .catch(function () { if (ruaEl) ruaEl.value = ''; });
+  };
+
+  NeoFarmaCatalogFilters.init({
+    tableBodySelector: '#tabelaClientes tbody tr',
+    resultsId: 'cliResultsCount',
+    emptyFilterId: 'mensagemVaziaFilter',
+    tableWrapId: 'catalogTableWrap',
+    clearBtnId: 'cliClearFilters',
+    filtersToggleId: 'cliFiltersToggle',
+    filtersPanelId: 'cliFiltersPanel',
+    inputs: { q: 'filtro_q', uf: 'filtro_uf', city: 'filtro_city', has: 'filtro_has', tab: 'filtro_tab' },
+    tabs: [
+      { id: 'cliTabAll', targetInput: 'filtro_tab', value: 'ALL' },
+      { id: 'cliTabCity', targetInput: 'filtro_tab', value: 'city' },
+      { id: 'cliTabDoc', targetInput: 'filtro_tab', value: 'document' },
+    ],
+    matchRow: function (tr, v) {
+      var F = NeoFarmaCatalogFilters;
+      if (!F.textMatch(tr, v.q)) return false;
+      if (v.uf && v.uf !== 'ALL' && tr.getAttribute('data-filter-uf') !== v.uf) return false;
+      if (v.city && F.norm(tr.getAttribute('data-filter-city')).indexOf(F.norm(v.city)) === -1) return false;
+      if (v.has === 'phone' && tr.getAttribute('data-filter-has-phone') !== '1') return false;
+      if (v.has === 'document' && tr.getAttribute('data-filter-has-document') !== '1') return false;
+      if (v.has === 'email' && tr.getAttribute('data-filter-has-email') !== '1') return false;
+      if (v.has === 'city' && tr.getAttribute('data-filter-has-city') !== '1') return false;
+      if (v.tab === 'city' && tr.getAttribute('data-filter-has-city') !== '1') return false;
+      if (v.tab === 'document' && tr.getAttribute('data-filter-has-document') !== '1') return false;
+      return true;
+    },
+    onApply: function (visible) {
+      var el = document.getElementById('cliResultsVisible');
+      if (el) el.textContent = visible;
+      var checkAll = document.getElementById('checkAll');
+      if (checkAll) checkAll.checked = false;
+      verificarSelecao();
+    },
+  });
+
   var apiBase = '/api/clientes';
   function formatCep(v) {
     if (!v) return '-';
     var s = String(v).replace(/\D/g, '');
-    return s.length === 8 ? s.slice(0,5) + '-' + s.slice(5) : v;
+    return s.length === 8 ? s.slice(0, 5) + '-' + s.slice(5) : v;
   }
-  window.verDetalhes = function(customerId) {
+
+  window.verDetalhes = function (customerId) {
     var container = document.getElementById('conteudoVisualizacao');
-    container.innerHTML = '<div class="cliente-view"><div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Carregando...</div></div>';
-    var modal = new bootstrap.Modal(document.getElementById('modalVisualizar'));
-    modal.show();
+    container.innerHTML = '<div class="cadastro-view"><div class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Carregando...</div></div>';
+    new bootstrap.Modal(document.getElementById('modalVisualizar')).show();
     fetch(apiBase + '/' + customerId, { headers: { 'Accept': 'application/json' } })
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
         if (!res.ok || !res.data) {
-          container.innerHTML = '<div class="cliente-view"><div class="alert alert-warning mb-0">' + (res.message || 'Cliente não encontrado.') + '</div></div>';
+          container.innerHTML = '<div class="cadastro-view"><div class="alert alert-warning mb-0">' + (res.message || 'Cliente não encontrado.') + '</div></div>';
           return;
         }
         var c = res.data;
@@ -260,34 +479,34 @@
         var cidadeUf = [c.cidade || c.city, c.estado || c.state].filter(Boolean).join(' / ') || '-';
         var cep = formatCep(c.cep || c.zip_code);
         var pais = c.pais || c.country || 'Brasil';
-        var html = '<div class="cliente-view">' +
-          '<div class="cliente-view-avatar">' + inicial + '</div>' +
-          '<div class="cliente-view-nome">' + nome + '</div>' +
-          '<div class="cliente-view-section">' +
-            '<div class="cliente-view-section-title">Dados pessoais</div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">E-mail</span><span class="cliente-view-value"><i class="bi bi-envelope"></i>' + (c.email || '-') + '</span></div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">Telefone</span><span class="cliente-view-value"><i class="bi bi-telephone"></i>' + (c.phone || '-') + '</span></div>' +
-            (c.document ? '<div class="cliente-view-row"><span class="cliente-view-label">CPF</span><span class="cliente-view-value">' + c.document + '</span></div>' : '') +
-            (c.birth_date ? '<div class="cliente-view-row"><span class="cliente-view-label">Data nasc.</span><span class="cliente-view-value">' + c.birth_date + '</span></div>' : '') +
+        container.innerHTML = '<div class="cadastro-view">' +
+          '<div class="cadastro-view-avatar">' + inicial + '</div>' +
+          '<div class="cadastro-view-nome">' + nome + '</div>' +
+          '<div class="cadastro-view-section">' +
+            '<div class="cadastro-view-section-title">Dados pessoais</div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">E-mail</span><span class="cadastro-view-value"><i class="bi bi-envelope"></i>' + (c.email || '-') + '</span></div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">Telefone</span><span class="cadastro-view-value"><i class="bi bi-telephone"></i>' + (c.phone || '-') + '</span></div>' +
+            (c.document ? '<div class="cadastro-view-row"><span class="cadastro-view-label">CPF</span><span class="cadastro-view-value">' + c.document + '</span></div>' : '') +
+            (c.birth_date ? '<div class="cadastro-view-row"><span class="cadastro-view-label">Data nasc.</span><span class="cadastro-view-value">' + (window.NeoDates ? NeoDates.formatDate(c.birth_date) : c.birth_date) + '</span></div>' : '') +
           '</div>' +
-          '<div class="cliente-view-section">' +
-            '<div class="cliente-view-section-title">Endereço</div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">Logradouro</span><span class="cliente-view-value"><i class="bi bi-geo-alt"></i>' + enderecoLinha + '</span></div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">Bairro</span><span class="cliente-view-value">' + bairro + '</span></div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">Cidade / UF</span><span class="cliente-view-value"><i class="bi bi-building"></i>' + cidadeUf + '</span></div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">CEP</span><span class="cliente-view-value"><i class="bi bi-mailbox"></i>' + cep + '</span></div>' +
-            '<div class="cliente-view-row"><span class="cliente-view-label">País</span><span class="cliente-view-value">' + pais + '</span></div>' +
+          '<div class="cadastro-view-section">' +
+            '<div class="cadastro-view-section-title">Endereço</div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">Logradouro</span><span class="cadastro-view-value"><i class="bi bi-geo-alt"></i>' + enderecoLinha + '</span></div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">Bairro</span><span class="cadastro-view-value">' + bairro + '</span></div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">Cidade / UF</span><span class="cadastro-view-value"><i class="bi bi-building"></i>' + cidadeUf + '</span></div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">CEP</span><span class="cadastro-view-value"><i class="bi bi-mailbox"></i>' + cep + '</span></div>' +
+            '<div class="cadastro-view-row"><span class="cadastro-view-label">País</span><span class="cadastro-view-value">' + pais + '</span></div>' +
           '</div></div>';
-        container.innerHTML = html;
       })
-      .catch(function() {
-        container.innerHTML = '<div class="cliente-view"><div class="alert alert-danger mb-0">Erro ao carregar dados do cliente.</div></div>';
+      .catch(function () {
+        container.innerHTML = '<div class="cadastro-view"><div class="alert alert-danger mb-0">Erro ao carregar dados do cliente.</div></div>';
       });
   };
-  window.prepararEdicao = function(customerId) {
+
+  window.prepararEdicao = function (customerId) {
     fetch(apiBase + '/' + customerId, { headers: { 'Accept': 'application/json' } })
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
         if (!res.ok || !res.data) {
           window.neofarmaToast(res.message || 'Cliente não encontrado.', 'danger');
           return;
@@ -307,11 +526,11 @@
         document.getElementById('edit-pais').value = c.pais || c.country || 'Brasil';
         new bootstrap.Modal(document.getElementById('modalEditar')).show();
       })
-      .catch(function() { window.neofarmaToast('Erro ao carregar dados do cliente.', 'danger'); });
+      .catch(function () { window.neofarmaToast('Erro ao carregar dados do cliente.', 'danger'); });
   };
-  window.executarExclusaoMassa = function() {
-    var checkboxes = document.querySelectorAll('.check-item:checked');
-    var ids = Array.from(checkboxes).map(function(cb) { return parseInt(cb.value, 10); }).filter(function(n) { return !isNaN(n); });
+
+  window.executarExclusaoMassa = function () {
+    var ids = Array.from(document.querySelectorAll('.check-item:checked')).map(function (cb) { return parseInt(cb.value, 10); }).filter(function (n) { return !isNaN(n); });
     if (ids.length === 0) {
       window.neofarmaToast('Nenhum cliente selecionado.', 'danger');
       return;
@@ -322,21 +541,21 @@
     fetch(apiBase + '/excluir-massa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ ids: ids })
+      body: JSON.stringify({ ids: ids }),
     })
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
         if (res.ok) {
-          if (typeof mostrarMensagemSucesso === 'function') mostrarMensagemSucesso(res.message || 'Cliente(s) removido(s) com sucesso.');
-          else window.neofarmaToast(res.message || 'Cliente(s) removido(s) com sucesso.', 'success');
+          sessionStorage.setItem('clientAdminFlash', JSON.stringify({ type: 'success', message: res.message || 'Cliente(s) removido(s) com sucesso.' }));
           window.location.reload();
         } else {
           window.neofarmaToast(res.message || 'Erro ao excluir.', 'danger');
         }
       })
-      .catch(function() { window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger'); });
+      .catch(function () { window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger'); });
   };
-  window.salvarEdicao = function() {
+
+  window.salvarEdicao = function () {
     var id = document.getElementById('edit-id').value;
     if (!id) return;
     var body = {
@@ -350,7 +569,7 @@
       cidade: document.getElementById('edit-cidade').value.trim(),
       estado: document.getElementById('edit-estado').value.trim(),
       pais: document.getElementById('edit-pais').value || 'Brasil',
-      cep: (document.getElementById('edit-cep').value || '').replace(/\D/g, '') || null
+      cep: (document.getElementById('edit-cep').value || '').replace(/\D/g, '') || null,
     };
     if (!body.nome) { window.neofarmaToast('Nome é obrigatório.', 'danger'); return; }
     if (!body.email) { window.neofarmaToast('E-mail é obrigatório.', 'danger'); return; }
@@ -359,21 +578,20 @@
     fetch(apiBase + '/' + id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     })
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar alterações'; }
         if (res.ok) {
           bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
-          if (typeof mostrarMensagemSucesso === 'function') mostrarMensagemSucesso('Dados atualizados com sucesso!');
-          else window.neofarmaToast('Dados atualizados com sucesso!', 'success');
+          sessionStorage.setItem('clientAdminFlash', JSON.stringify({ type: 'success', message: 'Dados atualizados com sucesso!' }));
           window.location.reload();
         } else {
           window.neofarmaToast(res.message || 'Erro ao atualizar.', 'danger');
         }
       })
-      .catch(function() {
+      .catch(function () {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar alterações'; }
         window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger');
       });

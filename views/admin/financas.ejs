@@ -11,7 +11,7 @@
   <div class="list-header">
     <div>
       <h2 class="neo-heading">Finanças</h2>
-      <p class="text-muted mb-0">Receitas, pedidos, mais vendidos e controle de pagamentos (para testes).</p>
+      <p class="text-muted mb-0">Acompanhe receitas, pedidos e indicadores financeiros consolidados da loja e dos serviços de saúde.</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -214,9 +214,9 @@
                 <% if (recentReceipts && recentReceipts.length) { %>
                   <% recentReceipts.forEach(function(r) { %>
                     <tr>
-                      <td class="fw-bold">#<%= r.order_id %><div class="text-muted small"><%= r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '' %></div></td>
+                      <td class="fw-bold">#<%= r.order_id %><div class="text-muted small"><%= fmtDate(r.created_at) %></div></td>
                       <td><%= r.full_name || '-' %></td>
-                      <td><span class="badge bg-light text-dark border"><%= r.payment_method %></span></td>
+                      <td><span class="badge bg-light text-dark border"><%= t('paymentMethod', r.payment_method) %></span></td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(r.total) %></td>
                       <td class="small text-muted">
                         <% if (r.payment_method === 'PIX') { %>
@@ -255,10 +255,25 @@
     }
 
     function getPaymentBadgeClass(paymentStatus) {
+      if (window.NeoLabels && NeoLabels.paymentStatusBadge) {
+        return NeoLabels.paymentStatusBadge(paymentStatus);
+      }
       var pay = String(paymentStatus || '');
       if (pay === 'PAID') return 'success';
       if (pay === 'FAILED') return 'danger';
       return 'warning';
+    }
+
+    function labelPaymentStatus(v) {
+      return window.NeoLabels ? NeoLabels.paymentStatus(v) : String(v || '-');
+    }
+
+    function labelPaymentMethod(v) {
+      return window.NeoLabels ? NeoLabels.paymentMethod(v) : String(v || '');
+    }
+
+    function labelOrderStatus(v) {
+      return window.NeoLabels ? NeoLabels.orderStatus(v) : String(v || '');
     }
 
     // Delegação de eventos para funcionar também após paginação via AJAX no modal
@@ -344,7 +359,7 @@
         orders.forEach(function (o) {
           var tr = document.createElement('tr');
 
-          var createdStr = o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '';
+          var createdStr = o.created_at ? (window.NeoDates ? NeoDates.formatDateTime(o.created_at) : o.created_at) : '';
           var pay = String(o.payment_status || '');
           var badgeClass = getPaymentBadgeClass(pay);
 
@@ -365,10 +380,10 @@
               <div class="fw-bold">' + (o.full_name ? String(o.full_name) : 'Cliente') + '</div>\
               <div class="text-muted small text-break">' + (o.email ? String(o.email) : '') + '</div>\
             </td>\
-            <td><span class="badge bg-light text-dark border">' + String(o.payment_method || '') + '</span></td>\
+            <td><span class="badge bg-light text-dark border">' + labelPaymentMethod(o.payment_method) + '</span></td>\
             <td>\
-              <span class="badge bg-' + badgeClass + '">' + (pay || '-') + '</span>\
-              <div class="text-muted small mt-1">' + (o.order_status || '') + '</div>\
+              <span class="badge bg-' + badgeClass + '">' + labelPaymentStatus(pay) + '</span>\
+              <div class="text-muted small mt-1">' + labelOrderStatus(o.order_status) + '</div>\
             </td>\
             <td class="text-end fw-semibold">R$ ' + formatMoney(o.total) + '</td>\
             <td class="text-end">' + actionsHtml + '</td>';

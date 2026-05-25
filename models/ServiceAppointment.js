@@ -176,21 +176,27 @@ async function listByCustomerId(customerId) {
 }
 
 /**
- * Lista atendimentos com pagamento presencial ainda pendente.
+ * Lista atendimentos com pagamento presencial ainda pendente (caixa).
  */
 async function listCashPending(options = {}) {
   await ensureAppointmentColumns();
   const from = options.from ? String(options.from).trim() : '';
   const to = options.to ? String(options.to).trim() : '';
   const professionalId = Number(options.professional_id || 0);
+  const paymentMethod = options.payment_method ? String(options.payment_method).trim().toUpperCase() : '';
   let sql = `SELECT a.*, s.name AS service_name, p.full_name AS professional_name
              FROM service_appointments a
              INNER JOIN health_services s ON s.id = a.service_id
              LEFT JOIN service_professionals p ON p.id = a.professional_id
-             WHERE a.payment_method = 'CASH'
+             WHERE a.payment_method IN ('CASH', 'PIX', 'CREDIT_CARD', 'DEBIT_CARD')
                AND a.payment_status = 'PENDING'
+               AND a.booking_channel = 'ADMIN'
                AND a.status IN ('CONFIRMED', 'IN_PROGRESS', 'COMPLETED')`;
   const params = [];
+  if (paymentMethod && paymentMethod !== 'ALL') {
+    sql += ' AND a.payment_method = ?';
+    params.push(paymentMethod);
+  }
   if (from) {
     sql += ' AND DATE(a.scheduled_start) >= ?';
     params.push(from);

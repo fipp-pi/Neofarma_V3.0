@@ -9,11 +9,14 @@
   <link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
   <link href="/assets/css/main.css" rel="stylesheet">
   <link href="/assets/css/cadastro-custom.css" rel="stylesheet">
+  <link href="/assets/css/admin-sidebar.css" rel="stylesheet">
+  <% if (typeof activeAdmin !== 'undefined' && ['produtos','categorias','tipos_produto','laboratorios','fornecedores','vitrine','financas','funcionarios','clientes'].indexOf(activeAdmin) !== -1) { %>
+  <link href="/assets/css/admin-catalog.css" rel="stylesheet">
+  <% } %>
+  <% if (typeof activeAdmin !== 'undefined' && activeAdmin === 'dashboard') { %>
+  <link href="/assets/css/admin-dashboard.css" rel="stylesheet">
+  <% } %>
   <style>
-    .admin-sidebar { min-height: 100vh; background: var(--accent-color); color: var(--contrast-color); }
-    .admin-sidebar a { color: rgba(255,255,255,0.9); text-decoration: none; padding: 0.5rem 1rem; display: flex; align-items: center; border-radius: 0.25rem; transition: 0.3s; }
-    .admin-sidebar a:hover, .admin-sidebar a.active { color: #fff; background: rgba(255,255,255,0.15); }
-    .admin-content { padding: 1.5rem; }
     .admin-content .btn-primary { background-color: var(--accent-color); border-color: var(--accent-color); }
     .admin-content .btn-primary:hover { background-color: color-mix(in srgb, var(--accent-color), black 15%); border-color: color-mix(in srgb, var(--accent-color), black 15%); }
     .admin-content .btn-outline-primary { color: var(--accent-color); border-color: var(--accent-color); }
@@ -69,34 +72,10 @@
     .admin-content .card.border-primary {
       border-color: color-mix(in srgb, var(--accent-color), transparent 40%) !important;
     }
-
-    /* Sidebar recolhível (somente ícones) */
-    .admin-sidebar { width: 220px; transition: width 0.2s ease; }
-    body.admin-sidebar-collapsed .admin-sidebar { width: 64px; }
-    body.admin-sidebar-collapsed .admin-sidebar .sidebar-brand-text,
-    body.admin-sidebar-collapsed .admin-sidebar .nav-label,
-    body.admin-sidebar-collapsed .admin-sidebar .sidebar-section-title {
-      display: none !important;
-    }
-    body.admin-sidebar-collapsed .admin-sidebar .sidebar-home-link {
-      display: none !important;
-    }
-    body.admin-sidebar-collapsed .admin-sidebar a {
-      justify-content: center;
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
-      min-height: 40px;
-    }
-    body.admin-sidebar-collapsed .admin-sidebar a i {
-      margin-right: 0 !important;
-    }
-    body.admin-sidebar-collapsed .admin-sidebar .sidebar-toggle-btn {
-      width: 100%;
-      justify-content: center;
-    }
   </style>
 </head>
-<body class="<%= locals.bodyClass || '' %>">
+<body class="admin-shell <%= locals.bodyClass || '' %>">
+  <script src="/assets/js/date-format.js"></script>
 
   <!-- Global toast (substitui alert() por mensagem mais profissional) -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
@@ -214,61 +193,234 @@
       });
     };
   </script>
-  <div class="d-flex">
-    <nav class="admin-sidebar flex-shrink-0">
-      <div class="p-3 border-bottom border-secondary">
-        <div class="d-flex align-items-center justify-content-between gap-2">
-          <a href="/" class="d-flex align-items-center flex-grow-1 sidebar-home-link">
-            <i class="bi bi-house me-2"></i>
-            <span class="sidebar-brand-text">Voltar ao site</span>
-          </a>
-          <button type="button" class="btn btn-sm btn-outline-light d-flex align-items-center gap-2 sidebar-toggle-btn" id="btnAdminToggleSidebar" aria-label="Recolher/expandir menu">
-            <i class="bi bi-layout-sidebar-inset"></i>
-            <span class="nav-label">Menu</span>
-          </button>
+  <div class="d-flex align-items-stretch w-100">
+    <% 
+      var rp = typeof requestPath !== 'undefined' ? String(requestPath).split('?')[0].replace(/\/$/, '') || '/' : '';
+      var aa = typeof activeAdmin !== 'undefined' ? activeAdmin : '';
+      if (rp === '/admin/agendamentos-servicos/caixa' || rp.indexOf('/admin/agendamentos-servicos/caixa/') === 0) {
+        aa = 'agendamentos_caixa';
+      } else if (aa === 'agendamentos_servicos' && rp.indexOf('/admin/agendamentos-servicos/caixa') === 0) {
+        aa = 'agendamentos_caixa';
+      }
+    %>
+    <% var stockAlert = (typeof adminAlerts !== 'undefined' && adminAlerts.expiredAwaitingDisposal) ? Number(adminAlerts.expiredAwaitingDisposal) : 0; %>
+    <% var sidebarUser = typeof adminUser !== 'undefined' ? adminUser : null; %>
+    <% var sidebarInitial = sidebarUser && sidebarUser.full_name ? String(sidebarUser.full_name).trim().charAt(0).toUpperCase() : 'A'; %>
+    <nav class="admin-sidebar flex-shrink-0" aria-label="Menu administrativo">
+      <div class="admin-sidebar__brand">
+        <a href="/admin" class="admin-sidebar__logo" title="Dashboard">
+          <span class="admin-sidebar__logo-mark">
+            <img src="/assets/img/other/logo-neofarma.png" alt="">
+          </span>
+          <span class="admin-sidebar__logo-text">
+            <span class="admin-sidebar__logo-title">NeoFarma</span>
+            <span class="admin-sidebar__logo-sub">Painel administrativo</span>
+          </span>
+        </a>
+        <button type="button" class="admin-sidebar__toggle" id="btnAdminToggleSidebar" aria-label="Recolher ou expandir menu" title="Recolher menu">
+          <i class="bi bi-layout-sidebar-inset"></i>
+        </button>
+      </div>
+
+      <% if (sidebarUser) { %>
+      <div class="admin-sidebar__user">
+        <span class="admin-sidebar__user-avatar" aria-hidden="true"><%= sidebarInitial %></span>
+        <span class="admin-sidebar__user-info">
+          <span class="admin-sidebar__user-name"><%= sidebarUser.full_name %></span>
+          <span class="admin-sidebar__user-role"><%= sidebarUser.role_name || 'Administrador' %></span>
+        </span>
+      </div>
+      <% } %>
+
+      <div class="admin-sidebar__scroll">
+        <div class="admin-sidebar__section">
+          <div class="admin-sidebar__section-title">Visão geral</div>
+          <ul class="admin-sidebar__nav">
+            <li>
+              <a href="/admin" class="admin-sidebar__link <%= aa === 'dashboard' ? 'is-active' : '' %>" title="Dashboard">
+                <span class="admin-sidebar__icon"><i class="bi bi-speedometer2"></i></span>
+                <span class="admin-sidebar__label">Dashboard</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="admin-sidebar__section">
+          <div class="admin-sidebar__section-title">Catálogo</div>
+          <ul class="admin-sidebar__nav">
+            <li>
+              <a href="/admin/vitrine" class="admin-sidebar__link <%= aa === 'vitrine' ? 'is-active' : '' %>" title="Vitrine e Promoções">
+                <span class="admin-sidebar__icon"><i class="bi bi-megaphone"></i></span>
+                <span class="admin-sidebar__label">Vitrine e Promoções</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/produtos" class="admin-sidebar__link <%= aa === 'produtos' ? 'is-active' : '' %>" title="Produtos">
+                <span class="admin-sidebar__icon"><i class="bi bi-box-seam"></i></span>
+                <span class="admin-sidebar__label">Produtos</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/categorias" class="admin-sidebar__link <%= aa === 'categorias' ? 'is-active' : '' %>" title="Categorias">
+                <span class="admin-sidebar__icon"><i class="bi bi-tags"></i></span>
+                <span class="admin-sidebar__label">Categorias</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/tipos-produto" class="admin-sidebar__link <%= aa === 'tipos_produto' ? 'is-active' : '' %>" title="Tipos de produto">
+                <span class="admin-sidebar__icon"><i class="bi bi-diagram-3"></i></span>
+                <span class="admin-sidebar__label">Tipos de produto</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/laboratorios" class="admin-sidebar__link <%= aa === 'laboratorios' ? 'is-active' : '' %>" title="Laboratórios">
+                <span class="admin-sidebar__icon"><i class="bi bi-building"></i></span>
+                <span class="admin-sidebar__label">Laboratórios</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/fornecedores" class="admin-sidebar__link <%= aa === 'fornecedores' ? 'is-active' : '' %>" title="Fornecedores">
+                <span class="admin-sidebar__icon"><i class="bi bi-truck"></i></span>
+                <span class="admin-sidebar__label">Fornecedores</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="admin-sidebar__section">
+          <div class="admin-sidebar__section-title">Estoque</div>
+          <ul class="admin-sidebar__nav">
+            <li>
+              <a href="/admin/lotes" class="admin-sidebar__link <%= aa === 'lotes' ? 'is-active' : '' %>" title="Lotes">
+                <span class="admin-sidebar__icon"><i class="bi bi-archive"></i></span>
+                <span class="admin-sidebar__label">Lotes</span>
+                <% if (stockAlert > 0) { %><span class="admin-sidebar__badge"><%= stockAlert %></span><% } %>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/compras" class="admin-sidebar__link <%= aa === 'compras' ? 'is-active' : '' %>" title="Compras">
+                <span class="admin-sidebar__icon"><i class="bi bi-bag-check"></i></span>
+                <span class="admin-sidebar__label">Compras</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/descartes" class="admin-sidebar__link <%= aa === 'descartes' ? 'is-active' : '' %>" title="Descartes">
+                <span class="admin-sidebar__icon"><i class="bi bi-trash3"></i></span>
+                <span class="admin-sidebar__label">Descartes</span>
+                <% if (stockAlert > 0) { %><span class="admin-sidebar__badge"><%= stockAlert %></span><% } %>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="admin-sidebar__section">
+          <div class="admin-sidebar__section-title">Financeiro</div>
+          <ul class="admin-sidebar__nav">
+            <li>
+              <a href="/admin/financas" class="admin-sidebar__link <%= aa === 'financas' ? 'is-active' : '' %>" title="Finanças">
+                <span class="admin-sidebar__icon"><i class="bi bi-cash-stack"></i></span>
+                <span class="admin-sidebar__label">Finanças</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="admin-sidebar__section">
+          <div class="admin-sidebar__section-title">Serviços</div>
+          <ul class="admin-sidebar__nav">
+            <li>
+              <a href="/admin/agendamentos-servicos" class="admin-sidebar__link<%= aa === 'agendamentos_servicos' ? ' is-active' : '' %>" data-admin-nav="agendamentos_servicos" title="Agendar serviços">
+                <span class="admin-sidebar__icon"><i class="bi bi-calendar2-check"></i></span>
+                <span class="admin-sidebar__label">Agendamentos</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/agendamentos-servicos/caixa" class="admin-sidebar__link<%= aa === 'agendamentos_caixa' ? ' is-active' : '' %>" data-admin-nav="agendamentos_caixa" title="Caixa de serviços">
+                <span class="admin-sidebar__icon"><i class="bi bi-cash-coin"></i></span>
+                <span class="admin-sidebar__label">Caixa de serviços</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="admin-sidebar__section">
+          <div class="admin-sidebar__section-title">Pessoas</div>
+          <ul class="admin-sidebar__nav">
+            <li>
+              <a href="/admin/funcionarios" class="admin-sidebar__link <%= aa === 'funcionarios' ? 'is-active' : '' %>" title="Funcionários">
+                <span class="admin-sidebar__icon"><i class="bi bi-person-badge"></i></span>
+                <span class="admin-sidebar__label">Funcionários</span>
+              </a>
+            </li>
+            <li>
+              <a href="/admin/clientes" class="admin-sidebar__link <%= aa === 'clientes' ? 'is-active' : '' %>" title="Clientes">
+                <span class="admin-sidebar__icon"><i class="bi bi-people"></i></span>
+                <span class="admin-sidebar__label">Clientes</span>
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
-      <div class="p-2">
-        <div class="small text-uppercase text-muted px-2 mb-2 sidebar-section-title">Painel Admin</div>
-        <a href="/admin" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'dashboard' ? 'active' : '' %>">
-          <i class="bi bi-speedometer2 me-2"></i> <span class="nav-label">Dashboard</span>
+
+      <div class="admin-sidebar__footer">
+        <a href="/" class="admin-sidebar__footer-link admin-sidebar__footer-link--muted" title="Voltar ao site">
+          <i class="bi bi-house-door"></i>
+          <span>Voltar ao site</span>
         </a>
-        <a href="/admin/produtos" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'produtos' ? 'active' : '' %>">
-          <i class="bi bi-box-seam me-2"></i> <span class="nav-label">Produtos</span>
-        </a>
-        <a href="/admin/lotes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'lotes' ? 'active' : '' %>">
-          <i class="bi bi-archive me-2"></i> <span class="nav-label">Lotes</span>
-        </a>
-        <a href="/admin/laboratorios" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'laboratorios' ? 'active' : '' %>">
-          <i class="bi bi-bank me-2"></i> <span class="nav-label">Laboratórios</span>
-        </a>
-        <a href="/admin/fornecedores" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'fornecedores' ? 'active' : '' %>">
-          <i class="bi bi-truck me-2"></i> <span class="nav-label">Fornecedores</span>
-        </a>
-        <a href="/admin/categorias" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'categorias' ? 'active' : '' %>">
-          <i class="bi bi-tags me-2"></i> <span class="nav-label">Categorias</span>
-        </a>
-        <a href="/admin/financas" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'financas' ? 'active' : '' %>">
-          <i class="bi bi-cash-stack me-2"></i> <span class="nav-label">Finanças</span>
-        </a>
-        <a href="/admin/agendamentos-servicos" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'agendamentos_servicos' ? 'active' : '' %>">
-          <i class="bi bi-calendar2-check me-2"></i> <span class="nav-label">Agendar Serviços</span>
-        </a>
-        <a href="/admin/agendamentos-servicos/caixa" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'agendamentos_servicos' ? 'active' : '' %>">
-          <i class="bi bi-cash-coin me-2"></i> <span class="nav-label">Caixa de Serviços</span>
-        </a>
-        <a href="/admin/clientes" class="<%= typeof activeAdmin !== 'undefined' && activeAdmin === 'clientes' ? 'active' : '' %> mt-2">
-          <i class="bi bi-people me-2"></i> <span class="nav-label">Clientes</span>
+        <a href="/logout" class="admin-sidebar__footer-link" title="Sair">
+          <i class="bi bi-box-arrow-right"></i>
+          <span>Sair</span>
         </a>
       </div>
     </nav>
+    <script>
+      (function () {
+        function normPath(value) {
+          return (String(value || '').split('?')[0].replace(/\/$/, '') || '/');
+        }
+        var current = normPath(window.location.pathname);
+        var links = document.querySelectorAll('.admin-sidebar__nav .admin-sidebar__link[href]');
+        if (!links.length) return;
+
+        var bestHref = null;
+        var bestScore = -1;
+        links.forEach(function (link) {
+          var href = normPath(link.getAttribute('href'));
+          var score = -1;
+          if (current === href) {
+            score = 10000 + href.length;
+          } else if (href !== '/admin' && current.indexOf(href + '/') === 0) {
+            score = href.length;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestHref = href;
+          }
+        });
+
+        links.forEach(function (link) {
+          var href = normPath(link.getAttribute('href'));
+          link.classList.toggle('is-active', bestHref !== null && href === bestHref);
+        });
+      })();
+    </script>
     <main class="admin-content flex-grow-1">
       <script>
         (function () {
           var btn = document.getElementById('btnAdminToggleSidebar');
           if (!btn) return;
+          function syncToggleUi() {
+            var collapsed = document.body.classList.contains('admin-sidebar-collapsed');
+            btn.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+            btn.title = collapsed ? 'Expandir menu' : 'Recolher menu';
+            btn.innerHTML = collapsed
+              ? '<i class="bi bi-layout-sidebar"></i>'
+              : '<i class="bi bi-layout-sidebar-inset"></i>';
+          }
+          syncToggleUi();
           btn.addEventListener('click', function () {
             document.body.classList.toggle('admin-sidebar-collapsed');
+            syncToggleUi();
             try {
               localStorage.setItem('neofarma_admin_sidebar', document.body.classList.contains('admin-sidebar-collapsed') ? 'collapsed' : 'expanded');
             } catch (_) {}

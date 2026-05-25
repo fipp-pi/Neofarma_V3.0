@@ -1,6 +1,8 @@
 <%- include('partials/header') %>
 
-<div class="container">
+<div class="container admin-catalog admin-financas">
+  <%- include('partials/financas-nav') %>
+
   <%
     function toLocaleString(v) {
       const n = Number(v || 0);
@@ -8,10 +10,10 @@
     }
   %>
 
-  <div class="list-header">
+  <div class="list-header mb-3">
     <div>
-      <h2 class="neo-heading">Finanças - Recibos</h2>
-      <p class="text-muted mb-0">Últimas operações pagas (loja + serviços).</p>
+      <h2 class="neo-heading">Recibos e comprovantes</h2>
+      <p class="text-muted mb-0">Histórico de vendas e serviços já pagos, disponível para consulta e comprovação.</p>
     </div>
 
     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -60,9 +62,9 @@
                 <% if (recentReceipts && recentReceipts.length) { %>
                   <% recentReceipts.forEach(function(r) { %>
                     <tr>
-                      <td class="fw-bold"><%= r.source_type === 'SERVICE' ? 'AG' : 'PED' %>-#<%= r.ref_id %><div class="text-muted small"><%= r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '' %></div></td>
+                      <td class="fw-bold"><%= t('sourceType', r.source_type) %>-#<%= r.ref_id %><div class="text-muted small"><%= fmtDate(r.created_at) %></div></td>
                       <td><%= r.full_name || '-' %></td>
-                      <td><span class="badge bg-light text-dark border"><%= r.payment_method %></span></td>
+                      <td><span class="badge bg-light text-dark border"><%= t('paymentMethod', r.payment_method) %></span></td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(r.total) %></td>
                       <td>
                         <% if (String(r.payment_record_status || '').toUpperCase() === 'REFUNDED_PARTIAL') { %>

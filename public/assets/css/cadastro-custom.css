@@ -378,3 +378,77 @@
 /* Modais Customizados */
 .modal-header-success { background-color: #d1e7dd; color: #0f5132; }
 .modal-header-danger { background-color: #f8d7da; color: #842029; }
+
+/* =====================
+   Tabelas admin — ações e colunas longas
+===================== */
+.table-custom th.col-actions,
+.table-custom td.col-actions {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: middle;
+  text-align: right;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.table-actions,
+.actions-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 0.375rem;
+  vertical-align: middle;
+}
+
+.table-actions .btn-action,
+.actions-compact .btn-action {
+  margin: 0;
+  flex: 0 0 32px;
+}
+
+.table-actions--2 { min-width: 4.75rem; }
+.table-actions--3 { min-width: 7.125rem; }
+.table-actions--4 { min-width: 9.5rem; }
+.table-actions--5 { min-width: 11.875rem; }
+
+.table-custom .cell-truncate {
+  display: block;
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-custom .cell-truncate-wide {
+  display: block;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-custom th.col-id,
+.table-custom td.col-id {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.table-custom th.col-status,
+.table-custom td.col-status {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.table-actions .btn-icon-square {
+  flex: 0 0 2rem;
+}
+
+.table-actions .btn-group {
+  flex-shrink: 0;
+}
+
+.table-actions .btn-sm {
+  flex-shrink: 0;
+}

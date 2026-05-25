@@ -78,9 +78,11 @@
                <td>${c.email}</td>
                <td>${c.telefone}</td>
                <td>${c.cidade}/${c.estado}</td>
-               <td class="text-end">
-                   <button class="btn-action btn-view" onclick="verDetalhes(${c.id})" title="Ver Detalhes"><i class="bi bi-eye"></i></button>
+               <td class="col-actions">
+                   <div class="table-actions table-actions--2">
+                   <button class="btn-action btn-view" onclick="verDetalhes(${c.id})" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
                    <button class="btn-action btn-edit" onclick="prepararEdicao(${c.id})" title="Editar"><i class="bi bi-pencil"></i></button>
+                   </div>
                </td>
            `;
            tbody.appendChild(tr);

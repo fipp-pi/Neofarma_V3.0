@@ -29,28 +29,41 @@ async function create(data, connection = pool) {
 async function findByProductId(productId, options = {}) {
   const sortKey = String(options.sort || 'expiry_asc');
   const statusFilter = String(options.status || 'ALL').toUpperCase();
-  let orderBy = 'ORDER BY expiry_date ASC, id ASC';
-  if (sortKey === 'expiry_desc') orderBy = 'ORDER BY expiry_date DESC, id DESC';
-  if (sortKey === 'qty_desc') orderBy = 'ORDER BY quantity DESC, expiry_date ASC, id ASC';
-  if (sortKey === 'qty_asc') orderBy = 'ORDER BY quantity ASC, expiry_date ASC, id ASC';
+  const onlyWithStock = options.onlyWithStock === true;
+  const withDisposal = options.withDisposal === true;
+  const hideDisposed = options.hideDisposed === true || options.hideDisposed === '1' || options.hideDisposed === 1;
+  let orderBy = 'ORDER BY b.expiry_date ASC, b.id ASC';
+  if (sortKey === 'expiry_desc') orderBy = 'ORDER BY b.expiry_date DESC, b.id DESC';
+  if (sortKey === 'qty_desc') orderBy = 'ORDER BY b.quantity DESC, b.expiry_date ASC, b.id ASC';
+  if (sortKey === 'qty_asc') orderBy = 'ORDER BY b.quantity ASC, b.expiry_date ASC, b.id ASC';
 
-  let where = 'WHERE product_id = ?';
-  if (statusFilter === 'EXPIRED') where += ' AND expiry_date < CURDATE()';
-  if (statusFilter === 'EXPIRING') where += ' AND expiry_date >= CURDATE() AND expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
-  if (statusFilter === 'VALID') where += ' AND expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
+  let where = 'WHERE b.product_id = ?';
+  const params = [productId];
+  if (statusFilter === 'EXPIRED') where += ' AND b.expiry_date < CURDATE()';
+  if (statusFilter === 'EXPIRING') where += ' AND b.expiry_date >= CURDATE() AND b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
+  if (statusFilter === 'VALID') where += ' AND b.expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
+  if (onlyWithStock) where += ' AND b.quantity > 0';
+  if (withDisposal && hideDisposed) {
+    where += ' AND NOT (COALESCE(d.disposed_qty, 0) > 0 AND b.quantity = 0)';
+  }
+
+  const disposalFrom = withDisposal ? DISPOSAL_JOIN : '';
+  const disposalSelect = withDisposal ? `, ${DISPOSAL_SELECT}` : '';
 
   const [rows] = await pool.execute(
-    `SELECT id, product_id, batch_code, mfg_date, expiry_date, quantity,
+    `SELECT b.id, b.product_id, b.batch_code, b.mfg_date, b.expiry_date, b.quantity,
             CASE
-              WHEN expiry_date < CURDATE() THEN 'EXPIRED'
-              WHEN expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'EXPIRING'
+              WHEN b.expiry_date < CURDATE() THEN 'EXPIRED'
+              WHEN b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'EXPIRING'
               ELSE 'VALID'
             END AS validity_status,
-            DATEDIFF(expiry_date, CURDATE()) AS days_to_expiry
-     FROM inventory_batches
+            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry
+            ${disposalSelect}
+     FROM inventory_batches b
+     ${disposalFrom}
      ${where}
      ${orderBy}`,
-    [productId]
+    params
   );
   return rows;
 }
@@ -185,24 +198,60 @@ async function getRiskByProductIds(productIds = [], daysAhead = 30) {
 }
 
 /**
- * Lista global de lotes (admin) com join em produto; filtros e ordenação por whitelist.
- *
- * @param {{ status?: string, search?: string, sort?: string }} [options]
+ * Lotes vencidos com saldo > 0 — aguardam descarte manual (RF_F5).
  */
-async function findAllGlobal(options = {}) {
+async function countExpiredAwaitingDisposal() {
+  const [rows] = await pool.execute(
+    `SELECT COUNT(*) AS total
+     FROM inventory_batches
+     WHERE expiry_date < CURDATE()
+       AND quantity > 0`
+  );
+  return Number(rows[0]?.total || 0);
+}
+
+/** Subquery reutilizada: totais de descarte por lote. */
+const DISPOSAL_JOIN = `
+  LEFT JOIN (
+    SELECT batch_id,
+           COALESCE(SUM(quantity), 0) AS disposed_qty,
+           COUNT(*) AS disposal_count,
+           MAX(created_at) AS last_disposed_at
+    FROM inventory_disposals
+    GROUP BY batch_id
+  ) d ON d.batch_id = b.id`;
+
+const DISPOSAL_SELECT = `
+  COALESCE(d.disposed_qty, 0) AS disposed_qty,
+  COALESCE(d.disposal_count, 0) AS disposal_count,
+  d.last_disposed_at,
+  CASE
+    WHEN COALESCE(d.disposed_qty, 0) = 0 THEN 'NONE'
+    WHEN b.quantity = 0 THEN 'FULL'
+    ELSE 'PARTIAL'
+  END AS disposal_status`;
+
+function applyGlobalFilters(options = {}) {
   const statusFilter = String(options.status || 'ALL').toUpperCase();
   const search = String(options.search || '').trim();
-  const sortKey = String(options.sort || 'expiry_asc');
+  const hideDisposed = options.hideDisposed === true || options.hideDisposed === '1' || options.hideDisposed === 1;
   let where = 'WHERE 1=1';
   const params = [];
   if (statusFilter === 'EXPIRED') where += ' AND b.expiry_date < CURDATE()';
   if (statusFilter === 'EXPIRING') where += ' AND b.expiry_date >= CURDATE() AND b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
   if (statusFilter === 'VALID') where += ' AND b.expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
+  if (hideDisposed) {
+    where += ' AND NOT (COALESCE(d.disposed_qty, 0) > 0 AND b.quantity = 0)';
+  }
   if (search) {
     where += ' AND (p.name LIKE ? OR b.batch_code LIKE ?)';
     const term = `%${search}%`;
     params.push(term, term);
   }
+  return { where, params, sortKey: String(options.sort || 'expiry_asc'), hideDisposed };
+}
+
+function buildGlobalOrderBy(sortKey) {
   let orderBy = 'ORDER BY b.expiry_date ASC, b.id ASC';
   if (sortKey === 'expiry_desc') orderBy = 'ORDER BY b.expiry_date DESC, b.id DESC';
   if (sortKey === 'qty_desc') orderBy = 'ORDER BY b.quantity DESC, b.expiry_date ASC';
@@ -211,6 +260,17 @@ async function findAllGlobal(options = {}) {
   if (sortKey === 'product_desc') orderBy = 'ORDER BY p.name DESC, b.expiry_date ASC, b.id ASC';
   if (sortKey === 'days_asc') orderBy = 'ORDER BY DATEDIFF(b.expiry_date, CURDATE()) ASC, b.id ASC';
   if (sortKey === 'days_desc') orderBy = 'ORDER BY DATEDIFF(b.expiry_date, CURDATE()) DESC, b.id ASC';
+  return orderBy;
+}
+
+/**
+ * Lista global de lotes (admin) com join em produto; filtros e ordenação por whitelist.
+ *
+ * @param {{ status?: string, search?: string, sort?: string, hideDisposed?: boolean|string }} [options]
+ */
+async function findAllGlobal(options = {}) {
+  const { where, params, sortKey } = applyGlobalFilters(options);
+  const orderBy = buildGlobalOrderBy(sortKey);
 
   const [rows] = await pool.execute(
     `SELECT b.id, b.product_id, b.batch_code, b.mfg_date, b.expiry_date, b.quantity,
@@ -220,9 +280,11 @@ async function findAllGlobal(options = {}) {
               WHEN b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'EXPIRING'
               ELSE 'VALID'
             END AS validity_status,
-            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry
+            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
+            ${DISPOSAL_SELECT}
      FROM inventory_batches b
      INNER JOIN products p ON p.id = b.product_id
+     ${DISPOSAL_JOIN}
      ${where}
      ${orderBy}`,
     params
@@ -232,43 +294,22 @@ async function findAllGlobal(options = {}) {
 
 /**
  * Mesma base de `findAllGlobal` com contagem total e página.
- * `LIMIT`/`OFFSET` numéricos embutidos por limitação do driver com prepared statements.
  *
- * @param {{ status?: string, search?: string, sort?: string, page?: number, pageSize?: number }} [options]
+ * @param {{ status?: string, search?: string, sort?: string, page?: number, pageSize?: number, hideDisposed?: boolean|string }} [options]
  * @returns {Promise<{ rows: object[], total: number, page: number, pageSize: number }>}
  */
 async function findAllGlobalPaginated(options = {}) {
-  const statusFilter = String(options.status || 'ALL').toUpperCase();
-  const search = String(options.search || '').trim();
-  const sortKey = String(options.sort || 'expiry_asc');
+  const { where, params, sortKey } = applyGlobalFilters(options);
+  const orderBy = buildGlobalOrderBy(sortKey);
   const page = Math.max(1, parseInt(options.page, 10) || 1);
   const pageSize = Math.min(200, Math.max(10, parseInt(options.pageSize, 10) || 25));
   const offset = (page - 1) * pageSize;
-
-  let where = 'WHERE 1=1';
-  const params = [];
-  if (statusFilter === 'EXPIRED') where += ' AND b.expiry_date < CURDATE()';
-  if (statusFilter === 'EXPIRING') where += ' AND b.expiry_date >= CURDATE() AND b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
-  if (statusFilter === 'VALID') where += ' AND b.expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
-  if (search) {
-    where += ' AND (p.name LIKE ? OR b.batch_code LIKE ?)';
-    const term = `%${search}%`;
-    params.push(term, term);
-  }
-
-  let orderBy = 'ORDER BY b.expiry_date ASC, b.id ASC';
-  if (sortKey === 'expiry_desc') orderBy = 'ORDER BY b.expiry_date DESC, b.id DESC';
-  if (sortKey === 'qty_desc') orderBy = 'ORDER BY b.quantity DESC, b.expiry_date ASC';
-  if (sortKey === 'qty_asc') orderBy = 'ORDER BY b.quantity ASC, b.expiry_date ASC';
-  if (sortKey === 'product_asc') orderBy = 'ORDER BY p.name ASC, b.expiry_date ASC, b.id ASC';
-  if (sortKey === 'product_desc') orderBy = 'ORDER BY p.name DESC, b.expiry_date ASC, b.id ASC';
-  if (sortKey === 'days_asc') orderBy = 'ORDER BY DATEDIFF(b.expiry_date, CURDATE()) ASC, b.id ASC';
-  if (sortKey === 'days_desc') orderBy = 'ORDER BY DATEDIFF(b.expiry_date, CURDATE()) DESC, b.id ASC';
 
   const [countRows] = await pool.execute(
     `SELECT COUNT(*) AS total
      FROM inventory_batches b
      INNER JOIN products p ON p.id = b.product_id
+     ${DISPOSAL_JOIN}
      ${where}`,
     params
   );
@@ -282,9 +323,11 @@ async function findAllGlobalPaginated(options = {}) {
               WHEN b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'EXPIRING'
               ELSE 'VALID'
             END AS validity_status,
-            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry
+            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
+            ${DISPOSAL_SELECT}
      FROM inventory_batches b
      INNER JOIN products p ON p.id = b.product_id
+     ${DISPOSAL_JOIN}
      ${where}
      ${orderBy}
      LIMIT ${pageSize} OFFSET ${offset}`,
@@ -398,4 +441,5 @@ module.exports = {
   deleteManyByIds,
   allocateFEFO,
   restoreAllocations,
+  countExpiredAwaitingDisposal,
 };

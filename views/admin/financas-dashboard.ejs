@@ -1,154 +1,326 @@
 <%- include('partials/header') %>
 
-<div class="container">
-  <%
-    function toLocaleString(v) {
-      const n = Number(v || 0);
-      return n.toFixed(2).replace('.', ',');
-    }
-    const totalOrders = Number(summary && summary.total_transactions ? summary.total_transactions : 0);
-    const pending = Number(summary && summary.pending_count ? summary.pending_count : 0);
-    const failed = Number(summary && summary.failed_count ? summary.failed_count : 0);
-    const paid = Math.max(0, totalOrders - pending - failed);
+<%
+  function fmtMoney(v) {
+    return Number(v || 0).toFixed(2).replace('.', ',');
+  }
+  const summaryData = typeof summary !== 'undefined' ? summary : {};
+  const filtersData = typeof filters !== 'undefined' ? filters : { from: '', to: '', days: 30 };
+  const revByMethod = typeof revenueByMethod !== 'undefined' ? revenueByMethod : {};
+  const revByDayList = typeof revenueByDay !== 'undefined' ? revenueByDay : [];
+  const topSold = typeof mostSold !== 'undefined' ? mostSold : [];
+  const receiptsList = typeof recentReceipts !== 'undefined' ? recentReceipts : [];
 
-    const pct = function (value, base) {
-      const b = Number(base || 0);
-      if (!b) return 0;
-      return Math.max(0, Math.min(100, Number((Number(value || 0) * 100 / b).toFixed(1))));
-    };
+  const totalOrders = Number(summaryData.total_transactions || 0);
+  const pending = Number(summaryData.pending_count || 0);
+  const failed = Number(summaryData.failed_count || 0);
+  const paid = Math.max(0, totalOrders - pending - failed);
 
-    const pendingPct = pct(pending, totalOrders);
-    const failedPct = pct(failed, totalOrders);
-    const paidPct = pct(paid, totalOrders);
+  function pct(value, base) {
+    const b = Number(base || 0);
+    if (!b) return 0;
+    return Math.max(0, Math.min(100, Number((Number(value || 0) * 100 / b).toFixed(1))));
+  }
 
-    const pixRev = Number(revenueByMethod && revenueByMethod.PIX ? revenueByMethod.PIX : 0);
-    const boletoRev = Number(revenueByMethod && revenueByMethod.BOLETO ? revenueByMethod.BOLETO : 0);
-    const creditRev = Number(revenueByMethod && revenueByMethod.CREDIT_CARD ? revenueByMethod.CREDIT_CARD : 0);
-    const debitRev = Number(revenueByMethod && revenueByMethod.DEBIT_CARD ? revenueByMethod.DEBIT_CARD : 0);
-    const cashRev = Number(revenueByMethod && revenueByMethod.CASH ? revenueByMethod.CASH : 0);
-    const cardRev = creditRev + debitRev;
-    const totalRevByMethod = pixRev + boletoRev + cardRev + cashRev;
+  const pixRev = Number(revByMethod.PIX || 0);
+  const boletoRev = Number(revByMethod.BOLETO || 0);
+  const creditRev = Number(revByMethod.CREDIT_CARD || 0);
+  const debitRev = Number(revByMethod.DEBIT_CARD || 0);
+  const cashRev = Number(revByMethod.CASH || 0);
+  const cardRev = creditRev + debitRev;
+  const totalRevByMethod = pixRev + boletoRev + cardRev + cashRev;
 
-    const pixPct = pct(pixRev, totalRevByMethod);
-    const boletoPct = pct(boletoRev, totalRevByMethod);
-    const cardPct = pct(cardRev, totalRevByMethod);
-    const cashPct = pct(cashRev, totalRevByMethod);
-  %>
+  const periodLabel = filtersData.from && filtersData.to
+    ? (filtersData.from + ' — ' + filtersData.to)
+    : ('Últimos ' + (filtersData.days || 30) + ' dias');
 
-  <div class="list-header">
+  function finUrl(extra) {
+    const q = new URLSearchParams();
+    if (extra && extra.from) q.set('from', extra.from);
+    if (extra && extra.to) q.set('to', extra.to);
+    if (extra && extra.days) q.set('days', extra.days);
+    const s = q.toString();
+    return '/admin/financas' + (s ? '?' + s : '');
+  }
+
+  const PAY_LABELS = { PIX: 'PIX', BOLETO: 'Boleto', CREDIT_CARD: 'Cartão crédito', DEBIT_CARD: 'Cartão débito', CASH: 'Dinheiro' };
+  const methodRows = [
+    { key: 'PIX', value: pixRev, color: '#0d6efd' },
+    { key: 'BOLETO', value: boletoRev, color: '#6c757d' },
+    { key: 'CARTÃO', value: cardRev, color: '#0dcaf0' },
+    { key: 'DINHEIRO', value: cashRev, color: '#198754' },
+  ];
+%>
+
+<div class="container admin-catalog admin-financas">
+  <div class="list-header mb-3">
     <div>
       <h2 class="neo-heading">Finanças</h2>
-      <p class="text-muted mb-0">Resumo financeiro e atalhos para relatórios e pedidos.</p>
-    </div>
-
-    <div class="text-muted small">Visão consolidada dos últimos 30 dias.</div>
-  </div>
-
-  <div class="row g-3 mt-2">
-    <div class="col-md-3">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="text-muted small">Receita (pagos)</div>
-      <div class="display-6 neo-accent-strong">R$ <%= summary && summary.revenue_paid ? toLocaleString(summary.revenue_paid) : '0,00' %></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="text-muted small">Pendentes</div>
-          <div class="display-6" style="font-weight: 700;"><%= summary && summary.pending_count ? summary.pending_count : 0 %></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="text-muted small">Falhou</div>
-          <div class="display-6" style="font-weight: 700;"><%= summary && summary.failed_count ? summary.failed_count : 0 %></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="text-muted small">Total de transações</div>
-          <div class="display-6" style="font-weight: 700;"><%= summary && summary.total_transactions ? summary.total_transactions : 0 %></div>
-        </div>
-      </div>
+      <p class="text-muted mb-0">Visão consolidada de receitas da loja e dos serviços de saúde, com indicadores, gráficos e atalhos operacionais.</p>
     </div>
   </div>
 
-  <div class="row g-3 mt-2">
-    <div class="col-lg-6">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="text-muted small">Distribuição de pedidos (status)</div>
-            <strong class="small">Base: <%= totalOrders %></strong>
-          </div>
-          <div style="height: 250px;">
-            <canvas id="ordersStatusChart" aria-label="Gráfico de status de pedidos"></canvas>
-          </div>
-          <div class="small text-muted mt-2">
-            Pagos: <strong><%= paid %></strong> | Pendentes: <strong><%= pending %></strong> | Falhou: <strong><%= failed %></strong>
-          </div>
+  <%- include('partials/financas-nav') %>
+
+  <section class="admin-catalog__panel mb-4">
+    <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-calendar-range me-2"></i>Período de análise</h3>
+      <span class="admin-catalog__panel-meta"><i class="bi bi-clock me-1"></i><%= periodLabel %></span>
+    </div>
+    <div class="admin-catalog__panel-body">
+      <form method="GET" action="/admin/financas" class="row g-3 align-items-end" id="finPeriodForm">
+        <div class="col-md-3">
+          <label class="form-label" for="fin_from">De</label>
+          <input type="date" class="form-control form-control-sm" id="fin_from" name="from" value="<%= filtersData.from || '' %>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="fin_to">Até</label>
+          <input type="date" class="form-control form-control-sm" id="fin_to" name="to" value="<%= filtersData.to || '' %>">
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm flex-grow-1"><i class="bi bi-funnel me-1"></i> Aplicar período</button>
+          <a href="<%= finUrl({ days: 30 }) %>" class="btn btn-outline-secondary btn-sm" title="Limpar"><i class="bi bi-x-lg"></i></a>
+        </div>
+      </form>
+      <div class="admin-catalog__tabs mt-3">
+        <a href="<%= finUrl({ days: 7 }) %>" class="admin-catalog__tab <%= !filtersData.from && Number(filtersData.days) === 7 ? 'is-active' : '' %>">7 dias</a>
+        <a href="<%= finUrl({ days: 30 }) %>" class="admin-catalog__tab <%= !filtersData.from && Number(filtersData.days) === 30 ? 'is-active' : '' %>">30 dias</a>
+        <a href="<%= finUrl({ days: 90 }) %>" class="admin-catalog__tab <%= !filtersData.from && Number(filtersData.days) === 90 ? 'is-active' : '' %>">90 dias</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="admin-catalog__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--primary">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-cash-stack"></i></span>
+        <div>
+          <div class="admin-catalog__stat-value admin-financas__stat-value--money">R$ <%= fmtMoney(summaryData.revenue_paid) %></div>
+          <div class="admin-catalog__stat-label">Receita confirmada</div>
         </div>
       </div>
     </div>
+    <div class="col-6 col-lg-3">
+      <a href="/admin/financas/pedidos?payment_status=PENDING" class="admin-catalog__stat admin-catalog__stat--warning text-decoration-none">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-hourglass-split"></i></span>
+        <div>
+          <div class="admin-catalog__stat-value"><%= pending %></div>
+          <div class="admin-catalog__stat-label">Pagamentos pendentes</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="/admin/financas/pedidos?payment_status=FAILED" class="admin-catalog__stat admin-catalog__stat--danger text-decoration-none">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-x-octagon"></i></span>
+        <div>
+          <div class="admin-catalog__stat-value"><%= failed %></div>
+          <div class="admin-catalog__stat-label">Pagamentos falhos</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="admin-catalog__stat admin-catalog__stat--neutral">
+        <span class="admin-catalog__stat-icon"><i class="bi bi-receipt"></i></span>
+        <div>
+          <div class="admin-catalog__stat-value"><%= totalOrders %></div>
+          <div class="admin-catalog__stat-label">Transações no período</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <% if (pending > 0) { %>
+  <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div><strong><i class="bi bi-exclamation-circle me-1"></i> Pendências financeiras:</strong> <%= pending %> transação(ões) aguardam confirmação de pagamento.</div>
+    <a href="/admin/financas/pedidos?payment_status=PENDING" class="btn btn-sm btn-warning">Revisar pendentes</a>
+  </div>
+  <% } %>
+
+  <div class="row g-3 mb-4">
     <div class="col-lg-6">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="text-muted small">Participação da receita por método (loja + serviços)</div>
-            <strong class="small">Total: R$ <%= toLocaleString(totalRevByMethod) %></strong>
+      <section class="admin-catalog__panel h-100">
+        <div class="admin-catalog__panel-head">
+          <h3 class="admin-catalog__panel-title"><i class="bi bi-pie-chart me-2"></i>Status das transações</h3>
+        </div>
+        <div class="admin-catalog__panel-body">
+          <div class="admin-financas__chart-box">
+            <canvas id="ordersStatusChart" aria-label="Gráfico de status de transações"></canvas>
           </div>
-          <div style="height: 250px;">
+          <div class="admin-financas__chart-legend">
+            Pagos: <strong><%= paid %></strong> (<%= pct(paid, totalOrders) %>%) ·
+            Pendentes: <strong><%= pending %></strong> ·
+            Falhou: <strong><%= failed %></strong>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="admin-catalog__panel h-100">
+        <div class="admin-catalog__panel-head d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <h3 class="admin-catalog__panel-title mb-0"><i class="bi bi-bar-chart me-2"></i>Receita por método</h3>
+          <span class="admin-catalog__panel-meta">Total R$ <%= fmtMoney(totalRevByMethod) %></span>
+        </div>
+        <div class="admin-catalog__panel-body">
+          <div class="admin-financas__chart-box">
             <canvas id="revenueByMethodChart" aria-label="Gráfico de receita por método"></canvas>
           </div>
-          <div class="small text-muted mt-2">
-            PIX: <strong>R$ <%= toLocaleString(pixRev) %></strong> | BOLETO: <strong>R$ <%= toLocaleString(boletoRev) %></strong> | CARTÃO: <strong>R$ <%= toLocaleString(cardRev) %></strong> | DINHEIRO: <strong>R$ <%= toLocaleString(cashRev) %></strong>
-          </div>
         </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="admin-catalog__panel mb-4">
+    <div class="admin-catalog__panel-head">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-grid me-2"></i>Operações financeiras</h3>
+    </div>
+    <div class="admin-catalog__panel-body">
+      <div class="admin-financas__quick-grid">
+        <a href="/admin/financas/pedidos" class="admin-financas__quick-link">
+          <span class="admin-financas__quick-icon"><i class="bi bi-credit-card"></i></span>
+          <span>
+            <div class="admin-financas__quick-title">Pedidos e pagamentos</div>
+            <div class="admin-financas__quick-desc">Tabela completa, busca, filtros e ações de baixa.</div>
+          </span>
+        </a>
+        <a href="/admin/financas/relatorios<%= filtersData.from ? '?from=' + encodeURIComponent(filtersData.from) + '&to=' + encodeURIComponent(filtersData.to) : '?days=' + (filtersData.days || 30) %>" class="admin-financas__quick-link">
+          <span class="admin-financas__quick-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>
+          <span>
+            <div class="admin-financas__quick-title">Relatórios detalhados</div>
+            <div class="admin-financas__quick-desc">Produtos, vendas, clientes e serviços de saúde.</div>
+          </span>
+        </a>
+        <a href="/admin/financas/recibos" class="admin-financas__quick-link">
+          <span class="admin-financas__quick-icon"><i class="bi bi-receipt-cutoff"></i></span>
+          <span>
+            <div class="admin-financas__quick-title">Recibos recentes</div>
+            <div class="admin-financas__quick-desc">Últimas operações pagas com detalhes PIX/boleto.</div>
+          </span>
+        </a>
+        <a href="/admin/agendamentos-servicos/caixa" class="admin-financas__quick-link">
+          <span class="admin-financas__quick-icon"><i class="bi bi-cash-coin"></i></span>
+          <span>
+            <div class="admin-financas__quick-title">Caixa de serviços</div>
+            <div class="admin-financas__quick-desc">Recebimentos presenciais pendentes de serviços.</div>
+          </span>
+        </a>
       </div>
     </div>
+  </section>
 
-    <div class="col-md-4">
-      <a
-        class="card text-decoration-none text-dark h-100 border-primary"
-        href="/admin/financas/pedidos"
-      >
-        <div class="card-body">
-          <div class="text-muted small">Pedidos / Transações</div>
-          <div style="font-weight: 700; font-size: 1.1rem;">Gerenciar pagamentos</div>
-          <div class="text-muted small mt-1">Tabela + Tela cheia + ações</div>
+  <div class="row g-3 mb-4">
+    <div class="col-lg-5">
+      <section class="admin-catalog__panel h-100">
+        <div class="admin-catalog__panel-head">
+          <h3 class="admin-catalog__panel-title"><i class="bi bi-wallet2 me-2"></i>Receita por método</h3>
         </div>
-      </a>
+        <div class="admin-catalog__panel-body pt-2 pb-3">
+          <% methodRows.forEach(function(m) { var p = pct(m.value, totalRevByMethod); %>
+            <div class="admin-financas__method-row">
+              <span class="fw-semibold small"><%= m.key %></span>
+              <div class="admin-financas__method-bar-wrap" aria-hidden="true"><div class="admin-financas__method-bar" style="width:<%= p %>%; background:<%= m.color %>;"></div></div>
+              <span class="small fw-semibold text-nowrap">R$ <%= fmtMoney(m.value) %></span>
+            </div>
+          <% }) %>
+          <% if (summaryData.revenue_paid_orders != null || summaryData.revenue_paid_services != null) { %>
+          <div class="mt-3 pt-2 border-top small text-muted">
+            Loja: <strong>R$ <%= fmtMoney(summaryData.revenue_paid_orders) %></strong> ·
+            Serviços: <strong>R$ <%= fmtMoney(summaryData.revenue_paid_services) %></strong>
+          </div>
+          <% } %>
+        </div>
+      </section>
     </div>
-    <div class="col-md-4">
-      <a
-        class="card text-decoration-none text-dark h-100 border-primary"
-        href="/admin/financas/relatorios"
-      >
-        <div class="card-body">
-          <div class="text-muted small">Relatórios</div>
-          <div style="font-weight: 700; font-size: 1.1rem;">Receitas e Top vendidos</div>
-          <div class="text-muted small mt-1">Por método, por dia, e mais vendidos</div>
+    <div class="col-lg-7">
+      <section class="admin-catalog__panel admin-catalog__panel--table h-100">
+        <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+          <h3 class="admin-catalog__panel-title"><i class="bi bi-calendar-week me-2"></i>Receita por dia</h3>
+          <span class="admin-catalog__panel-meta"><%= revByDayList.length %> dia(s)</span>
         </div>
-      </a>
+        <div class="table-responsive">
+          <table class="table table-custom align-middle mb-0">
+            <thead>
+              <tr><th>Dia</th><th>Pedidos</th><th class="text-end">Receita</th></tr>
+            </thead>
+            <tbody>
+              <% if (revByDayList.length) { revByDayList.forEach(function(r) { %>
+                <tr>
+                  <td><%= r.day || '—' %></td>
+                  <td><%= r.orders_count || 0 %></td>
+                  <td class="text-end fw-semibold">R$ <%= fmtMoney(r.revenue) %></td>
+                </tr>
+              <% }) } else { %>
+                <tr><td colspan="3" class="text-muted py-4 text-center">Sem movimentação no período selecionado.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
-    <div class="col-md-4">
-      <a
-        class="card text-decoration-none text-dark h-100 border-primary"
-        href="/admin/financas/recibos"
-      >
-        <div class="card-body">
-          <div class="text-muted small">Recibos</div>
-          <div style="font-weight: 700; font-size: 1.1rem;">Últimas operações pagas</div>
-          <div class="text-muted small mt-1">Detalhes Pix/Boleto</div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-5">
+      <section class="admin-catalog__panel admin-catalog__panel--table h-100">
+        <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+          <h3 class="admin-catalog__panel-title"><i class="bi bi-trophy me-2"></i>Top produtos (pagos)</h3>
+          <a href="/admin/financas/relatorios?report=products" class="btn btn-outline-primary btn-sm">Ver relatório</a>
         </div>
-      </a>
+        <div class="table-responsive">
+          <table class="table table-custom align-middle mb-0">
+            <thead><tr><th>Produto</th><th>Qtd</th><th class="text-end">Receita</th></tr></thead>
+            <tbody>
+              <% if (topSold.length) { topSold.forEach(function(p) { %>
+                <tr>
+                  <td>
+                    <div class="fw-semibold"><%= p.product_name || '—' %></div>
+                    <div class="text-muted small"><%= p.sku || '' %></div>
+                  </td>
+                  <td><%= p.qty_sold || 0 %></td>
+                  <td class="text-end fw-semibold">R$ <%= fmtMoney(p.revenue) %></td>
+                </tr>
+              <% }) } else { %>
+                <tr><td colspan="3" class="text-muted py-4 text-center">Sem vendas pagas no período.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-7">
+      <section class="admin-catalog__panel admin-catalog__panel--table h-100">
+        <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+          <h3 class="admin-catalog__panel-title"><i class="bi bi-clock-history me-2"></i>Últimas operações pagas</h3>
+          <div class="admin-catalog__panel-actions">
+            <span class="admin-catalog__panel-meta"><%= receiptsList.length %> exibido(s)</span>
+            <a href="/admin/financas/recibos" class="btn btn-outline-primary btn-sm">Ver todos</a>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-custom align-middle mb-0">
+            <thead>
+              <tr><th>Pedido</th><th>Cliente</th><th>Método</th><th class="text-end">Valor</th></tr>
+            </thead>
+            <tbody>
+              <% if (receiptsList.length) { receiptsList.forEach(function(r) {
+                var methodKey = String(r.payment_method || '').toUpperCase();
+                var methodLabel = PAY_LABELS[methodKey] || methodKey || '—';
+              %>
+                <tr>
+                  <td>
+                    <span class="fw-semibold">#<%= r.order_id %></span>
+                    <div class="text-muted small"><%= fmtDate(r.created_at) %></div>
+                  </td>
+                  <td><%= r.full_name || '—' %></td>
+                  <td><span class="admin-catalog__badge admin-catalog__badge--info"><%= methodLabel %></span></td>
+                  <td class="text-end fw-semibold">R$ <%= fmtMoney(r.total) %></td>
+                </tr>
+              <% }) } else { %>
+                <tr><td colspan="4" class="text-muted py-4 text-center">Nenhum recibo recente no período.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -158,9 +330,11 @@
   (function () {
     if (!window.Chart) return;
 
-    var numberPtBr = function (v) {
+    var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim() || '#2E5C5C';
+
+    function numberPtBr(v) {
       return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+    }
 
     var statusCtx = document.getElementById('ordersStatusChart');
     if (statusCtx) {
@@ -184,8 +358,8 @@
                 label: function (ctx) {
                   var total = <%= totalOrders %> || 0;
                   var value = Number(ctx.raw || 0);
-                  var pct = total ? ((value * 100) / total).toFixed(1) : '0.0';
-                  return ctx.label + ': ' + value + ' (' + pct + '%)';
+                  var p = total ? ((value * 100) / total).toFixed(1) : '0.0';
+                  return ctx.label + ': ' + value + ' (' + p + '%)';
                 }
               }
             }
@@ -200,12 +374,12 @@
       new window.Chart(revCtx, {
         type: 'bar',
         data: {
-          labels: ['PIX', 'BOLETO', 'CARTÃO', 'DINHEIRO'],
+          labels: ['PIX', 'Boleto', 'Cartão', 'Dinheiro'],
           datasets: [{
             label: 'Receita (R$)',
             data: [<%= pixRev %>, <%= boletoRev %>, <%= cardRev %>, <%= cashRev %>],
-            backgroundColor: ['#0d6efd', '#6c757d', '#0dcaf0', '#198754'],
-            borderRadius: 6,
+            backgroundColor: [accent, '#6c757d', '#0dcaf0', '#198754'],
+            borderRadius: 8,
             borderSkipped: false,
           }]
         },
@@ -217,19 +391,13 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: function (ctx) {
-                  return 'R$ ' + numberPtBr(ctx.raw);
-                }
+                label: function (ctx) { return 'R$ ' + numberPtBr(ctx.raw); }
               }
             }
           },
           scales: {
             x: {
-              ticks: {
-                callback: function (value) {
-                  return 'R$ ' + numberPtBr(value);
-                }
-              },
+              ticks: { callback: function (v) { return 'R$ ' + numberPtBr(v); } },
               grid: { color: 'rgba(0,0,0,0.06)' }
             },
             y: { grid: { display: false } }
@@ -241,4 +409,3 @@
 </script>
 
 <%- include('partials/footer') %>
-

@@ -1,122 +1,539 @@
 <%- include('partials/header') %>
 
-<div class="container">
+<div class="container admin-catalog admin-financas admin-relatorios">
+  <%- include('partials/financas-nav') %>
+
   <%
-    function toLocaleString(v) {
-      const n = Number(v || 0);
-      return n.toFixed(2).replace('.', ',');
+    function fmtMoney(v) {
+      return Number(v || 0).toFixed(2).replace('.', ',');
     }
+    function safeLocal(name, fallback) {
+      try { return eval(name); } catch (e) { return fallback; }
+    }
+    const meta = safeLocal('reportMeta', null) || { title: 'Relatório', subtitle: '', icon: 'bi-file-earmark-bar-graph', color: 'primary' };
+    const metaAll = safeLocal('reportMetaAll', null) || {
+      overview: { id: 'overview', title: 'Panorama geral', icon: 'bi-speedometer2', color: 'primary' },
+      products: { id: 'products', title: 'Desempenho de produtos', icon: 'bi-box-seam', color: 'info' },
+      sales: { id: 'sales', title: 'Vendas e pedidos', icon: 'bi-bag-check', color: 'success' },
+      customers: { id: 'customers', title: 'Carteira de clientes', icon: 'bi-people', color: 'warning' },
+      services: { id: 'services', title: 'Serviços de saúde', icon: 'bi-heart-pulse', color: 'danger' }
+    };
+    const filterDesc = safeLocal('filterDescription', '') || '';
+    const csvUrl = safeLocal('exportCsvUrl', null) || '/admin/financas/relatorios/export.csv';
+    const printUrl = safeLocal('exportPrintUrl', null) || '/admin/financas/relatorios/imprimir';
+    function tabHref(reportId) {
+      const p = new URLSearchParams();
+      Object.keys(filters || {}).forEach(function(k) {
+        const v = filters[k];
+        if (v !== '' && v != null && k !== 'report') p.set(k, String(v));
+      });
+      p.set('report', reportId);
+      return '?' + p.toString();
+    }
+    const rep = (filters && filters.report) ? filters.report : 'overview';
+    const summaryData = safeLocal('summary', null) || {};
+    const rowCount = rep === 'products' ? (productReport || []).length
+      : rep === 'sales' ? (salesReport || []).length
+      : rep === 'customers' ? (customerReport || []).length
+      : rep === 'services' ? (serviceReport || []).length
+      : (revenueByDay || []).length;
   %>
 
-  <div class="list-header">
+  <div class="admin-relatorios__hero">
     <div>
-      <h2 class="neo-heading">Finanças - Relatórios</h2>
-      <p class="text-muted mb-0">Receita por método, por dia e produtos mais vendidos (loja + serviços).</p>
+      <h2 class="neo-heading mb-1">Relatórios gerenciais</h2>
+      <p class="text-muted mb-0">Análises detalhadas de produtos, vendas, clientes e serviços — com filtros avançados e exportação profissional.</p>
     </div>
+    <div class="admin-relatorios__export-bar">
+      <a href="<%= csvUrl %>" class="btn btn-outline-success btn-sm" title="Exportar planilha CSV">
+        <i class="bi bi-filetype-csv me-1"></i> Exportar CSV
+      </a>
+      <a href="<%= printUrl %>&autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-danger btn-sm" title="Abrir versão para PDF com logo NeoFarma">
+        <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+      </a>
+      <a href="<%= printUrl %>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-printer me-1"></i> Visualizar impressão
+      </a>
+    </div>
+  </div>
 
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <form
-        id="finReportsFilterForm"
-        method="GET"
-        action="/admin/financas/relatorios"
-        class="d-flex flex-wrap gap-2 align-items-center"
-      >
-        <input type="date" class="form-control form-control-sm" name="from" value="<%= filters && filters.from ? filters.from : '' %>">
-        <input type="date" class="form-control form-control-sm" name="to" value="<%= filters && filters.to ? filters.to : '' %>">
-        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+  <nav class="admin-relatorios__tabs" aria-label="Tipos de relatório">
+    <% Object.keys(metaAll || {}).forEach(function(key) {
+      const m = metaAll[key];
+      const active = rep === key;
+    %>
+      <a href="<%= tabHref(key) %>" class="admin-relatorios__tab admin-relatorios__tab--<%= m.color %><%= active ? ' is-active' : '' %>">
+        <i class="bi <%= m.icon %>"></i>
+        <span><%= m.title %></span>
+      </a>
+    <% }) %>
+  </nav>
+
+  <div class="admin-relatorios__active-head admin-relatorios__active-head--<%= meta.color || 'primary' %>">
+    <div class="admin-relatorios__active-icon"><i class="bi <%= meta.icon || 'bi-file-earmark-bar-graph' %>"></i></div>
+    <div>
+      <h3 class="admin-relatorios__active-title"><%= meta.title || 'Relatório' %></h3>
+      <p class="admin-relatorios__active-sub"><%= meta.subtitle || '' %></p>
+      <% if (filterDesc) { %><div class="admin-relatorios__active-filters"><i class="bi bi-funnel"></i> <%= filterDesc %></div><% } %>
+    </div>
+  </div>
+
+  <% if (summaryData && Object.keys(summaryData).length) { %>
+  <div class="row g-3 admin-catalog__stats mb-3">
+    <% if (rep === 'overview') { %>
+      <div class="col-6 col-md-3"><div class="admin-catalog__stat admin-catalog__stat--primary"><div class="admin-catalog__stat-icon"><i class="bi bi-currency-dollar"></i></div><div><div class="admin-catalog__stat-value admin-financas__stat-value--money">R$ <%= fmtMoney(summaryData.revenue_paid) %></div><div class="admin-catalog__stat-label">Receita paga</div></div></div></div>
+      <div class="col-6 col-md-3"><div class="admin-catalog__stat admin-catalog__stat--success"><div class="admin-catalog__stat-icon"><i class="bi bi-receipt"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.total_transactions || 0 %></div><div class="admin-catalog__stat-label">Transações</div></div></div></div>
+      <div class="col-6 col-md-3"><div class="admin-catalog__stat admin-catalog__stat--warning"><div class="admin-catalog__stat-icon"><i class="bi bi-hourglass-split"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.pending_count || 0 %></div><div class="admin-catalog__stat-label">Pendentes</div></div></div></div>
+      <div class="col-6 col-md-3"><div class="admin-catalog__stat admin-catalog__stat--danger"><div class="admin-catalog__stat-icon"><i class="bi bi-x-circle"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.failed_count || 0 %></div><div class="admin-catalog__stat-label">Falhas</div></div></div></div>
+    <% } else if (rep === 'products') { %>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--info"><div class="admin-catalog__stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.count || 0 %></div><div class="admin-catalog__stat-label">Produtos no relatório</div></div></div></div>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--success"><div class="admin-catalog__stat-icon"><i class="bi bi-cart-check"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.total_qty || 0 %></div><div class="admin-catalog__stat-label">Unidades vendidas</div></div></div></div>
+      <div class="col-12 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--primary"><div class="admin-catalog__stat-icon"><i class="bi bi-graph-up-arrow"></i></div><div><div class="admin-catalog__stat-value admin-financas__stat-value--money">R$ <%= fmtMoney(summaryData.total_revenue) %></div><div class="admin-catalog__stat-label">Receita agregada</div></div></div></div>
+    <% } else if (rep === 'sales') { %>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--success"><div class="admin-catalog__stat-icon"><i class="bi bi-list-ul"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.count || 0 %></div><div class="admin-catalog__stat-label">Linhas de venda</div></div></div></div>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--info"><div class="admin-catalog__stat-icon"><i class="bi bi-bag"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.orders || 0 %></div><div class="admin-catalog__stat-label">Pedidos distintos</div></div></div></div>
+      <div class="col-12 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--primary"><div class="admin-catalog__stat-icon"><i class="bi bi-cash-stack"></i></div><div><div class="admin-catalog__stat-value admin-financas__stat-value--money">R$ <%= fmtMoney(summaryData.total_value) %></div><div class="admin-catalog__stat-label">Valor total</div></div></div></div>
+    <% } else if (rep === 'customers') { %>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--warning"><div class="admin-catalog__stat-icon"><i class="bi bi-people"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.count || 0 %></div><div class="admin-catalog__stat-label">Clientes listados</div></div></div></div>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--danger"><div class="admin-catalog__stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.delinquent || 0 %></div><div class="admin-catalog__stat-label">Com pendências</div></div></div></div>
+      <div class="col-12 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--primary"><div class="admin-catalog__stat-icon"><i class="bi bi-wallet2"></i></div><div><div class="admin-catalog__stat-value admin-financas__stat-value--money">R$ <%= fmtMoney(summaryData.total_spent) %></div><div class="admin-catalog__stat-label">Gasto acumulado</div></div></div></div>
+    <% } else if (rep === 'services') { %>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--danger"><div class="admin-catalog__stat-icon"><i class="bi bi-heart-pulse"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.count || 0 %></div><div class="admin-catalog__stat-label">Agendamentos</div></div></div></div>
+      <div class="col-6 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--success"><div class="admin-catalog__stat-icon"><i class="bi bi-check2-circle"></i></div><div><div class="admin-catalog__stat-value"><%= summaryData.paid || 0 %></div><div class="admin-catalog__stat-label">Pagos</div></div></div></div>
+      <div class="col-12 col-md-4"><div class="admin-catalog__stat admin-catalog__stat--primary"><div class="admin-catalog__stat-icon"><i class="bi bi-currency-dollar"></i></div><div><div class="admin-catalog__stat-value admin-financas__stat-value--money">R$ <%= fmtMoney(summaryData.total_amount) %></div><div class="admin-catalog__stat-label">Receita de serviços</div></div></div></div>
+    <% } %>
+  </div>
+  <% } %>
+
+  <!-- Filtros -->
+  <section class="admin-catalog__panel mb-3">
+    <div class="admin-catalog__panel-head">
+      <h3 class="admin-catalog__panel-title"><i class="bi bi-sliders me-1"></i> Filtros e parâmetros</h3>
+    </div>
+    <div class="admin-catalog__panel-body">
+      <% if (rep === 'overview') { %>
+      <form method="GET" action="/admin/financas/relatorios" id="reportFiltersForm" class="admin-relatorios__form">
+        <input type="hidden" name="report" value="overview">
+        <div class="admin-relatorios__period-chips mb-3">
+          <span class="text-muted small me-2">Período rápido:</span>
+          <button type="button" class="admin-catalog__chip" data-days="7">7 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="30">30 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="90">90 dias</button>
+        </div>
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label">Data inicial</label><input type="date" class="form-control" name="from" value="<%= filters.from || '' %>"></div>
+          <div class="col-md-3"><label class="form-label">Data final</label><input type="date" class="form-control" name="to" value="<%= filters.to || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Ou últimos (dias)</label><input type="number" min="1" max="365" class="form-control" name="days" value="<%= filters.days || 30 %>" placeholder="30"></div>
+          <div class="col-md-4 admin-catalog__filter-actions">
+            <button type="submit" class="btn btn-save"><i class="bi bi-search me-1"></i> Aplicar filtros</button>
+            <a href="/admin/financas/relatorios?report=overview" class="btn btn-outline-secondary">Limpar</a>
+          </div>
+        </div>
       </form>
-    </div>
-  </div>
+      <% } %>
 
-  <div class="row g-3 mt-2">
-    <div class="col-md-4">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="text-muted small mb-2">Receita por método</div>
-          <div class="d-flex justify-content-between"><span>PIX</span><strong>R$ <%= revenueByMethod && revenueByMethod.PIX ? toLocaleString(revenueByMethod.PIX) : '0,00' %></strong></div>
-          <div class="d-flex justify-content-between mt-1"><span>BOLETO</span><strong>R$ <%= revenueByMethod && revenueByMethod.BOLETO ? toLocaleString(revenueByMethod.BOLETO) : '0,00' %></strong></div>
-          <div class="d-flex justify-content-between mt-1"><span>CARTÃO</span><strong>R$ <%= toLocaleString((revenueByMethod && revenueByMethod.CREDIT_CARD ? revenueByMethod.CREDIT_CARD : 0) + (revenueByMethod && revenueByMethod.DEBIT_CARD ? revenueByMethod.DEBIT_CARD : 0)) %></strong></div>
-          <div class="d-flex justify-content-between mt-1"><span>DINHEIRO</span><strong>R$ <%= revenueByMethod && revenueByMethod.CASH ? toLocaleString(revenueByMethod.CASH) : '0,00' %></strong></div>
+      <% if (rep === 'products') { %>
+      <form method="GET" action="/admin/financas/relatorios" id="reportFiltersForm" class="admin-relatorios__form">
+        <input type="hidden" name="report" value="products">
+        <div class="admin-relatorios__period-chips mb-3">
+          <span class="text-muted small me-2">Período rápido:</span>
+          <button type="button" class="admin-catalog__chip" data-days="30">30 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="90">90 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="180">180 dias</button>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-2"><label class="form-label">De</label><input type="date" class="form-control form-control-sm" name="from" value="<%= filters.from || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Até</label><input type="date" class="form-control form-control-sm" name="to" value="<%= filters.to || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Dias (sem datas)</label><input type="number" min="1" max="365" class="form-control form-control-sm" name="days" value="<%= filters.days || 90 %>"></div>
+          <div class="col-md-3"><label class="form-label">Busca (nome / SKU)</label><input type="search" class="form-control form-control-sm" name="search" value="<%= filters.search || '' %>" placeholder="Ex.: dipirona"></div>
+          <div class="col-md-3"><label class="form-label">Categoria</label>
+            <select class="form-select form-select-sm" name="category_id"><option value="">Todas</option><% (categories||[]).forEach(function(c){ %><option value="<%= c.id %>" <%= String(filters.category_id) === String(c.id) ? 'selected' : '' %>><%= c.name %></option><% }) %></select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Tipo de produto</label>
+            <select class="form-select form-select-sm" name="product_type_id"><option value="">Todos</option><% (productTypes||[]).forEach(function(t){ %><option value="<%= t.id %>" <%= String(filters.product_type_id) === String(t.id) ? 'selected' : '' %>><%= t.name %></option><% }) %></select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Laboratório</label>
+            <select class="form-select form-select-sm" name="lab_id"><option value="">Todos</option><% (labs||[]).forEach(function(l){ %><option value="<%= l.id %>" <%= String(filters.lab_id) === String(l.id) ? 'selected' : '' %>><%= l.name %></option><% }) %></select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Status produto</label>
+            <select class="form-select form-select-sm" name="product_status">
+              <option value="">Qualquer</option>
+              <option value="ACTIVE" <%= filters.product_status === 'ACTIVE' ? 'selected' : '' %>>Ativo</option>
+              <option value="INACTIVE" <%= filters.product_status === 'INACTIVE' ? 'selected' : '' %>>Inativo</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Qtd mín. vendida</label><input type="number" min="0" class="form-control form-control-sm" name="min_qty" value="<%= filters.min_qty || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Ordenação</label>
+            <select class="form-select form-select-sm" name="sort">
+              <option value="most" <%= filters.sort !== 'least' ? 'selected' : '' %>>Mais vendidos</option>
+              <option value="least" <%= filters.sort === 'least' ? 'selected' : '' %>>Menos vendidos</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Limite linhas</label>
+            <select class="form-select form-select-sm" name="limit">
+              <% [50,100,200,500].forEach(function(n){ %><option value="<%= n %>" <%= Number(filters.limit) === n ? 'selected' : '' %>><%= n %></option><% }) %>
+            </select>
+          </div>
+          <div class="col-12 admin-catalog__filter-actions">
+            <button type="submit" class="btn btn-save"><i class="bi bi-funnel me-1"></i> Gerar relatório</button>
+            <a href="/admin/financas/relatorios?report=products" class="btn btn-outline-secondary">Limpar filtros</a>
+          </div>
+        </div>
+      </form>
+      <% } %>
+
+      <% if (rep === 'sales') { %>
+      <form method="GET" action="/admin/financas/relatorios" id="reportFiltersForm" class="admin-relatorios__form">
+        <input type="hidden" name="report" value="sales">
+        <div class="admin-relatorios__period-chips mb-3">
+          <button type="button" class="admin-catalog__chip" data-days="7">7 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="30">30 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="90">90 dias</button>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-2"><label class="form-label">De</label><input type="date" class="form-control form-control-sm" name="from" value="<%= filters.from || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Até</label><input type="date" class="form-control form-control-sm" name="to" value="<%= filters.to || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Dias</label><input type="number" min="1" class="form-control form-control-sm" name="days" value="<%= filters.days || 30 %>"></div>
+          <div class="col-md-3"><label class="form-label">Busca livre</label><input type="search" class="form-control form-control-sm" name="search" value="<%= filters.search || '' %>" placeholder="Cliente, produto ou nº pedido"></div>
+          <div class="col-md-3"><label class="form-label">Cliente</label>
+            <select class="form-select form-select-sm" name="customer_id"><option value="">Todos</option><% (customers||[]).forEach(function(c){ %><option value="<%= c.customer_id || c.id %>" <%= String(filters.customer_id) === String(c.customer_id || c.id) ? 'selected' : '' %>><%= c.full_name || c.nome %></option><% }) %></select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Produto</label>
+            <select class="form-select form-select-sm" name="product_id"><option value="">Todos</option><% (products||[]).forEach(function(p){ %><option value="<%= p.id %>" <%= String(filters.product_id) === String(p.id) ? 'selected' : '' %>><%= p.name %></option><% }) %></select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Categoria</label>
+            <select class="form-select form-select-sm" name="category_id"><option value="">Todas</option><% (categories||[]).forEach(function(c){ %><option value="<%= c.id %>" <%= String(filters.category_id) === String(c.id) ? 'selected' : '' %>><%= c.name %></option><% }) %></select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Pagamento</label>
+            <select class="form-select form-select-sm" name="payment_method">
+              <option value="">Todos</option>
+              <option value="PIX" <%= filters.payment_method === 'PIX' ? 'selected' : '' %>>PIX</option>
+              <option value="BOLETO" <%= filters.payment_method === 'BOLETO' ? 'selected' : '' %>>Boleto</option>
+              <option value="CREDIT_CARD" <%= filters.payment_method === 'CREDIT_CARD' ? 'selected' : '' %>>Cartão crédito</option>
+              <option value="DEBIT_CARD" <%= filters.payment_method === 'DEBIT_CARD' ? 'selected' : '' %>>Cartão débito</option>
+              <option value="CASH" <%= filters.payment_method === 'CASH' ? 'selected' : '' %>>Dinheiro</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Status pedido</label>
+            <select class="form-select form-select-sm" name="order_status">
+              <option value="">Todos</option>
+              <option value="PROCESSING" <%= filters.order_status === 'PROCESSING' ? 'selected' : '' %>>Processando</option>
+              <option value="SHIPPED" <%= filters.order_status === 'SHIPPED' ? 'selected' : '' %>>Enviado</option>
+              <option value="DELIVERED" <%= filters.order_status === 'DELIVERED' ? 'selected' : '' %>>Entregue</option>
+              <option value="CANCELLED" <%= filters.order_status === 'CANCELLED' ? 'selected' : '' %>>Cancelado</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Limite</label>
+            <select class="form-select form-select-sm" name="limit"><% [50,100,200,500].forEach(function(n){ %><option value="<%= n %>" <%= Number(filters.limit) === n ? 'selected' : '' %>><%= n %></option><% }) %></select>
+          </div>
+          <div class="col-12 admin-catalog__filter-actions">
+            <button type="submit" class="btn btn-save"><i class="bi bi-funnel me-1"></i> Gerar relatório</button>
+            <a href="/admin/financas/relatorios?report=sales" class="btn btn-outline-secondary">Limpar</a>
+          </div>
+        </div>
+      </form>
+      <% } %>
+
+      <% if (rep === 'customers') { %>
+      <form method="GET" action="/admin/financas/relatorios" id="reportFiltersForm" class="admin-relatorios__form">
+        <input type="hidden" name="report" value="customers">
+        <div class="row g-3">
+          <div class="col-md-3"><label class="form-label">Busca (nome, e-mail, doc.)</label><input type="search" class="form-control form-control-sm" name="search" value="<%= filters.search || '' %>"></div>
+          <div class="col-md-3"><label class="form-label">Nome contém</label><input class="form-control form-control-sm" name="name" value="<%= filters.name || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Tipo pessoa</label>
+            <select class="form-select form-select-sm" name="person_type">
+              <option value="">PF / PJ</option>
+              <option value="PF" <%= filters.person_type === 'PF' ? 'selected' : '' %>>Pessoa física</option>
+              <option value="PJ" <%= filters.person_type === 'PJ' ? 'selected' : '' %>>Pessoa jurídica</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Cidade</label><input class="form-control form-control-sm" name="city" value="<%= filters.city || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Gasto mínimo (R$)</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="min_spent" value="<%= filters.min_spent || '' %>"></div>
+          <div class="col-md-3"><label class="form-label">Inadimplência</label>
+            <select class="form-select form-select-sm" name="delinquent">
+              <option value="">Todos os clientes</option>
+              <option value="1" <%= filters.delinquent === '1' ? 'selected' : '' %>>Somente inadimplentes</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Limite</label>
+            <select class="form-select form-select-sm" name="limit"><% [50,100,200,500].forEach(function(n){ %><option value="<%= n %>" <%= Number(filters.limit) === n ? 'selected' : '' %>><%= n %></option><% }) %></select>
+          </div>
+          <div class="col-12 admin-catalog__filter-actions">
+            <button type="submit" class="btn btn-save"><i class="bi bi-funnel me-1"></i> Gerar relatório</button>
+            <a href="/admin/financas/relatorios?report=customers" class="btn btn-outline-secondary">Limpar</a>
+          </div>
+        </div>
+      </form>
+      <% } %>
+
+      <% if (rep === 'services') { %>
+      <form method="GET" action="/admin/financas/relatorios" id="reportFiltersForm" class="admin-relatorios__form">
+        <input type="hidden" name="report" value="services">
+        <div class="admin-relatorios__period-chips mb-3">
+          <button type="button" class="admin-catalog__chip" data-days="30">30 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="90">90 dias</button>
+          <button type="button" class="admin-catalog__chip" data-days="365">1 ano</button>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-2"><label class="form-label">De</label><input type="date" class="form-control form-control-sm" name="from" value="<%= filters.from || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Até</label><input type="date" class="form-control form-control-sm" name="to" value="<%= filters.to || '' %>"></div>
+          <div class="col-md-2"><label class="form-label">Dias</label><input type="number" min="1" class="form-control form-control-sm" name="days" value="<%= filters.days || 90 %>"></div>
+          <div class="col-md-3"><label class="form-label">Busca</label><input type="search" class="form-control form-control-sm" name="search" value="<%= filters.search || '' %>" placeholder="Cliente, serviço ou ID"></div>
+          <div class="col-md-3"><label class="form-label">Profissional</label>
+            <select class="form-select form-select-sm" name="professional_id"><option value="">Todos</option><% (professionals||[]).forEach(function(p){ %><option value="<%= p.id %>" <%= String(filters.professional_id) === String(p.id) ? 'selected' : '' %>><%= p.full_name %></option><% }) %></select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Serviço</label>
+            <select class="form-select form-select-sm" name="service_id"><option value="">Todos</option><% (services||[]).forEach(function(s){ %><option value="<%= s.id %>" <%= String(filters.service_id) === String(s.id) ? 'selected' : '' %>><%= s.name %></option><% }) %></select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Status agend.</label>
+            <select class="form-select form-select-sm" name="status_filter">
+              <option value="">Todos</option>
+              <option value="open" <%= filters.status_filter === 'open' ? 'selected' : '' %>>Em aberto</option>
+              <option value="completed" <%= filters.status_filter === 'completed' ? 'selected' : '' %>>Concluídos</option>
+              <option value="cancelled" <%= filters.status_filter === 'cancelled' ? 'selected' : '' %>>Cancelados</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Pagamento</label>
+            <select class="form-select form-select-sm" name="payment_status">
+              <option value="">Todos</option>
+              <option value="PAID" <%= filters.payment_status === 'PAID' ? 'selected' : '' %>>Pago</option>
+              <option value="PENDING" <%= filters.payment_status === 'PENDING' ? 'selected' : '' %>>Pendente</option>
+              <option value="FAILED" <%= filters.payment_status === 'FAILED' ? 'selected' : '' %>>Falhou</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Modalidade</label>
+            <select class="form-select form-select-sm" name="modality">
+              <option value="">Todas</option>
+              <option value="IN_PERSON" <%= filters.modality === 'IN_PERSON' ? 'selected' : '' %>>Presencial</option>
+              <option value="HOME_VISIT" <%= filters.modality === 'HOME_VISIT' ? 'selected' : '' %>>Domiciliar</option>
+              <option value="ONLINE" <%= filters.modality === 'ONLINE' ? 'selected' : '' %>>Online</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Canal</label>
+            <select class="form-select form-select-sm" name="channel">
+              <option value="">Todos</option>
+              <option value="ADMIN" <%= filters.channel === 'ADMIN' ? 'selected' : '' %>>Balcão / Admin</option>
+              <option value="CUSTOMER_ONLINE" <%= filters.channel === 'CUSTOMER_ONLINE' ? 'selected' : '' %>>Cliente online</option>
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Limite</label>
+            <select class="form-select form-select-sm" name="limit"><% [50,100,200,500].forEach(function(n){ %><option value="<%= n %>" <%= Number(filters.limit) === n ? 'selected' : '' %>><%= n %></option><% }) %></select>
+          </div>
+          <div class="col-12 admin-catalog__filter-actions">
+            <button type="submit" class="btn btn-save"><i class="bi bi-funnel me-1"></i> Gerar relatório</button>
+            <a href="/admin/financas/relatorios?report=services" class="btn btn-outline-secondary">Limpar</a>
+          </div>
+        </div>
+      </form>
+      <% } %>
+    </div>
+  </section>
+
+  <!-- Resultados -->
+  <section class="admin-catalog__panel admin-catalog__panel--table">
+    <div class="admin-catalog__panel-head admin-catalog__panel-head--table">
+      <h3 class="admin-catalog__panel-title">Resultados</h3>
+      <div class="admin-catalog__panel-actions">
+        <a href="<%= csvUrl %>" class="btn btn-outline-success btn-sm"><i class="bi bi-download me-1"></i> CSV</a>
+        <a href="<%= printUrl %>&autoprint=1" target="_blank" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</a>
+      </div>
+    </div>
+    <div class="admin-catalog__results-bar">
+      <span><strong><%= rowCount %></strong> registro(s) exibido(s)</span>
+      <span class="text-muted">Exportações respeitam os filtros aplicados</span>
+    </div>
+
+    <% if (rep === 'overview') { %>
+    <div class="row g-0">
+      <div class="col-lg-4 border-end">
+        <div class="p-3">
+          <h4 class="h6 text-muted mb-3">Receita por método</h4>
+          <% const methods = [
+            { key: 'PIX', label: 'PIX', color: '#0d9488' },
+            { key: 'BOLETO', label: 'Boleto', color: '#6366f1' },
+            { key: 'CREDIT_CARD', label: 'Cartão crédito', color: '#2563eb' },
+            { key: 'DEBIT_CARD', label: 'Cartão débito', color: '#0891b2' },
+            { key: 'CASH', label: 'Dinheiro', color: '#ca8a04' }
+          ];
+          const totalM = methods.reduce(function(a,m){ return a + Number(revenueByMethod && revenueByMethod[m.key] ? revenueByMethod[m.key] : 0); }, 0);
+          methods.forEach(function(m) {
+            const val = Number(revenueByMethod && revenueByMethod[m.key] ? revenueByMethod[m.key] : 0);
+            const pct = totalM > 0 ? Math.round(val / totalM * 100) : 0;
+          %>
+          <div class="admin-financas__method-row">
+            <span><%= m.label %></span>
+            <div class="admin-financas__method-bar-wrap"><div class="admin-financas__method-bar" style="width:<%= pct %>%;background:<%= m.color %>;"></div></div>
+            <strong>R$ <%= fmtMoney(val) %></strong>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="table-responsive">
+          <table class="table table-hover table-custom align-middle mb-0">
+            <thead><tr><th>Dia</th><th>Transações</th><th class="text-end">Receita</th></tr></thead>
+            <tbody>
+              <% if (revenueByDay && revenueByDay.length) { revenueByDay.forEach(function(r) { %>
+                <tr><td><%= r.day %></td><td><%= r.orders_count || 0 %></td><td class="text-end fw-semibold">R$ <%= fmtMoney(r.revenue) %></td></tr>
+              <% }) } else { %>
+                <tr><td colspan="3" class="text-muted text-center py-4">Sem dados no período</td></tr>
+              <% } %>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-
-    <div class="col-md-8">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="text-muted small mb-2">Receita por dia (pagos)</div>
-          <div class="table-responsive">
-            <table class="table table-hover table-custom align-middle">
-              <thead>
+    <div class="border-top">
+      <div class="p-3">
+        <h4 class="h6 text-muted mb-2">Produtos em destaque (pagos)</h4>
+        <div class="table-responsive">
+          <table class="table table-custom align-middle mb-0">
+            <thead><tr><th>#</th><th>Produto</th><th>SKU</th><th>Qtd vendida</th><th class="text-end">Receita</th></tr></thead>
+            <tbody>
+              <% if (mostSold && mostSold.length) { mostSold.forEach(function(p, i) { %>
                 <tr>
-                  <th>Dia</th>
-                  <th>Transações</th>
-                  <th class="text-end">Receita</th>
+                  <td><span class="admin-catalog__badge admin-catalog__badge--primary"><%= i + 1 %></span></td>
+                  <td><%= p.product_name %></td>
+                  <td class="text-muted"><%= p.sku || '—' %></td>
+                  <td><%= p.qty_sold %></td>
+                  <td class="text-end">R$ <%= fmtMoney(p.revenue) %></td>
                 </tr>
-              </thead>
-              <tbody>
-                <% if (revenueByDay && revenueByDay.length) { %>
-                  <% revenueByDay.forEach(function(r) { %>
-                    <tr>
-                      <td><%= r.day || '-' %></td>
-                      <td><%= r.orders_count || 0 %></td>
-                      <td class="text-end">R$ <%= toLocaleString(r.revenue) %></td>
-                    </tr>
-                  <% }) %>
-                <% } else { %>
-                  <tr><td colspan="3" class="text-muted">Sem dados</td></tr>
-                <% } %>
-              </tbody>
-            </table>
-          </div>
+              <% }) } else { %>
+                <tr><td colspan="5" class="text-muted text-center py-3">Sem vendas no período</td></tr>
+              <% } %>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-  </div>
+    <% } %>
 
-  <div class="row g-3 mt-2">
-    <div class="col-lg-12">
-      <div class="card h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div>
-              <div class="text-muted small">Mais vendidos (pagos)</div>
-              <div style="font-weight: 700;">Top 10 produtos</div>
-            </div>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover table-custom align-middle">
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>Qtd</th>
-                  <th class="text-end">Receita</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% if (mostSold && mostSold.length) { %>
-                  <% mostSold.forEach(function(p) { %>
-                    <tr>
-                      <td>
-                        <div class="fw-bold"><%= p.product_name || '-' %></div>
-                        <div class="text-muted small"><%= p.sku || '' %></div>
-                      </td>
-                      <td><%= p.qty_sold || 0 %></td>
-                      <td class="text-end">R$ <%= toLocaleString(p.revenue) %></td>
-                    </tr>
-                  <% }) %>
-                <% } else { %>
-                  <tr><td colspan="3" class="text-muted">Sem dados</td></tr>
-                <% } %>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+    <% if (rep === 'products') { %>
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Produto</th><th>Tipo</th><th>Laboratório</th><th>Categorias</th><th>Status</th>
+            <th class="text-end">Preço unit.</th><th class="text-end">Qtd</th><th class="text-end">Receita</th><th class="text-end">Ticket médio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (productReport||[]).forEach(function(p){ %>
+            <tr>
+              <td><strong><%= p.product_name %></strong><div class="text-muted small"><%= p.sku %></div></td>
+              <td><%= p.type_name || '—' %></td>
+              <td><%= p.lab_name || '—' %></td>
+              <td><%= p.categories || '—' %></td>
+              <td><span class="admin-catalog__badge admin-catalog__badge--<%= p.product_status === 'ACTIVE' ? 'success' : 'muted' %>"><%= t('productStatus', p.product_status) %></span></td>
+              <td class="text-end">R$ <%= fmtMoney(p.unit_price) %></td>
+              <td class="text-end"><%= p.qty_sold %></td>
+              <td class="text-end fw-semibold">R$ <%= fmtMoney(p.revenue) %></td>
+              <td class="text-end">R$ <%= fmtMoney(p.avg_ticket) %></td>
+            </tr>
+          <% }) %>
+          <% if (!(productReport && productReport.length)) { %><tr><td colspan="9" class="admin-catalog__empty"><i class="bi bi-inbox main-icon"></i>Nenhum produto encontrado com os filtros atuais.</td></tr><% } %>
+        </tbody>
+      </table>
     </div>
-  </div>
+    <% } %>
+
+    <% if (rep === 'sales') { %>
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Pedido</th><th>Data</th><th>Cliente</th><th>Produto</th><th>Categoria</th>
+            <th class="text-end">Qtd</th><th class="text-end">Valor</th><th>Pagamento</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (salesReport||[]).forEach(function(r){ %>
+            <tr>
+              <td><a href="/admin/financas/pedidos" class="text-decoration-none">#<%= r.order_id %></a></td>
+              <td><%= fmtDateTime(r.created_at) %></td>
+              <td><%= r.customer_name %></td>
+              <td><%= r.product_name %><% if (r.sku) { %><div class="text-muted small"><%= r.sku %></div><% } %></td>
+              <td><%= r.category_name || '—' %></td>
+              <td class="text-end"><%= r.quantity %></td>
+              <td class="text-end fw-semibold">R$ <%= fmtMoney(r.line_total) %></td>
+              <td><span class="admin-catalog__badge admin-catalog__badge--info"><%= t('paymentMethod', r.payment_method) %></span></td>
+              <td><span class="admin-catalog__badge admin-catalog__badge--muted"><%= t('orderStatus', r.order_status) %></span></td>
+            </tr>
+          <% }) %>
+          <% if (!(salesReport && salesReport.length)) { %><tr><td colspan="9" class="admin-catalog__empty"><i class="bi bi-inbox main-icon"></i>Sem vendas para os filtros selecionados.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+    <% if (rep === 'customers') { %>
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Cliente</th><th>Documento</th><th>Tipo</th><th>Cidade</th><th>Contato</th>
+            <th class="text-end">Pedidos pagos</th><th class="text-end">Total gasto</th><th>Inadimplência</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (customerReport||[]).forEach(function(c){ %>
+            <tr>
+              <td><strong><%= c.full_name %></strong><div class="text-muted small"><%= c.email %></div></td>
+              <td><%= c.document || '—' %></td>
+              <td><span class="admin-catalog__badge admin-catalog__badge--<%= c.person_type === 'PJ' ? 'info' : 'primary' %>"><%= t('personType', c.person_type) %></span></td>
+              <td><%= c.city || '—' %></td>
+              <td><%= c.phone || '—' %></td>
+              <td class="text-end"><%= c.paid_orders %></td>
+              <td class="text-end fw-semibold">R$ <%= fmtMoney(c.total_spent) %></td>
+              <td>
+                <% if (Number(c.delinquent_flags) > 0) { %>
+                  <span class="admin-catalog__badge admin-catalog__badge--danger">Sim (<%= c.delinquent_flags %>)</span>
+                <% } else { %>
+                  <span class="admin-catalog__badge admin-catalog__badge--success">Não</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!(customerReport && customerReport.length)) { %><tr><td colspan="8" class="admin-catalog__empty"><i class="bi bi-inbox main-icon"></i>Nenhum cliente encontrado.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+    <% if (rep === 'services') { %>
+    <div class="table-responsive">
+      <table class="table table-hover table-custom align-middle mb-0">
+        <thead>
+          <tr>
+            <th>#</th><th>Agendamento</th><th>Serviço</th><th>Profissional</th><th>Cliente</th>
+            <th>Modalidade</th><th>Canal</th><th>Status</th><th>Pagamento</th><th class="text-end">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (serviceReport||[]).forEach(function(s){ %>
+            <tr>
+              <td><%= s.id %></td>
+              <td><%= fmtDateTime(s.scheduled_start) %></td>
+              <td><%= s.service_name %></td>
+              <td><%= s.professional_name || '—' %></td>
+              <td><%= s.customer_name || '—' %><% if (s.customer_email) { %><div class="text-muted small"><%= s.customer_email %></div><% } %></td>
+              <td><%= t('modality', s.modality) %></td>
+              <td><%= t('bookingChannel', s.booking_channel) %></td>
+              <td><span class="admin-catalog__badge admin-catalog__badge--muted"><%= t('appointmentStatus', s.status) %></span></td>
+              <td>
+                <span class="admin-catalog__badge admin-catalog__badge--<%= s.payment_status === 'PAID' ? 'success' : (s.payment_status === 'FAILED' ? 'danger' : 'warning') %>"><%= t('paymentStatus', s.payment_status) %></span>
+                <div class="text-muted small"><%= t('paymentMethod', s.payment_method) %></div>
+              </td>
+              <td class="text-end fw-semibold">R$ <%= fmtMoney(s.total_amount) %></td>
+            </tr>
+          <% }) %>
+          <% if (!(serviceReport && serviceReport.length)) { %><tr><td colspan="10" class="admin-catalog__empty"><i class="bi bi-inbox main-icon"></i>Sem agendamentos no período.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </section>
 </div>
 
+<script src="/assets/js/admin-financas-relatorios.js"></script>
 <%- include('partials/footer') %>
-

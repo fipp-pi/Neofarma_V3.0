@@ -1,337 +1,428 @@
 <%- include('partials/header') %>
-  <main class="main">
+<link href="/assets/css/storefront.css" rel="stylesheet">
+<%
+  var hc = typeof homeConfig !== 'undefined' ? homeConfig : {};
+  var tc = typeof themeConfig !== 'undefined' ? themeConfig : {};
+  var heroCfg = hc.hero || {};
+  var benefitsCfg = hc.benefits || {};
+  var carouselCfg = hc.promoCarousel || {};
+  var catCfg = hc.categories || {};
+  var bestCfg = hc.bestsellers || {};
+  var flashCfg = hc.flashOffer || {};
+  var newCfg = hc.newArrivals || {};
+  var svcCfg = hc.servicesCta || {};
+  var labCfg = hc.labHighlights || {};
+%>
+<% if (typeof sectionStylesCss !== 'undefined' && sectionStylesCss) { %>
+<style>
+  <% if (tc && Object.keys(tc).length) { %>
+  .storefront-home {
+    --accent-color: <%= tc.accentColor || '#2E5C5C' %>;
+    --heading-color: <%= tc.headingColor || '#2E5C5C' %>;
+    --default-color: <%= tc.defaultColor || '#5B8851' %>;
+    --surface-color: <%= tc.surfaceColor || '#ffffff' %>;
+    --sf-bg-muted: <%= tc.mutedBg || '#f6f6f6' %>;
+    --sf-badge-sale: <%= tc.badgeSaleColor || '#5B8851' %>;
+    --sf-badge-hot: <%= tc.badgeHotColor || '#2E5C5C' %>;
+    font-family: <%= tc.bodyFont || 'Roboto' %>, sans-serif;
+  }
+  .storefront-home .sf-hero__title,
+  .storefront-home .sf-section__head h2,
+  .storefront-home .sf-flash h2 {
+    font-family: <%= tc.titleFont || 'Montserrat' %>, sans-serif;
+  }
+  <% } %>
+  <%- sectionStylesCss %>
+</style>
+<% } else if (tc && Object.keys(tc).length) { %>
+<style>
+  .storefront-home {
+    --accent-color: <%= tc.accentColor || '#2E5C5C' %>;
+    --heading-color: <%= tc.headingColor || '#2E5C5C' %>;
+    --default-color: <%= tc.defaultColor || '#5B8851' %>;
+    --surface-color: <%= tc.surfaceColor || '#ffffff' %>;
+    --sf-bg-muted: <%= tc.mutedBg || '#f6f6f6' %>;
+    --sf-badge-sale: <%= tc.badgeSaleColor || '#5B8851' %>;
+    --sf-badge-hot: <%= tc.badgeHotColor || '#2E5C5C' %>;
+    font-family: <%= tc.bodyFont || 'Roboto' %>, sans-serif;
+  }
+  .storefront-home .sf-hero__title,
+  .storefront-home .sf-section__head h2,
+  .storefront-home .sf-flash h2 {
+    font-family: <%= tc.titleFont || 'Montserrat' %>, sans-serif;
+  }
+</style>
+<% } %>
 
-    <!-- Hero Section -->
-    <section id="hero" class="hero section">
+<main class="main">
 
-      <div class="hero-container">
-        <div class="hero-content">
-          <div class="content-wrapper" data-aos="fade-up" data-aos-delay="100">
-            <h1 class="hero-title">Saúde natural com ciência e confiança</h1>
-            <p class="hero-description">Conectando você ao bem-estar por meio de produtos naturais e tecnologia de ponta.</p>
-            <div class="hero-actions" data-aos="fade-up" data-aos-delay="200">
-                <a href="/" class="btn-primary">Compre Agora</a>
-                <a href="/category" class="btn-secondary">Ver Categorias</a>
-            </div>
-            <div class="features-list" data-aos="fade-up" data-aos-delay="300">
-              <div class="feature-item">
-                <i class="bi bi-truck"></i>
-                <span>Frete Grátis</span>
-              </div>
-              <div class="feature-item">
-                <i class="bi bi-award"></i>
-                <span>Garantia de Qualidade</span>
-              </div>
-              <div class="feature-item">
-                <i class="bi bi-headset"></i>
-                <span>24/7 Suporte</span>
-              </div>
-            </div>
+  <% if (heroCfg.enabled !== false) { %>
+  <!-- Hero -->
+  <section class="sf-hero section">
+    <div class="container">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-6" data-aos="fade-right">
+          <h1 class="sf-hero__title">
+            <%= heroCfg.title || 'Sua farmácia online com' %> <span><%= heroCfg.titleHighlight || 'cuidado de verdade' %></span>
+          </h1>
+          <p class="sf-hero__desc"><%= heroCfg.description || '' %></p>
+          <form class="sf-hero__search" action="/category" method="GET" role="search">
+            <input type="search" name="q" placeholder="<%= heroCfg.searchPlaceholder || 'Buscar produtos...' %>" autocomplete="off" aria-label="Buscar produtos">
+            <button type="submit"><i class="bi bi-search me-1"></i> <%= heroCfg.searchButton || 'Buscar' %></button>
+          </form>
+          <div class="sf-hero__trust">
+            <div class="sf-hero__trust-item"><i class="bi bi-truck"></i> Entrega em todo o Brasil</div>
+            <div class="sf-hero__trust-item"><i class="bi bi-shield-check"></i> Produtos originais</div>
+            <div class="sf-hero__trust-item"><i class="bi bi-heart-pulse"></i> Serviços de saúde</div>
           </div>
         </div>
-
-        <div class="hero-visuals">
-          <div class="product-showcase" data-aos="fade-left" data-aos-delay="200">
-            <% if (hero) { %>
-              <div class="product-card featured">
-                <img src="<%= hero.thumb_url || hero.image_url %>" alt="<%= hero.name %>" class="img-fluid">
-                <div class="product-badge"><%= hero.has_promo ? 'Em promoção' : 'Destaque' %></div>
-                <div class="product-info">
-                  <a href="/produtos/<%= hero.id %>"><h4><%= hero.name %></h4></a>
-                  <div class="price">
-                    <span class="sale-price">R$ <%= hero.promo_display || hero.price_display %></span>
-                    <% if (hero.has_promo) { %>
-                      <span class="original-price">R$ <%= hero.price_display %></span>
-                    <% } %>
-                  </div>
-                </div>
+        <div class="col-lg-6 sf-hero__visual" data-aos="fade-left" data-aos-delay="150">
+          <% if (typeof hero !== 'undefined' && hero) { %>
+          <div class="sf-hero__featured position-relative">
+            <span class="sf-hero__featured-badge"><%= hero.has_promo ? (heroCfg.badgeText || 'Oferta especial') : 'Destaque' %></span>
+            <a href="/produtos/<%= hero.id %>">
+              <img src="<%= hero.image_url %>" alt="<%= hero.name %>">
+            </a>
+            <div class="mt-3">
+              <span class="small text-muted d-block mb-1"><%= hero.lab_name || 'NeoFarma' %></span>
+              <h5 class="mb-1"><a href="/produtos/<%= hero.id %>" class="text-dark text-decoration-none"><%= hero.name %></a></h5>
+              <div class="d-flex align-items-baseline gap-2">
+                <% if (hero.has_promo) { %>
+                  <span class="sf-hero-price-old text-decoration-line-through small">R$ <%= hero.price_display %></span>
+                  <strong class="sf-hero-price fs-5">R$ <%= hero.promo_display %></strong>
+                <% } else { %>
+                  <strong class="sf-hero-price fs-5">R$ <%= hero.price_display %></strong>
+                <% } %>
               </div>
-            <% } %>
-
-            <div class="product-grid">
-              <% (heroMini || []).forEach((p, idx) => { %>
-                <div class="product-mini" data-aos="zoom-in" data-aos-delay="<%= 400 + (idx * 100) %>">
-                  <a href="/produtos/<%= p.id %>"><img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="img-fluid"></a>
-                  <span class="mini-price">R$ <%= p.promo_display || p.price_display %></span>
-                </div>
-              <% }) %>
             </div>
           </div>
-
-          <div class="floating-elements">
-            <div class="floating-icon cart" data-aos="fade-up" data-aos-delay="600">
-              <i class="bi bi-cart3"></i>
-              <span class="notification-dot" data-cart-count><%= typeof cartItemCount !== 'undefined' ? cartItemCount : 0 %></span>
-            </div>
-            <div class="floating-icon wishlist" data-aos="fade-up" data-aos-delay="700">
-              <i class="bi bi-heart"></i>
-            </div>
-            <div class="floating-icon search" data-aos="fade-up" data-aos-delay="800">
-              <i class="bi bi-search"></i>
-            </div>
+          <% if (heroMini && heroMini.length) { %>
+          <div class="sf-hero__mini-grid">
+            <% heroMini.forEach(function(m) { %>
+            <a href="/produtos/<%= m.id %>" class="sf-hero__mini text-decoration-none text-dark">
+              <img src="<%= m.thumb_url || m.image_url %>" alt="<%= m.name %>">
+              <span>R$ <%= m.promo_display || m.price_display %></span>
+            </a>
+            <% }) %>
           </div>
+          <% } %>
+          <% } %>
         </div>
       </div>
+    </div>
+  </section>
+  <% } %>
 
-    </section><!-- /Hero Section -->
-
-    <!-- Promo Cards Section -->
-    <section id="promo-cards" class="promo-cards section">
-      <div class="container" data-aos="fade-up" data-aos-delay="100">
-        <div class="row gy-4">
-
-          <div class="col-lg-6">
-            <div class="category-featured" data-aos="fade-right" data-aos-delay="200">
-              <div class="category-image">
-                <img src="<%= (featuredPromo && (featuredPromo.thumb_url || featuredPromo.image_url)) || '/assets/img/product/product-1.webp' %>" alt="<%= featuredPromo ? featuredPromo.name : 'Destaque NeoFarma' %>" class="img-fluid">
-              </div>
-              <div class="category-content">
-                <span class="category-tag"><%= featuredPromo && featuredPromo.has_promo ? 'Oferta da Semana' : 'Tendencias Atuais' %></span>
-                <h2><%= featuredPromo ? featuredPromo.name : 'Nova Linha Fitoterapica' %></h2>
-                <p>
-                  <% if (featuredPromo) { %>
-                    <%= (featuredPromo.description || 'Produto selecionado com foco em qualidade, seguranca e bem-estar para o dia a dia.').slice(0, 180) %>
-                  <% } else { %>
-                    Descubra nossos produtos naturais desenvolvidos para o bem-estar e qualidade de vida.
-                  <% } %>
-                </p>
-                <a href="<%= featuredPromo ? '/produtos/' + featuredPromo.id : '/produtos' %>" class="btn-shop">Explorar Produto <i class="bi bi-arrow-right"></i></a>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-6">
-
-            <div class="row gy-4">
-
-              <% (labHighlights || []).forEach((lab, idx) => { %>
-                <div class="col-xl-6">
-                  <div class="category-card cat-accessories" data-aos="fade-up" data-aos-delay="<%= 300 + (idx * 100) %>">
-                    <div class="category-image">
-                      <img src="<%= (lab.sample && (lab.sample.thumb_url || lab.sample.image_url)) || '/assets/img/product/product-1.webp' %>" alt="<%= lab.name %>" class="img-fluid">
-                    </div>
-                    <div class="category-content">
-                      <h4><%= lab.name %></h4>
-                      <p><%= lab.count %> produto<%= lab.count === 1 ? '' : 's' %></p>
-                      <a href="/produtos?lab=<%= encodeURIComponent(lab.name) %>" class="card-link">Compre Agora <i class="bi bi-arrow-right"></i></a>
-                    </div>
-                  </div>
-                </div>
-              <% }) %>
-
-            </div>
-          </div>
-
+  <% if (benefitsCfg.enabled !== false) { %>
+  <!-- Benefits -->
+  <section class="section pt-0 sf-section--benefits">
+    <div class="container">
+      <div class="sf-benefits" data-aos="fade-up">
+        <% (benefitsCfg.items || []).forEach(function(item) { %>
+        <div class="sf-benefit">
+          <i class="bi <%= item.icon || 'bi-check-circle' %>"></i>
+          <div><strong><%= item.title %></strong><span><%= item.text %></span></div>
         </div>
-
+        <% }) %>
       </div>
-    </section><!-- /Promo Cards Section -->
+    </div>
+  </section>
+  <% } %>
 
-    <!-- Best Sellers Section -->
-    <section id="best-sellers" class="best-sellers section">
+  <!-- Promo carousel -->
+  <% if (carouselCfg.enabled !== false && typeof emPromocao !== 'undefined' && emPromocao && emPromocao.length) { %>
+  <section class="sf-section sf-section--muted sf-section--promo-carousel">
+    <div class="container">
+      <div class="sf-section__head" data-aos="fade-up">
+        <div>
+          <h2><%= carouselCfg.title || 'Promoções imperdíveis' %></h2>
+          <p><%= carouselCfg.subtitle || '' %></p>
+        </div>
+        <a href="<%= carouselCfg.linkUrl || '/category?promo=1' %>" class="sf-section__link"><%= carouselCfg.linkText || 'Ver todas' %> <i class="bi bi-arrow-right"></i></a>
+      </div>
 
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2>Mais Vendidos</h2>
-        <p>Descubra os produtos mais procurados para o seu bem-estar</p>
-      </div><!-- End Section Title -->
-
-      <div class="container" data-aos="fade-up" data-aos-delay="100">
-
-        <div class="row g-5">
-          <% (maisVendidos || []).forEach((p) => { %>
-            <div class="col-lg-3 col-md-6">
-              <div class="product-item">
-                <div class="product-image">
-                  <% if (p.has_promo) { %>
-                    <div class="product-badge sale-badge">Promoção</div>
-                  <% } else { %>
-                    <div class="product-badge">POPULAR</div>
-                  <% } %>
-                  <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="img-fluid" loading="lazy">
-                  <div class="product-actions">
-                    <button class="action-btn wishlist-btn"><i class="bi bi-heart"></i></button>
-                    <button class="action-btn compare-btn"><i class="bi bi-arrow-left-right"></i></button>
-                    <button class="action-btn quickview-btn">
-                      <a href="<%= p.image_url %>" class="glightbox"><i class="bi bi-zoom-in"></i></a>
-                    </button>
+      <div class="swiper init-swiper sf-promo-swiper" data-aos="fade-up" data-aos-delay="100">
+        <script type="application/json" class="swiper-config">
+          {
+            "loop": true,
+            "speed": 700,
+            "autoplay": { "delay": 4500, "disableOnInteraction": false },
+            "slidesPerView": 1,
+            "spaceBetween": 20,
+            "pagination": { "el": ".sf-promo-pagination", "clickable": true },
+            "breakpoints": {
+              "768": { "slidesPerView": 2 },
+              "1200": { "slidesPerView": 3 }
+            }
+          }
+        </script>
+        <div class="swiper-wrapper">
+          <% emPromocao.forEach(function(p) { %>
+          <div class="swiper-slide">
+            <div class="sf-promo-slide">
+              <div class="sf-promo-slide__bg"></div>
+              <div class="sf-promo-slide__content">
+                <div class="sf-promo-slide__text">
+                  <span class="sf-promo-slide__tag"><%= p.lab_name || 'NeoFarma' %></span>
+                  <h3><%= p.name %></h3>
+                  <div class="sf-promo-slide__discount">-<%= p.discount_percent %>% <%= carouselCfg.badgeText || 'OFF' %></div>
+                  <div class="mt-2">
+                    <span class="text-decoration-line-through opacity-75 me-2">R$ <%= p.price_display %></span>
+                    <strong class="fs-4">R$ <%= p.promo_display %></strong>
                   </div>
-                  <button class="cart-btn">Adicionar ao Carrinho</button>
+                  <a href="/produtos/<%= p.id %>" class="sf-promo-slide__btn"><%= carouselCfg.buttonText || 'Comprar agora' %> <i class="bi bi-arrow-right"></i></a>
                 </div>
-                <div class="product-info">
-                  <div class="product-category"><%= p.laboratory_name || 'NeoFarma' %></div>
-                  <h4 class="product-name"><a href="/produtos/<%= p.id %>"><%= p.name %></a></h4>
-                  <div class="product-price">
-                    <% if (p.has_promo) { %>
-                      <span class="old-price">R$ <%= p.price_display %></span>
-                      <span class="current-price">R$ <%= p.promo_display %></span>
-                    <% } else { %>
-                      R$ <%= p.price_display %>
-                    <% } %>
-                  </div>
-                </div>
+                <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="sf-promo-slide__img">
               </div>
             </div>
+          </div>
           <% }) %>
         </div>
-
+        <div class="swiper-pagination sf-promo-pagination"></div>
       </div>
+    </div>
+  </section>
+  <% } %>
 
-    </section><!-- /Best Sellers Section -->
+  <!-- Categories -->
+  <% if (catCfg.enabled !== false && typeof categories !== 'undefined' && categories && categories.length) {
+    var catIcons = ['bi-capsule', 'bi-droplet', 'bi-heart-pulse', 'bi-bandaid', 'bi-emoji-smile', 'bi-flower1', 'bi-sun', 'bi-shield-plus'];
+  %>
+  <section class="sf-section sf-section--categories">
+    <div class="container">
+      <div class="sf-section__head" data-aos="fade-up">
+        <div>
+          <h2><%= catCfg.title || 'Compre por categoria' %></h2>
+          <p><%= catCfg.subtitle || '' %></p>
+        </div>
+        <a href="/category" class="sf-section__link"><%= catCfg.linkText || 'Ver catálogo completo' %> <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="sf-cat-grid" data-aos="fade-up" data-aos-delay="100">
+        <% categories.forEach(function(c, idx) { %>
+        <a href="/category?category=<%= c.id %>" class="sf-cat-tile">
+          <div class="sf-cat-tile__icon"><i class="bi <%= catIcons[idx % catIcons.length] %>"></i></div>
+          <div class="sf-cat-tile__name"><%= c.name %></div>
+          <div class="sf-cat-tile__count"><%= c.total %> produto<%= c.total === 1 ? '' : 's' %></div>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+  <% } %>
 
-    <!-- Cards Section -->
-    <section id="cards" class="cards section">
+  <!-- Best sellers -->
+  <% if (bestCfg.enabled !== false && typeof maisVendidos !== 'undefined' && maisVendidos && maisVendidos.length) { %>
+  <section class="sf-section sf-section--muted sf-section--bestsellers">
+    <div class="container">
+      <div class="sf-section__head" data-aos="fade-up">
+        <div>
+          <h2><%= bestCfg.title || 'Mais vendidos' %></h2>
+          <p><%= bestCfg.subtitle || '' %></p>
+        </div>
+        <a href="<%= bestCfg.linkUrl || '/category?sort=bestsellers' %>" class="sf-section__link"><%= bestCfg.linkText || 'Ver ranking' %> <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="row g-4">
+        <% maisVendidos.slice(0, 8).forEach(function(p, idx) { %>
+        <div class="col-6 col-md-4 col-lg-3" data-aos="fade-up" data-aos-delay="<%= (idx % 4) * 50 %>">
+          <%- include('partials/store-product-card', { p: p, showRank: idx < 3 ? idx + 1 : null }) %>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+  <% } %>
 
-      <div class="container" data-aos="fade-up" data-aos-delay="100">
-
-        <div class="row gy-4">
-          <div class="col-lg-4 col-md-6 mb-5 mb-md-0" data-aos="fade-up" data-aos-delay="200">
-            <div class="product-category">
-              <h3 class="category-title">
-                <i class="bi bi-fire"></i> Popular
-              </h3>
-              <div class="product-list">
-                <% (populares || []).forEach((p, idx) => { %>
-                  <div class="product-card">
-                    <div class="product-image">
-                      <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="img-fluid">
-                      <% if (idx === 0) { %><div class="product-badges"><span class="badge-new">Novidade</span></div><% } %>
-                    </div>
-                    <div class="product-info">
-                      <a href="/produtos/<%= p.id %>"><h4 class="product-name"><%= p.name %></h4></a>
-                      <div class="product-price"><span class="current-price">R$ <%= p.promo_display || p.price_display %></span></div>
-                    </div>
-                  </div>
-                <% }) %>
-              </div>
+  <!-- Flash offer + countdown -->
+  <% if (flashCfg.enabled !== false && typeof ofertas !== 'undefined' && ofertas && ofertas.length) { %>
+  <section class="sf-section sf-section--flash">
+    <div class="container">
+      <div class="sf-flash" data-aos="zoom-in">
+        <div class="sf-flash__inner">
+          <div>
+            <div class="sf-flash__label"><i class="bi bi-lightning-charge-fill"></i> <%= flashCfg.label || 'Oferta relâmpago' %></div>
+            <h2>
+              <% if (typeof topDiscount !== 'undefined' && topDiscount && topDiscount.discount_percent) { %>
+                <%= (flashCfg.titleWithDiscount || 'Até {discount}% de desconto esta semana').replace('{discount}', topDiscount.discount_percent) %>
+              <% } else { %>
+                <%= flashCfg.title || 'Promoções com tempo limitado' %>
+              <% } %>
+            </h2>
+            <p><%= flashCfg.description || '' %></p>
+            <div class="countdown d-flex flex-wrap" data-count="<%= (typeof flashOfferEnd !== 'undefined' && flashOfferEnd) ? flashOfferEnd : '2026/12/31' %>">
+              <div><h3 class="count-days">0</h3><h4>Dias</h4></div>
+              <div><h3 class="count-hours">0</h3><h4>Horas</h4></div>
+              <div><h3 class="count-minutes">0</h3><h4>Min</h4></div>
+              <div><h3 class="count-seconds">0</h3><h4>Seg</h4></div>
             </div>
+            <a href="<%= flashCfg.buttonUrl || '/category?promo=1&sort=discount' %>" class="btn sf-flash__btn-solid btn-sm mt-3 fw-semibold"><%= flashCfg.buttonText || 'Ver todas as ofertas' %></a>
           </div>
-
-          <div class="col-lg-4 col-md-6 mb-5 mb-md-0" data-aos="fade-up" data-aos-delay="300">
-            <div class="product-category">
-              <h3 class="category-title">
-                <i class="bi bi-award"></i> Mais Vendidos
-              </h3>
-              <div class="product-list">
-                <% (maisVendidos || []).slice(0, 3).forEach((p) => { %>
-                  <div class="product-card">
-                    <div class="product-image">
-                      <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="img-fluid">
-                      <% if (p.has_promo) { %><div class="product-badges"><span class="badge-sale">Oferta</span></div><% } %>
-                    </div>
-                    <div class="product-info">
-                      <a href="/produtos/<%= p.id %>"><h4 class="product-name"><%= p.name %></h4></a>
-                      <div class="product-price">
-                        <span class="current-price">R$ <%= p.promo_display || p.price_display %></span>
-                        <% if (p.has_promo) { %><span class="old-price">R$ <%= p.price_display %></span><% } %>
-                      </div>
-                    </div>
-                  </div>
-                <% }) %>
+          <div class="sf-flash__products">
+            <% ofertas.slice(0, 4).forEach(function(p) { %>
+            <a href="/produtos/<%= p.id %>" class="sf-flash__product">
+              <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>">
+              <div>
+                <h6><%= p.name.length > 42 ? p.name.slice(0, 42) + '…' : p.name %></h6>
+                <% if (p.has_promo) { %>
+                  <small class="text-decoration-line-through opacity-75">R$ <%= p.price_display %></small>
+                <% } %>
+                <div class="price">R$ <%= p.promo_display || p.price_display %></div>
               </div>
-            </div>
-          </div>
-
-          <div class="col-lg-4 col-md-6 mb-5 mb-md-0" data-aos="fade-up" data-aos-delay="400">
-            <div class="product-category">
-              <h3 class="category-title">
-                <i class="bi bi-star"></i> Novidades
-              </h3>
-              <div class="product-list">
-                <% (novidades || []).forEach((p) => { %>
-                  <div class="product-card">
-                    <div class="product-image">
-                      <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="img-fluid">
-                    </div>
-                    <div class="product-info">
-                      <a href="/produtos/<%= p.id %>"><h4 class="product-name"><%= p.name %></h4></a>
-                      <div class="product-price">
-                        <span class="current-price">R$ <%= p.promo_display || p.price_display %></span>
-                      </div>
-                    </div>
-                  </div>
-                <% }) %>
-              </div>
-            </div>
+            </a>
+            <% }) %>
           </div>
         </div>
-
       </div>
+    </div>
+  </section>
+  <% } %>
 
-    </section><!-- /Cards Section -->
-
-    <!-- Call To Action Section -->
-    <section id="call-to-action" class="call-to-action section">
-
-      <div class="container" data-aos="fade-up" data-aos-delay="100">
-
-        <div class="row">
-          <div class="col-lg-8 mx-auto">
-            <div class="main-content text-center" data-aos="zoom-in" data-aos-delay="200">
-              <div class="offer-badge" data-aos="fade-down" data-aos-delay="250">
-                <span class="limited-time">Tempo Limitado</span>
-                <span class="offer-text">50% OFF</span>
-              </div>
-
-              <h2 data-aos="fade-up" data-aos-delay="300">Promoção Flash Exclusiva</h2>
-
-              <p class="subtitle" data-aos="fade-up" data-aos-delay="350">Não perca a nossa maior promoção do ano. Produtos de qualidade premium a preços imbatíveis, válidos apenas pelas próximas 48 horas.</p>
-
-              <div class="countdown-wrapper" data-aos="fade-up" data-aos-delay="400">
-                <div class="countdown d-flex justify-content-center" data-count="2025/12/31">
-                  <div>
-                    <h3 class="count-days"></h3>
-                    <h4>Dias</h4>
-                  </div>
-                  <div>
-                    <h3 class="count-hours"></h3>
-                    <h4>Horas</h4>
-                  </div>
-                  <div>
-                    <h3 class="count-minutes"></h3>
-                    <h4>Minutos</h4>
-                  </div>
-                  <div>
-                    <h3 class="count-seconds"></h3>
-                    <h4>Segundos</h4>
-                  </div>
-                </div>
-              </div>
-
-              <div class="action-buttons" data-aos="fade-up" data-aos-delay="450">
-                <a href="#" class="btn-shop-now">Comprar Agora</a>
-                <a href="#" class="btn-view-deals">Ver todas as ofertas</a>
-              </div>
-            </div>
-          </div>
+  <!-- New arrivals swiper -->
+  <% if (newCfg.enabled !== false && typeof novidades !== 'undefined' && novidades && novidades.length) { %>
+  <section class="sf-section sf-section--muted sf-section--new-arrivals">
+    <div class="container">
+      <div class="sf-section__head" data-aos="fade-up">
+        <div>
+          <h2><%= newCfg.title || 'Novidades no catálogo' %></h2>
+          <p><%= newCfg.subtitle || '' %></p>
         </div>
-
-        <div class="row featured-products-row" data-aos="fade-up" data-aos-delay="500">
-          <% (ofertas || []).forEach((p, idx) => { %>
-            <div class="col-lg-3 col-md-6" data-aos="zoom-in" data-aos-delay="<%= 100 + (idx * 50) %>">
-              <div class="product-showcase">
-                <div class="product-image">
-                  <img src="<%= p.thumb_url || p.image_url %>" alt="<%= p.name %>" class="img-fluid">
-                  <% if (p.has_promo) { %><div class="discount-badge">Oferta</div><% } %>
-                </div>
-                <div class="product-details">
-                  <a href="/produtos/<%= p.id %>"><h6><%= p.name %></h6></a>
-                  <div class="price-section">
-                    <% if (p.has_promo) { %>
-                      <span class="original-price">R$ <%= p.price_display %></span>
-                    <% } %>
-                    <span class="sale-price">R$ <%= p.promo_display || p.price_display %></span>
-                  </div>
-                </div>
-              </div>
-            </div>
+      </div>
+      <div class="swiper init-swiper" data-aos="fade-up" data-aos-delay="100" style="padding-bottom: 40px;">
+        <script type="application/json" class="swiper-config">
+          {
+            "loop": false,
+            "speed": 500,
+            "slidesPerView": 2,
+            "spaceBetween": 16,
+            "navigation": { "nextEl": ".sf-novidades-next", "prevEl": ".sf-novidades-prev" },
+            "breakpoints": {
+              "576": { "slidesPerView": 2 },
+              "768": { "slidesPerView": 3 },
+              "992": { "slidesPerView": 4 }
+            }
+          }
+        </script>
+        <div class="swiper-wrapper">
+          <% novidades.forEach(function(p) { %>
+          <div class="swiper-slide">
+            <%- include('partials/store-product-card', { p: p }) %>
+          </div>
           <% }) %>
         </div>
-
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-outline-secondary btn-sm sf-novidades-prev"><i class="bi bi-chevron-left"></i></button>
+          <button type="button" class="btn btn-outline-secondary btn-sm sf-novidades-next"><i class="bi bi-chevron-right"></i></button>
+        </div>
       </div>
+    </div>
+  </section>
+  <% } %>
 
-    </section><!-- /Call To Action Section -->
+  <% if ((svcCfg.enabled !== false || labCfg.enabled !== false)) { %>
+  <!-- Serviços + Marcas -->
+  <section class="sf-section sf-section--services-labs">
+    <div class="container">
+      <% if (labCfg.enabled !== false && svcCfg.enabled === false && typeof labHighlights !== 'undefined' && labHighlights && labHighlights.length) { %>
+      <div class="sf-brands-showcase sf-brands-showcase--full sf-section--labs" data-aos="fade-up">
+        <div class="sf-brands-showcase__head">
+          <div>
+            <span class="sf-brands-showcase__eyebrow"><i class="bi bi-building"></i> Parceiros oficiais</span>
+            <h2><%= labCfg.title || 'Marcas em destaque' %></h2>
+            <p><%= labCfg.subtitle || 'Laboratórios e fabricantes com produtos originais na NeoFarma' %></p>
+          </div>
+          <a href="<%= labCfg.linkUrl || '/category' %>" class="sf-section__link d-none d-md-inline-flex"><%= labCfg.linkText || 'Ver todas as marcas' %> <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row g-4 sf-brands-grid">
+          <% labHighlights.forEach(function(lab, idx) { %>
+          <div class="col-md-6 col-xl-4" data-aos="fade-up" data-aos-delay="<%= (idx % 3) * 80 %>">
+            <%- include('partials/store-brand-card', { lab: lab, buttonText: labCfg.buttonText || 'Explorar marca' }) %>
+          </div>
+          <% }) %>
+        </div>
+        <div class="sf-brands-trust">
+          <div class="sf-brands-trust__item"><i class="bi bi-patch-check"></i> Produtos originais</div>
+          <div class="sf-brands-trust__item"><i class="bi bi-truck"></i> Entrega para todo o Brasil</div>
+          <div class="sf-brands-trust__item"><i class="bi bi-headset"></i> Suporte farmacêutico</div>
+        </div>
+        <div class="text-center mt-4 d-md-none">
+          <a href="<%= labCfg.linkUrl || '/category' %>" class="btn btn-outline-primary btn-sm"><%= labCfg.linkText || 'Ver todas as marcas' %></a>
+        </div>
+      </div>
+      <% } else { %>
+      <div class="row g-4 align-items-stretch">
+        <% if (svcCfg.enabled !== false) { %>
+        <div class="col-lg-7 sf-section--services" data-aos="fade-right">
+          <div class="sf-flash h-100 sf-flash--cta">
+            <div class="p-2">
+              <h2 class="mb-3"><%= svcCfg.title || 'Serviços de saúde' %></h2>
+              <p class="mb-4 opacity-90"><%= svcCfg.description || '' %></p>
+              <a href="<%= svcCfg.primaryUrl || '/account/agendamentos' %>" class="btn sf-flash__btn-solid fw-semibold me-2"><%= svcCfg.primaryButton || 'Agendar serviço' %></a>
+              <a href="<%= svcCfg.secondaryUrl || '/contact' %>" class="btn btn-outline-light sf-flash__btn-outline"><%= svcCfg.secondaryButton || 'Fale conosco' %></a>
+            </div>
+          </div>
+        </div>
+        <% } %>
+        <% if (labCfg.enabled !== false && typeof labHighlights !== 'undefined' && labHighlights && labHighlights.length) { %>
+        <div class="<%= svcCfg.enabled !== false ? 'col-lg-5' : 'col-12' %> sf-section--labs" data-aos="fade-left">
+          <div class="sf-brands-showcase sf-brands-showcase--side h-100">
+            <div class="sf-brands-showcase__head sf-brands-showcase__head--compact">
+              <div>
+                <span class="sf-brands-showcase__eyebrow"><i class="bi bi-building"></i> Marcas</span>
+                <h2 class="h4 mb-1"><%= labCfg.title || 'Marcas em destaque' %></h2>
+                <p class="small mb-0"><%= labCfg.subtitle || 'Parceiros com estoque disponível' %></p>
+              </div>
+            </div>
+            <div class="sf-brands-stack">
+              <% labHighlights.slice(0, svcCfg.enabled !== false ? 3 : labHighlights.length).forEach(function(lab, idx) { %>
+              <div data-aos="fade-up" data-aos-delay="<%= idx * 60 %>">
+                <%- include('partials/store-brand-card', { lab: lab, compact: true, buttonText: labCfg.buttonText || 'Ver produtos' }) %>
+              </div>
+              <% }) %>
+            </div>
+            <div class="sf-brands-showcase__footer">
+              <a href="<%= labCfg.linkUrl || '/category' %>" class="sf-brands-showcase__all"><%= labCfg.linkText || 'Ver todas as marcas' %> <i class="bi bi-arrow-right"></i></a>
+            </div>
+          </div>
+        </div>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </section>
+  <% } %>
 
-  </main>
+</main>
+
+<script>
+(function() {
+  document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
+    btn.addEventListener('click', async function(ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (btn.disabled) return;
+      var productId = Number(btn.getAttribute('data-id'));
+      try {
+        var resp = await fetch('/api/cart/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: productId, quantity: 1 })
+        });
+        var data = await resp.json();
+        if (data.ok) {
+          window.dispatchEvent(new Event('cart:changed'));
+          var icon = btn.querySelector('i');
+          if (icon) { icon.className = 'bi bi-check2'; }
+          setTimeout(function() {
+            if (icon) icon.className = 'bi bi-cart-plus';
+          }, 1200);
+        } else if (window.neofarmaToast) {
+          window.neofarmaToast(data.message || 'Erro ao adicionar.', 'danger');
+        }
+      } catch (e) {
+        if (window.neofarmaToast) window.neofarmaToast('Erro de conexão.', 'danger');
+      }
+    });
+  });
+})();
+</script>
 
 <%- include('partials/footer') %>

@@ -33,7 +33,7 @@
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Quando</div>
-            <div><strong><%= new Date(appointment.scheduled_start).toLocaleString('pt-BR') %></strong></div>
+            <div><strong><%= fmtDateTime(appointment.scheduled_start) %></strong></div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Total</div>
@@ -41,7 +41,7 @@
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Status</div>
-            <div><span class="badge bg-primary"><%= appointment.status %></span> <span class="badge <%= appointment.payment_status === 'PAID' ? 'bg-success' : (appointment.payment_status === 'FAILED' ? 'bg-danger' : 'bg-warning') %>"><%= appointment.payment_status %></span></div>
+            <div><span class="badge bg-primary"><%= t('appointmentStatus', appointment.status) %></span> <span class="badge <%= appointment.payment_status === 'PAID' ? 'bg-success' : (appointment.payment_status === 'FAILED' ? 'bg-danger' : 'bg-warning') %>"><%= t('paymentStatus', appointment.payment_status) %></span></div>
           </div>
         </div>
       </div>
@@ -55,7 +55,7 @@
               <option value="CREDIT_CARD" <%= String(appointment.payment_method || '').toUpperCase() === 'CREDIT_CARD' ? 'selected' : '' %>>Cartão de crédito</option>
               <option value="DEBIT_CARD" <%= String(appointment.payment_method || '').toUpperCase() === 'DEBIT_CARD' ? 'selected' : '' %>>Cartão de débito</option>
             </select>
-            <div class="small text-muted mt-1">Pagamento simulado: ao confirmar, o agendamento passa para <strong>PAID</strong> e aparece em Finanças.</div>
+            <div class="small text-muted mt-1">Pagamento simulado: ao confirmar, o agendamento passa para <strong>pago</strong> e aparece em Finanças.</div>
           </div>
           <div class="col-md-6 d-grid">
             <button type="button" class="btn btn-success" id="btnConfirmPay">Confirmar pagamento</button>
