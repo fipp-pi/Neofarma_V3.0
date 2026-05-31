@@ -103,7 +103,7 @@
 
           <div class="mb-3">
             <label for="disp_qty" class="form-label field-required">Quantidade</label>
-            <input type="number" min="1" class="form-control" id="disp_qty" placeholder="Informe a quantidade a descartar">
+            <input type="number" min="1" step="1" inputmode="numeric" class="form-control" id="disp_qty" placeholder="Informe a quantidade a descartar">
             <div class="invalid-feedback" id="disp_qty_error">Informe uma quantidade válida.</div>
           </div>
 
@@ -569,14 +569,17 @@
     var errors = {};
     var productId = document.getElementById('disp_product').value;
     var batchId = document.getElementById('disp_batch').value;
-    var qty = Number(document.getElementById('disp_qty').value);
+    var qtyRaw = document.getElementById('disp_qty').value;
+    var qtyParsed = window.NeoWholeUnits
+      ? NeoWholeUnits.parseWholeUnits(qtyRaw, { emptyMessage: 'Informe uma quantidade maior que zero.' })
+      : { ok: Number.isFinite(Number(qtyRaw)) && Number(qtyRaw) > 0, value: Number(qtyRaw), message: 'Informe uma quantidade maior que zero.' };
     var reason = document.getElementById('disp_reason').value.trim();
     var batch = dispBatchCache[batchId];
 
     if (!productId) errors.disp_product = 'Selecione o produto.';
     if (!batchId) errors.disp_batch = 'Selecione o lote.';
-    if (!Number.isFinite(qty) || qty <= 0) errors.disp_qty = 'Informe uma quantidade maior que zero.';
-    else if (batch && qty > Number(batch.quantity)) {
+    if (!qtyParsed.ok) errors.disp_qty = qtyParsed.message;
+    else if (batch && qtyParsed.value > Number(batch.quantity)) {
       errors.disp_qty = 'Quantidade superior ao saldo disponível (' + batch.quantity + ').';
     }
     if (!reason) errors.disp_reason = 'Informe o motivo do descarte.';

@@ -1200,15 +1200,70 @@ async function saveProduct(req, res, next) {
 }
 
 /**
+ * GET /admin/produtos/:id/exclusao — vínculos que impedem ou alertam sobre exclusão.
+ */
+async function getProductDeletionInfo(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ ok: false, message: 'ID inválido.' });
+    }
+    const info = await Product.getDeletionBlockers(id);
+    if (!info.exists) {
+      return res.status(404).json({ ok: false, message: 'Produto não encontrado.' });
+    }
+    return res.json({ ok: true, ...info });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * Remove produto pelo id.
  */
 async function deleteProduct(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ ok: false, message: 'ID inválido.' });
+    }
+
+    const info = await Product.getDeletionBlockers(id);
+    if (!info.exists) {
+      return res.status(404).json({ ok: false, message: 'Produto não encontrado.' });
+    }
+    if (!info.canDelete) {
+      return res.status(409).json({
+        ok: false,
+        code: 'PRODUCT_HAS_LINKS',
+        message: 'Não é possível excluir este produto porque existem vínculos ativos no sistema.',
+        product: info.product,
+        blockers: info.blockers,
+        recommendations: info.recommendations,
+      });
+    }
+
     const n = await Product.deleteById(id);
-    if (!n) return res.status(404).json({ ok: false, message: 'Não encontrado.' });
-    res.json({ ok: true, message: 'Produto removido.' });
+    if (!n) {
+      return res.status(404).json({ ok: false, message: 'Produto não encontrado.' });
+    }
+
+    return res.json({
+      ok: true,
+      message: `Produto "${info.product.name}" removido com sucesso.`,
+    });
   } catch (err) {
+    if (err && err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(409).json({
+        ok: false,
+        code: 'PRODUCT_HAS_LINKS',
+        message: 'Não é possível excluir este produto porque existem vínculos no sistema que não puderam ser verificados antecipadamente.',
+        recommendations: [
+          'Altere o status do produto para Inativo ou Descontinuado.',
+          'Se o problema persistir, contate o suporte técnico informando o código do produto.',
+        ],
+      });
+    }
     next(err);
   }
 }
@@ -1338,6 +1393,7 @@ module.exports = {
   listProducts,
   saveProduct,
   deleteProduct,
+  getProductDeletionInfo,
   getProductImages,
   addProductImage,
   uploadProductImage,

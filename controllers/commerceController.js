@@ -73,6 +73,9 @@ async function apiAddToCart(req, res, next) {
     const cart = await cartService.addItem(req.session, product_id, quantity || 1);
     res.json({ ok: true, cart });
   } catch (err) {
+    if (err.code === 'INVALID_QUANTITY') {
+      return res.status(400).json({ ok: false, message: err.message });
+    }
     next(err);
   }
 }
@@ -86,6 +89,9 @@ async function apiUpdateCartItem(req, res, next) {
     const cart = await cartService.updateItem(req.session, req.params.productId, quantity);
     res.json({ ok: true, cart });
   } catch (err) {
+    if (err.code === 'INVALID_QUANTITY') {
+      return res.status(400).json({ ok: false, message: err.message });
+    }
     next(err);
   }
 }
@@ -229,12 +235,36 @@ async function renderCheckout(req, res, next) {
     if (!cart.items.length) return res.redirect('/cart');
     const customer = await Customer.findByUserId(req.session.userId);
     const addresses = customer ? await Customer.getAddressesByCustomerId(customer.id) : [];
+    const defaultAddress = addresses.find((a) => a.is_default) || addresses[0] || null;
+    const sessionCep = cart.shipping && cart.shipping.cep ? formatZip(cart.shipping.cep) : '';
+    const profileCep = await getUserDefaultZip(req);
+    const initialShippingCep =
+      sessionCep ||
+      (defaultAddress ? formatZip(defaultAddress.zip_code) : '') ||
+      profileCep;
+    const addressBook = addresses.map((a) => ({
+      id: a.address_id,
+      label: a.label || 'Endereço',
+      zip: formatZip(a.zip_code) || String(a.zip_code || '').replace(/\D/g, ''),
+      street: a.street,
+      number: a.number,
+      complement: a.complement || '',
+      district: a.district || '',
+      city: a.city,
+      state: a.state,
+      is_default: !!a.is_default,
+    }));
+    const profile = await Customer.getProfileByUserId(req.session.userId);
     res.render('checkout', {
       title: 'Checkout - NeoFarma',
       bodyClass: 'checkout-page',
       activeNav: 'category',
       cart,
       addresses,
+      addressBook,
+      defaultAddressId: defaultAddress ? defaultAddress.address_id : null,
+      initialShippingCep,
+      customerFullName: profile ? profile.full_name : '',
       installmentPlans: buildInstallments(cart.total || 0),
     });
   } catch (err) {
@@ -249,7 +279,7 @@ async function renderCheckout(req, res, next) {
 async function finalizeCheckout(req, res, next) {
   const connection = await pool.getConnection();
   try {
-    const { address_id, payment_method, cep, shipping_service, card_number, installments } = req.body || {};
+    const { address_id, payment_method, cep, shipping_service, card_number, card_holder, card_expiry, card_cvv, installments } = req.body || {};
     const cart = await cartService.getCart(req.session);
     if (!cart.items.length) return res.status(400).json({ ok: false, message: 'Carrinho vazio.' });
 
@@ -345,6 +375,9 @@ async function finalizeCheckout(req, res, next) {
       boleto_due_date,
       amount: total,
       card_number,
+      card_holder,
+      card_expiry,
+      card_cvv,
       installments,
       total,
     });
@@ -366,6 +399,9 @@ async function finalizeCheckout(req, res, next) {
   } catch (err) {
     await connection.rollback();
     if (err.code === 'INSUFFICIENT_STOCK') return res.status(409).json({ ok: false, message: err.message });
+    if (['INVALID_CARD', 'INVALID_CARD_HOLDER', 'INVALID_CARD_EXPIRY', 'INVALID_CARD_CVV'].includes(err.code)) {
+      return res.status(400).json({ ok: false, message: err.message });
+    }
     next(err);
   } finally {
     connection.release();

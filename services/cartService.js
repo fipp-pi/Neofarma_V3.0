@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const ProductImage = require('../models/ProductImage');
 const { getValidStockMapByProductIds } = require('./inventoryService');
+const { parseWholeUnits, parseWholeUnitsOrThrow } = require('../utils/quantity');
 
 /**
  * Garante que a sessão tenha a estrutura do carrinho.
@@ -17,8 +18,8 @@ function ensureCart(session) {
  * Ajusta quantidade para um número válido (mínimo 1).
  */
 function normalizeQty(value) {
-  const qty = parseInt(value, 10);
-  return Number.isNaN(qty) || qty < 1 ? 1 : qty;
+  const parsed = parseWholeUnits(value, { min: 1 });
+  return parsed.ok ? parsed.value : 1;
 }
 
 /**
@@ -90,7 +91,7 @@ async function getCart(session) {
 async function addItem(session, productId, quantity) {
   const cart = ensureCart(session);
   const id = Number(productId);
-  const qty = normalizeQty(quantity);
+  const qty = parseWholeUnitsOrThrow(quantity || 1, { min: 1 });
   const existing = cart.items.find((i) => Number(i.productId) === id);
   if (existing) existing.quantity = normalizeQty(existing.quantity + qty);
   else cart.items.push({ productId: id, quantity: qty });
@@ -104,14 +105,17 @@ async function addItem(session, productId, quantity) {
 async function updateItem(session, productId, quantity) {
   const cart = ensureCart(session);
   const id = Number(productId);
-  const qty = parseInt(quantity, 10);
   const existing = cart.items.find((i) => Number(i.productId) === id);
   if (!existing) return getCart(session);
-  if (Number.isNaN(qty) || qty <= 0) {
+
+  const raw = String(quantity ?? '').trim();
+  if (raw === '' || raw === '0') {
     cart.items = cart.items.filter((i) => Number(i.productId) !== id);
-  } else {
-    existing.quantity = qty;
+    return getCart(session);
   }
+
+  const qty = parseWholeUnitsOrThrow(quantity, { min: 1 });
+  existing.quantity = qty;
   return getCart(session);
 }
 

@@ -275,6 +275,194 @@ async function findByIdsPreservingOrder(ids = []) {
 }
 
 /**
+ * Verifica vínculos que impedem ou alertam sobre a exclusão do produto.
+ */
+async function getDeletionBlockers(id) {
+  const productId = Number(id);
+  if (!Number.isFinite(productId) || productId <= 0) {
+    return { exists: false, product: null, blockers: [], warnings: [], canDelete: false };
+  }
+
+  const product = await findById(productId);
+  if (!product) {
+    return { exists: false, product: null, blockers: [], warnings: [], canDelete: false };
+  }
+
+  const [
+    [orderItemsRow],
+    [pendingRow],
+    [purchaseRow],
+    [disposalsRow],
+    [prescriptionsRow],
+    [batchesRow],
+    [imagesRow],
+  ] = await Promise.all([
+    pool.execute(
+      `SELECT COUNT(*) AS items, COUNT(DISTINCT order_id) AS refs
+       FROM order_items WHERE product_id = ?`,
+      [productId]
+    ),
+    pool.execute('SELECT COUNT(*) AS c FROM order_pending_items WHERE product_id = ?', [productId]),
+    pool.execute(
+      `SELECT COUNT(*) AS items, COUNT(DISTINCT purchase_order_id) AS refs
+       FROM purchase_order_items WHERE product_id = ?`,
+      [productId]
+    ),
+    pool.execute('SELECT COUNT(*) AS c FROM inventory_disposals WHERE product_id = ?', [productId]),
+    pool.execute('SELECT COUNT(*) AS c FROM prescription_items WHERE product_id = ?', [productId]),
+    pool.execute(
+      `SELECT COUNT(*) AS lots, COALESCE(SUM(quantity), 0) AS qty
+       FROM inventory_batches WHERE product_id = ?`,
+      [productId]
+    ),
+    pool.execute('SELECT COUNT(*) AS c FROM product_images WHERE product_id = ?', [productId]),
+  ]);
+
+  const blockers = [];
+  const warnings = [];
+
+  const salesItems = Number(orderItemsRow[0]?.items || 0);
+  const salesOrders = Number(orderItemsRow[0]?.refs || 0);
+  if (salesItems > 0) {
+    blockers.push({
+      code: 'sales_orders',
+      title: 'Pedidos de venda',
+      count: salesItems,
+      refs: salesOrders,
+      description: 'O produto consta em pedidos de clientes já registrados no sistema.',
+      detail: salesOrders === 1
+        ? '1 pedido de venda contém este produto.'
+        : `${salesOrders} pedidos de venda contêm este produto (${salesItems} item(ns)).`,
+    });
+  }
+
+  const pendingItems = Number(pendingRow[0]?.c || 0);
+  if (pendingItems > 0) {
+    blockers.push({
+      code: 'pending_orders',
+      title: 'Itens pendentes em pedidos',
+      count: pendingItems,
+      description: 'Há itens aguardando separação ou reposição de estoque em pedidos abertos.',
+      detail: pendingItems === 1
+        ? '1 item pendente vinculado a este produto.'
+        : `${pendingItems} itens pendentes vinculados a este produto.`,
+    });
+  }
+
+  const purchaseItems = Number(purchaseRow[0]?.items || 0);
+  const purchaseOrders = Number(purchaseRow[0]?.refs || 0);
+  if (purchaseItems > 0) {
+    blockers.push({
+      code: 'purchase_orders',
+      title: 'Pedidos de compra',
+      count: purchaseItems,
+      refs: purchaseOrders,
+      description: 'O produto foi incluído em ordens de compra com fornecedores.',
+      detail: purchaseOrders === 1
+        ? '1 pedido de compra referencia este produto.'
+        : `${purchaseOrders} pedidos de compra referenciam este produto (${purchaseItems} linha(s)).`,
+    });
+  }
+
+  const disposals = Number(disposalsRow[0]?.c || 0);
+  if (disposals > 0) {
+    blockers.push({
+      code: 'inventory_disposals',
+      title: 'Histórico de descartes',
+      count: disposals,
+      description: 'Existem registros de descarte de estoque vinculados a este produto.',
+      detail: disposals === 1
+        ? '1 descarte registrado no histórico.'
+        : `${disposals} descartes registrados no histórico.`,
+    });
+  }
+
+  const prescriptions = Number(prescriptionsRow[0]?.c || 0);
+  if (prescriptions > 0) {
+    blockers.push({
+      code: 'prescriptions',
+      title: 'Receitas médicas',
+      count: prescriptions,
+      description: 'O produto está associado a receitas cadastradas no sistema.',
+      detail: prescriptions === 1
+        ? '1 receita referencia este produto.'
+        : `${prescriptions} receitas referenciam este produto.`,
+    });
+  }
+
+  const batchLots = Number(batchesRow[0]?.lots || 0);
+  const batchQty = Number(batchesRow[0]?.qty || 0);
+  if (batchLots > 0) {
+    warnings.push({
+      code: 'inventory_batches',
+      title: 'Lotes de estoque',
+      count: batchLots,
+      refs: batchQty,
+      description: batchQty > 0
+        ? 'Os lotes e saldos em estoque serão removidos junto com o produto.'
+        : 'Os lotes cadastrados serão removidos junto com o produto.',
+      detail: batchQty > 0
+        ? `${batchLots} lote(s) com ${batchQty} unidade(s) em estoque.`
+        : `${batchLots} lote(s) sem saldo.`,
+    });
+  }
+
+  const images = Number(imagesRow[0]?.c || 0);
+  if (images > 0) {
+    warnings.push({
+      code: 'product_images',
+      title: 'Imagens do catálogo',
+      count: images,
+      description: 'As imagens vinculadas serão excluídas permanentemente.',
+      detail: images === 1 ? '1 imagem será removida.' : `${images} imagens serão removidas.`,
+    });
+  }
+
+  try {
+    const [promoRow] = await pool.execute(
+      'SELECT COUNT(DISTINCT promotion_id) AS c FROM promotion_products WHERE product_id = ?',
+      [productId]
+    );
+    const promos = Number(promoRow[0]?.c || 0);
+    if (promos > 0) {
+      warnings.push({
+        code: 'promotions',
+        title: 'Promoções',
+        count: promos,
+        description: 'O produto será retirado das campanhas promocionais vinculadas.',
+        detail: promos === 1 ? '1 promoção ativa ou cadastrada.' : `${promos} promoções vinculadas.`,
+      });
+    }
+  } catch (_) {
+    // Tabela opcional em ambientes sem módulo de promoções inicializado.
+  }
+
+  return {
+    exists: true,
+    product: {
+      id: product.id,
+      name: product.name,
+      sku: product.sku || null,
+      status: product.status || null,
+    },
+    blockers,
+    warnings,
+    canDelete: blockers.length === 0,
+    recommendations: blockers.length
+      ? [
+          'Altere o status do produto para Inativo ou Descontinuado para retirá-lo da vitrine sem perder o histórico.',
+          'Registros de vendas, compras, descartes e receitas são mantidos por exigência de auditoria e rastreabilidade.',
+        ]
+      : [
+          'Esta ação é permanente e não pode ser desfeita.',
+          batchQty > 0
+            ? 'Todo o estoque em lotes será removido junto com o produto.'
+            : 'Dados auxiliares (imagens, lotes vazios, categorias) serão removidos automaticamente.',
+        ],
+  };
+}
+
+/**
  * Exclui produto pelo id.
  */
 async function deleteById(id) {
@@ -313,6 +501,7 @@ module.exports = {
   findByEan13,
   findByGtin14,
   productTypeRequiresEan,
+  getDeletionBlockers,
   updateById,
   deleteById,
   slugify,

@@ -7,87 +7,223 @@
     </div>
   </div>
 
-  <section class="section">
+  <section class="section checkout">
     <div class="container">
       <div class="row g-4">
         <div class="col-lg-7">
-          <form id="checkoutForm" class="border rounded p-3">
-            <h5 class="mb-3">1. Endereço de entrega</h5>
-            <div class="mb-3">
-              <label class="form-label">Selecione um endereço cadastrado</label>
-              <select class="form-select" name="address_id" required>
-                <option value="">Selecione</option>
-                <% addresses.forEach((a) => { %>
-                  <option value="<%= a.address_id %>" <%= a.is_default ? 'selected' : '' %>>
-                    <%= a.label || 'Endereço' %> - <%= a.street %>, <%= a.number %> - <%= a.city %>/<%= a.state %> - <%= a.zip_code %>
-                  </option>
-                <% }) %>
-              </select>
-              <% if (!addresses.length) { %>
-                <div class="form-text text-danger">Nenhum endereço encontrado no perfil. Cadastre em Minha Conta antes de finalizar.</div>
-              <% } %>
+          <div class="checkout-wizard border rounded p-3 p-md-4">
+            <div class="text-center mb-4">
+              <h2 class="h4 mb-1">Finalize sua compra</h2>
+              <p class="text-muted small mb-0">Endereço, frete e pagamento em etapas — o CEP do endereço cadastrado é usado automaticamente.</p>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label">CEP de entrega</label>
-              <input class="form-control" name="cep" id="checkoutCep" value="<%= (cart.shipping && cart.shipping.cep) || '' %>" required>
-              <div class="form-text">Usado para validar frete e prazo antes de finalizar.</div>
-            </div>
+            <ol class="checkout-wizard__steps" id="checkoutWizardSteps" aria-label="Etapas do checkout">
+              <li class="checkout-wizard__step-item is-active" data-step="1">
+                <span class="checkout-wizard__step-num">1</span>
+                <span class="checkout-wizard__step-label">Endereço</span>
+              </li>
+              <li class="checkout-wizard__step-item" data-step="2">
+                <span class="checkout-wizard__step-num">2</span>
+                <span class="checkout-wizard__step-label">Frete</span>
+              </li>
+              <li class="checkout-wizard__step-item" data-step="3">
+                <span class="checkout-wizard__step-num">3</span>
+                <span class="checkout-wizard__step-label">Pagamento</span>
+              </li>
+              <li class="checkout-wizard__step-item" data-step="4">
+                <span class="checkout-wizard__step-num">4</span>
+                <span class="checkout-wizard__step-label">Revisão</span>
+              </li>
+            </ol>
 
-            <div class="mb-4">
-              <label class="form-label">Serviço de frete</label>
-              <div id="shippingServices" class="small border rounded p-2">Clique em "Calcular frete" para carregar opções.</div>
-              <button type="button" id="btnCalcShipping" class="btn btn-sm btn-outline-primary mt-2">Calcular frete</button>
-            </div>
+            <div id="checkoutFormAlert" class="alert alert-danger py-2 px-3 small mb-3" role="alert" style="display:none;"></div>
 
-            <h5 class="mb-3">2. Pagamento</h5>
-            <div class="mb-3">
-              <label class="form-label">Método</label>
-              <select class="form-select" name="payment_method" id="paymentMethod" required>
-                <option value="PIX">Pix</option>
-                <option value="CREDIT_CARD">Cartão de Crédito</option>
-                <option value="BOLETO">Boleto Bancário</option>
-              </select>
-            </div>
+            <form id="checkoutForm" novalidate>
+              <input type="hidden" name="cep" id="checkoutCep" value="<%= initialShippingCep || '' %>">
 
-            <div class="border rounded p-3 mb-3" id="paymentPreviewBox">
-              <div class="small text-muted">
-                A prévia do pagamento aparecerá aqui quando você selecionar <strong>Pix</strong> ou <strong>Boleto</strong>.
+              <!-- Etapa 1: Endereço -->
+              <div class="checkout-wizard__panel" data-step-panel="1">
+                <div class="checkout-wizard__panel-head">
+                  <i class="bi bi-geo-alt"></i>
+                  <div>
+                    <h3>Endereço de entrega</h3>
+                    <p>Escolha onde deseja receber o pedido. O CEP será preenchido automaticamente.</p>
+                  </div>
+                </div>
+
+                <% if (!addresses.length) { %>
+                  <div class="alert alert-warning small mb-0">
+                    Nenhum endereço cadastrado. <a href="/account">Cadastre em Minha Conta</a> antes de finalizar.
+                  </div>
+                <% } else { %>
+                  <div class="mb-3">
+                    <label class="form-label field-required" for="addressSelect">Endereço cadastrado</label>
+                    <select class="form-select" name="address_id" id="addressSelect" required>
+                      <option value="">Selecione</option>
+                      <% addresses.forEach((a) => { %>
+                        <option value="<%= a.address_id %>"
+                          data-zip="<%= (a.zip_code || '').replace(/\D/g, '') %>"
+                          <%= (defaultAddressId && Number(defaultAddressId) === Number(a.address_id)) ? 'selected' : '' %>>
+                          <%= a.label || 'Endereço' %> — <%= a.street %>, <%= a.number %> — <%= a.city %>/<%= a.state %>
+                        </option>
+                      <% }) %>
+                    </select>
+                    <div class="invalid-feedback">Selecione um endereço de entrega.</div>
+                  </div>
+
+                  <div class="checkout-wizard__address-preview" id="addressPreview">
+                    <div class="checkout-wizard__address-preview-label">Resumo do endereço</div>
+                    <div id="addressPreviewText" class="small text-muted">Selecione um endereço acima.</div>
+                  </div>
+
+                  <div class="mt-3">
+                    <label class="form-label">CEP para entrega</label>
+                    <div class="checkout-wizard__cep-display" id="cepDisplay">
+                      <%= initialShippingCep || '—' %>
+                    </div>
+                    <div class="form-text">Preenchido automaticamente a partir do endereço selecionado.</div>
+                  </div>
+                <% } %>
               </div>
-            </div>
 
-            <div id="creditFields" class="border rounded p-2 mb-3 d-none">
-              <div class="mb-2">
-                <label class="form-label">Número do cartão</label>
-                <input class="form-control" name="card_number" id="cardNumber" placeholder="0000 0000 0000 0000">
+              <!-- Etapa 2: Frete -->
+              <div class="checkout-wizard__panel d-none" data-step-panel="2">
+                <div class="checkout-wizard__panel-head">
+                  <i class="bi bi-truck"></i>
+                  <div>
+                    <h3>Frete e prazo</h3>
+                    <p>Opções calculadas para o CEP <strong id="freteCepLabel"><%= initialShippingCep || '—' %></strong>.</p>
+                  </div>
+                </div>
+
+                <div id="shippingLoading" class="text-center py-3 d-none">
+                  <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
+                  <span class="small text-muted">Calculando frete...</span>
+                </div>
+
+                <div id="shippingServices" class="checkout-wizard__shipping-list">
+                  <div class="small text-muted">As opções de frete serão carregadas ao avançar para esta etapa.</div>
+                </div>
+
+                <button type="button" id="btnRecalcShipping" class="btn btn-sm btn-outline-primary mt-3">
+                  <i class="bi bi-arrow-clockwise"></i> Recalcular frete
+                </button>
               </div>
-              <div class="mb-2">
-                <label class="form-label">Parcelamento</label>
-                <select class="form-select" name="installments">
-                  <% installmentPlans.forEach((p) => { %>
-                    <option value="<%= p.installments %>">
-                      <%= p.installments %>x de R$ <%= p.installment_value.toFixed(2).replace('.', ',') %>
-                      (total R$ <%= p.total_value.toFixed(2).replace('.', ',') %> | juros <%= p.interest_rate.toFixed(2).replace('.', ',') %>%)
-                    </option>
-                  <% }) %>
-                </select>
+
+              <!-- Etapa 3: Pagamento -->
+              <div class="checkout-wizard__panel d-none" data-step-panel="3">
+                <div class="checkout-wizard__panel-head">
+                  <i class="bi bi-credit-card"></i>
+                  <div>
+                    <h3>Forma de pagamento</h3>
+                    <p>Escolha como deseja pagar o pedido.</p>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label field-required" for="paymentMethod">Método</label>
+                  <select class="form-select" name="payment_method" id="paymentMethod" required>
+                    <option value="PIX">Pix</option>
+                    <option value="CREDIT_CARD">Cartão de Crédito</option>
+                    <option value="BOLETO">Boleto Bancário</option>
+                  </select>
+                </div>
+
+                <div class="border rounded p-3 mb-3 bg-light" id="paymentPreviewBox">
+                  <div class="small text-muted">
+                    A prévia do pagamento aparecerá aqui quando você selecionar <strong>Pix</strong> ou <strong>Boleto</strong>.
+                  </div>
+                </div>
+
+                <div id="creditFields" class="border rounded p-3 mb-0 d-none">
+                  <div class="mb-3">
+                    <label class="form-label field-required" for="cardHolder">Nome do titular</label>
+                    <input class="form-control text-uppercase" name="card_holder" id="cardHolder"
+                      placeholder="Como impresso no cartão" autocomplete="cc-name"
+                      value="<%= typeof customerFullName !== 'undefined' ? customerFullName : '' %>">
+                    <div class="invalid-feedback">Informe o nome completo do titular.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label field-required" for="cardNumber">Número do cartão</label>
+                    <div class="checkout-wizard__card-wrap">
+                      <input class="form-control" name="card_number" id="cardNumber"
+                        placeholder="0000 0000 0000 0000" inputmode="numeric" autocomplete="cc-number"
+                        maxlength="19" pattern="[0-9 ]{13,23}">
+                      <span class="checkout-wizard__card-brand" id="cardBrandIcon" aria-hidden="true"></span>
+                    </div>
+                    <div class="invalid-feedback">Informe um número de cartão válido (13 a 19 dígitos).</div>
+                  </div>
+
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                      <label class="form-label field-required" for="cardExpiry">Validade</label>
+                      <input class="form-control" name="card_expiry" id="cardExpiry" placeholder="MM/AA"
+                        inputmode="numeric" autocomplete="cc-exp" maxlength="5">
+                      <div class="invalid-feedback">Informe a validade no formato MM/AA.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label field-required" for="cardCvv">CVV</label>
+                      <input class="form-control" name="card_cvv" id="cardCvv" placeholder="123"
+                        inputmode="numeric" autocomplete="cc-csc" maxlength="4">
+                      <div class="form-text">3 dígitos (4 no Amex).</div>
+                      <div class="invalid-feedback">Informe o CVV do cartão.</div>
+                    </div>
+                  </div>
+
+                  <div class="mb-0">
+                    <label class="form-label" for="installmentsSelect">Parcelamento</label>
+                    <select class="form-select" name="installments" id="installmentsSelect">
+                      <% installmentPlans.forEach((p) => { %>
+                        <option value="<%= p.installments %>">
+                          <%= p.installments %>x de R$ <%= p.installment_value.toFixed(2).replace('.', ',') %>
+                          (total R$ <%= p.total_value.toFixed(2).replace('.', ',') %> | juros <%= p.interest_rate.toFixed(2).replace('.', ',') %>%)
+                        </option>
+                      <% }) %>
+                    </select>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <h5 class="mb-3">3. Revisão</h5>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="acceptTerms" required>
-              <label class="form-check-label" for="acceptTerms">Confirmo os dados do pedido e termos.</label>
-            </div>
+              <!-- Etapa 4: Revisão -->
+              <div class="checkout-wizard__panel d-none" data-step-panel="4">
+                <div class="checkout-wizard__panel-head">
+                  <i class="bi bi-check2-circle"></i>
+                  <div>
+                    <h3>Revisão do pedido</h3>
+                    <p>Confira os dados antes de finalizar.</p>
+                  </div>
+                </div>
 
-            <button class="btn btn-primary w-100" type="submit">Finalizar pedido</button>
-            <div id="checkoutMsg" class="small mt-2 text-muted"></div>
-          </form>
+                <div class="checkout-wizard__review" id="reviewSummary"></div>
+
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" id="acceptTerms" required>
+                  <label class="form-check-label" for="acceptTerms">Confirmo os dados do pedido e aceito os termos.</label>
+                  <div class="invalid-feedback">É necessário aceitar os termos para continuar.</div>
+                </div>
+              </div>
+
+              <div class="checkout-wizard__nav mt-4">
+                <button type="button" class="btn btn-outline-secondary" id="btnCheckoutPrev" style="display:none;">
+                  <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <button type="button" class="btn btn-primary ms-auto" id="btnCheckoutNext" <%= !addresses.length ? 'disabled' : '' %>>
+                  Continuar <i class="bi bi-arrow-right"></i>
+                </button>
+                <button type="submit" class="btn btn-primary ms-auto d-none" id="btnCheckoutSubmit">
+                  <i class="bi bi-bag-check"></i> Finalizar pedido
+                </button>
+              </div>
+
+              <div id="checkoutMsg" class="small mt-3 text-muted"></div>
+            </form>
+          </div>
         </div>
 
         <div class="col-lg-5">
-          <div class="border rounded p-3">
-            <h5>Resumo do pedido</h5>
+          <div class="checkout-wizard__summary border rounded p-3 p-md-4 sticky-top" style="top: 90px;">
+            <h5 class="mb-3">Resumo do pedido</h5>
             <div class="small text-muted mb-2"><%= cart.items.length %> item(ns)</div>
             <% cart.items.forEach((i) => { %>
               <div class="d-flex justify-content-between border-bottom py-2">
@@ -98,55 +234,565 @@
             <div class="d-flex justify-content-between mt-3"><span>Subtotal</span><strong>R$ <%= cart.subtotal.toFixed(2).replace('.', ',') %></strong></div>
             <div class="d-flex justify-content-between"><span>Frete</span><strong id="shippingCostTxt">R$ <%= (cart.shipping ? Number(cart.shipping.price) : 0).toFixed(2).replace('.', ',') %></strong></div>
             <hr>
-            <div class="d-flex justify-content-between"><span>Total</span><strong id="checkoutTotalTxt">R$ <%= cart.total.toFixed(2).replace('.', ',') %></strong></div>
+            <div class="d-flex justify-content-between fs-5"><span>Total</span><strong id="checkoutTotalTxt">R$ <%= cart.total.toFixed(2).replace('.', ',') %></strong></div>
           </div>
         </div>
       </div>
     </div>
   </section>
 </main>
+
+<style>
+  .checkout-wizard .field-required::after { content: ' *'; color: #dc3545; }
+  .checkout-wizard .form-control.is-invalid,
+  .checkout-wizard .form-select.is-invalid,
+  .checkout-wizard .form-check-input.is-invalid { border-color: #dc3545; }
+  .checkout-wizard .invalid-feedback { display: none; font-size: 0.8rem; }
+  .checkout-wizard .form-control.is-invalid ~ .invalid-feedback,
+  .checkout-wizard .form-select.is-invalid ~ .invalid-feedback,
+  .checkout-wizard .form-check-input.is-invalid ~ .invalid-feedback { display: block; }
+
+  .checkout-wizard__steps {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0 0 1.5rem;
+    counter-reset: checkout-step;
+  }
+  .checkout-wizard__step-item {
+    flex: 1 1 22%; min-width: 72px; text-align: center; color: #adb5bd; transition: color 0.2s;
+  }
+  .checkout-wizard__step-item.is-active,
+  .checkout-wizard__step-item.is-done { color: var(--accent-color, #2E5C5C); }
+  .checkout-wizard__step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2rem; height: 2rem; border-radius: 50%; border: 2px solid currentColor;
+    font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem;
+  }
+  .checkout-wizard__step-item.is-active .checkout-wizard__step-num,
+  .checkout-wizard__step-item.is-done .checkout-wizard__step-num {
+    background: var(--accent-color, #2E5C5C); border-color: var(--accent-color, #2E5C5C);
+    color: #fff;
+  }
+  .checkout-wizard__step-label { display: block; font-size: 0.72rem; font-weight: 500; line-height: 1.2; }
+
+  .checkout-wizard__panel {
+    background: color-mix(in srgb, var(--surface-color, #fff), var(--background-color, #f8f9fa) 40%);
+    border-radius: 12px; padding: 1.25rem;
+  }
+  .checkout-wizard__panel-head {
+    display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.25rem;
+  }
+  .checkout-wizard__panel-head > i {
+    font-size: 1.5rem; color: var(--accent-color, #2E5C5C);
+    width: 2.5rem; height: 2.5rem; border-radius: 10px;
+    background: color-mix(in srgb, var(--accent-color, #2E5C5C), transparent 88%);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .checkout-wizard__panel-head h3 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+  .checkout-wizard__panel-head p { margin: 0; font-size: 0.875rem; color: #6c757d; }
+
+  .checkout-wizard__address-preview {
+    background: #fff; border: 1px dashed color-mix(in srgb, var(--accent-color, #2E5C5C), transparent 70%);
+    border-radius: 10px; padding: 0.875rem 1rem;
+  }
+  .checkout-wizard__address-preview-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; margin-bottom: 0.35rem; }
+  .checkout-wizard__cep-display {
+    font-size: 1.1rem; font-weight: 600; letter-spacing: 0.05em; color: var(--heading-color, #212529);
+    padding: 0.5rem 0.75rem; background: #fff; border-radius: 8px; border: 1px solid #dee2e6; display: inline-block;
+  }
+
+  .checkout-wizard__shipping-list label {
+    display: block; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border: 2px solid #dee2e6;
+    border-radius: 10px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+  }
+  .checkout-wizard__shipping-list label:hover { border-color: color-mix(in srgb, var(--accent-color, #2E5C5C), transparent 40%); }
+  .checkout-wizard__shipping-list input:checked + span,
+  .checkout-wizard__shipping-list label:has(input:checked) {
+    border-color: var(--accent-color, #2E5C5C); background: color-mix(in srgb, var(--accent-color, #2E5C5C), transparent 92%);
+  }
+  .checkout-wizard__shipping-list label:has(input:checked) { border-color: var(--accent-color, #2E5C5C); background: color-mix(in srgb, var(--accent-color, #2E5C5C), transparent 92%); }
+
+  .checkout-wizard__review-card {
+    background: #fff; border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;
+    border: 1px solid #e9ecef;
+  }
+  .checkout-wizard__review-card h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; margin-bottom: 0.75rem; }
+  .checkout-wizard__review-row { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.875rem; padding: 0.25rem 0; }
+  .checkout-wizard__review-row span:first-child { color: #6c757d; }
+  .checkout-wizard__review-row span:last-child { font-weight: 500; text-align: right; word-break: break-word; }
+
+  .checkout-wizard__nav { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .checkout-wizard__summary { background: var(--surface-color, #fff); }
+
+  .checkout-wizard__card-wrap { position: relative; }
+  .checkout-wizard__card-wrap .form-control { padding-right: 3rem; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+  .checkout-wizard__card-brand {
+    position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+    font-size: 0.72rem; font-weight: 600; color: #6c757d; text-transform: uppercase;
+  }
+  .checkout-wizard__card-brand.is-visa { color: #1a1f71; }
+  .checkout-wizard__card-brand.is-master { color: #eb001b; }
+  .checkout-wizard__card-brand.is-amex { color: #006fcf; }
+
+  @media (max-width: 575.98px) {
+    .checkout-wizard__step-item { flex: 1 1 45%; }
+    .checkout-wizard__step-label { font-size: 0.65rem; }
+  }
+</style>
+
 <script>
-  const paymentMethod = document.getElementById('paymentMethod');
-  const creditFields = document.getElementById('creditFields');
-  const shippingServicesEl = document.getElementById('shippingServices');
-  const checkoutMsg = document.getElementById('checkoutMsg');
-  const shippingCostTxt = document.getElementById('shippingCostTxt');
-  const checkoutTotalTxt = document.getElementById('checkoutTotalTxt');
-  const paymentPreviewBox = document.getElementById('paymentPreviewBox');
+(function () {
+  const addressBook = <%- JSON.stringify(addressBook || []) %>;
   const checkoutSubtotal = <%= Number(cart.subtotal || 0) %>;
   const initialShippingCode = '<%= (cart.shipping && cart.shipping.code) || '' %>';
   const initialShippingPrice = <%= Number((cart.shipping && cart.shipping.price) || 0) %>;
+
+  const TOTAL_STEPS = 4;
+  let currentStep = 1;
   let selectedShippingCode = initialShippingCode;
+  let selectedShippingLabel = <%- JSON.stringify((cart.shipping && cart.shipping.label) || '') %>;
   let selectedShippingPrice = initialShippingPrice;
+  let selectedShippingDeadline = <%= Number((cart.shipping && cart.shipping.deadlineDays) || 0) %>;
+  let shippingLoaded = false;
+
+  const form = document.getElementById('checkoutForm');
+  const addressSelect = document.getElementById('addressSelect');
+  const checkoutCep = document.getElementById('checkoutCep');
+  const cepDisplay = document.getElementById('cepDisplay');
+  const freteCepLabel = document.getElementById('freteCepLabel');
+  const addressPreviewText = document.getElementById('addressPreviewText');
+  const shippingServicesEl = document.getElementById('shippingServices');
+  const shippingLoading = document.getElementById('shippingLoading');
+  const paymentMethod = document.getElementById('paymentMethod');
+  const creditFields = document.getElementById('creditFields');
+  const paymentPreviewBox = document.getElementById('paymentPreviewBox');
+  const installmentsSelect = document.getElementById('installmentsSelect');
+  const shippingCostTxt = document.getElementById('shippingCostTxt');
+  const checkoutTotalTxt = document.getElementById('checkoutTotalTxt');
+  const checkoutMsg = document.getElementById('checkoutMsg');
+  const formAlert = document.getElementById('checkoutFormAlert');
+  const btnPrev = document.getElementById('btnCheckoutPrev');
+  const btnNext = document.getElementById('btnCheckoutNext');
+  const btnSubmit = document.getElementById('btnCheckoutSubmit');
+  const reviewSummary = document.getElementById('reviewSummary');
+
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function formatCepDisplay(raw) {
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (digits.length !== 8) return digits || '—';
+    return digits.slice(0, 5) + '-' + digits.slice(5);
+  }
 
   function toBrl(value) {
-    return `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
+    return 'R$ ' + Number(value || 0).toFixed(2).replace('.', ',');
+  }
+
+  function showAlert(msg) {
+    if (!formAlert) return;
+    formAlert.textContent = msg;
+    formAlert.style.display = msg ? 'block' : 'none';
+  }
+
+  function getAddressById(id) {
+    return addressBook.find(function (a) { return String(a.id) === String(id); }) || null;
+  }
+
+  function syncCepFromAddress() {
+    if (!addressSelect || !checkoutCep) return '';
+    const addr = getAddressById(addressSelect.value);
+    const cep = addr ? formatCepDisplay(addr.zip) : '';
+    checkoutCep.value = cep;
+    if (cepDisplay) cepDisplay.textContent = cep || '—';
+    if (freteCepLabel) freteCepLabel.textContent = cep || '—';
+    if (addressPreviewText && addr) {
+      const parts = [addr.street + ', ' + addr.number];
+      if (addr.complement) parts.push(addr.complement);
+      parts.push((addr.district ? addr.district + ' — ' : '') + addr.city + '/' + addr.state);
+      addressPreviewText.textContent = parts.join(' · ');
+      addressPreviewText.classList.remove('text-muted');
+    } else if (addressPreviewText) {
+      addressPreviewText.textContent = 'Selecione um endereço acima.';
+      addressPreviewText.classList.add('text-muted');
+    }
+    return cep;
   }
 
   function refreshCheckoutTotals() {
     shippingCostTxt.textContent = toBrl(selectedShippingPrice);
     checkoutTotalTxt.textContent = toBrl(checkoutSubtotal + selectedShippingPrice);
+    rebuildInstallments();
   }
 
-  async function copyToClipboard(text) {
-    const str = String(text == null ? '' : text);
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(str);
-      } else {
-        var ta = document.createElement('textarea');
-        ta.value = str;
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        ta.style.top = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+  function buildInstallmentsClient(total) {
+    const plans = [];
+    for (let i = 1; i <= 12; i += 1) {
+      const interest = i <= 3 ? 0 : 0.015 * (i - 3);
+      const finalAmount = total * (1 + interest);
+      plans.push({
+        installments: i,
+        interest_rate: Number((interest * 100).toFixed(2)),
+        installment_value: Number((finalAmount / i).toFixed(2)),
+        total_value: Number(finalAmount.toFixed(2)),
+      });
+    }
+    return plans;
+  }
+
+  function rebuildInstallments() {
+    if (!installmentsSelect) return;
+    const total = checkoutSubtotal + selectedShippingPrice;
+    const prev = installmentsSelect.value || '1';
+    const plans = buildInstallmentsClient(total);
+    installmentsSelect.innerHTML = plans.map(function (p) {
+      return '<option value="' + p.installments + '">' +
+        p.installments + 'x de ' + toBrl(p.installment_value) +
+        ' (total ' + toBrl(p.total_value) + ' | juros ' + p.interest_rate.toFixed(2).replace('.', ',') + '%)' +
+        '</option>';
+    }).join('');
+    const stillExists = plans.some(function (p) { return String(p.installments) === String(prev); });
+    installmentsSelect.value = stillExists ? prev : '1';
+  }
+
+  function setFieldInvalid(el, invalid) {
+    if (!el) return;
+    el.classList.toggle('is-invalid', !!invalid);
+  }
+
+  function detectCardBrand(digits) {
+    if (/^4/.test(digits)) return 'VISA';
+    if (/^5[1-5]/.test(digits)) return 'MASTERCARD';
+    if (/^3[47]/.test(digits)) return 'AMEX';
+    return '';
+  }
+
+  function cardMaxLength(brand) {
+    return brand === 'AMEX' ? 15 : 16;
+  }
+
+  function formatCardNumber(digits) {
+    const brand = detectCardBrand(digits);
+    if (brand === 'AMEX') {
+      const p1 = digits.slice(0, 4);
+      const p2 = digits.slice(4, 10);
+      const p3 = digits.slice(10, 15);
+      return [p1, p2, p3].filter(Boolean).join(' ');
+    }
+    let out = '';
+    for (let i = 0; i < digits.length; i += 1) {
+      if (i > 0 && i % 4 === 0) out += ' ';
+      out += digits[i];
+    }
+    return out;
+  }
+
+  function updateCardBrandUi(digits) {
+    const icon = document.getElementById('cardBrandIcon');
+    if (!icon) return;
+    const brand = detectCardBrand(digits);
+    icon.className = 'checkout-wizard__card-brand';
+    if (brand === 'VISA') { icon.textContent = 'Visa'; icon.classList.add('is-visa'); }
+    else if (brand === 'MASTERCARD') { icon.textContent = 'Master'; icon.classList.add('is-master'); }
+    else if (brand === 'AMEX') { icon.textContent = 'Amex'; icon.classList.add('is-amex'); }
+    else icon.textContent = '';
+  }
+
+  function validateCardExpiry(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (digits.length !== 4) return false;
+    const month = Number(digits.slice(0, 2));
+    const year = Number(digits.slice(2, 4));
+    if (month < 1 || month > 12) return false;
+    const now = new Date();
+    const currentYear = now.getFullYear() % 100;
+    const currentMonth = now.getMonth() + 1;
+    return !(year < currentYear || (year === currentYear && month < currentMonth));
+  }
+
+  function validateCreditCardFields() {
+    const holder = document.getElementById('cardHolder');
+    const card = document.getElementById('cardNumber');
+    const expiry = document.getElementById('cardExpiry');
+    const cvv = document.getElementById('cardCvv');
+    let ok = true;
+
+    const holderName = (holder.value || '').trim();
+    if (holderName.length < 3 || !/[A-Za-zÀ-ÿ]/.test(holderName)) {
+      setFieldInvalid(holder, true);
+      showAlert('Informe o nome do titular como impresso no cartão.');
+      ok = false;
+    } else setFieldInvalid(holder, false);
+
+    const digits = (card.value || '').replace(/\D/g, '');
+    const brand = detectCardBrand(digits);
+    const minLen = brand === 'AMEX' ? 15 : 13;
+    const maxLen = cardMaxLength(brand || 'VISA');
+    if (digits.length < minLen || digits.length > maxLen) {
+      setFieldInvalid(card, true);
+      if (ok) showAlert('Informe um número de cartão válido.');
+      ok = false;
+    } else setFieldInvalid(card, false);
+
+    if (!validateCardExpiry(expiry.value)) {
+      setFieldInvalid(expiry, true);
+      if (ok) showAlert('Informe a validade no formato MM/AA (cartão não expirado).');
+      ok = false;
+    } else setFieldInvalid(expiry, false);
+
+    const cvvDigits = (cvv.value || '').replace(/\D/g, '');
+    const cvvLen = brand === 'AMEX' ? 4 : 3;
+    if (cvvDigits.length !== cvvLen) {
+      setFieldInvalid(cvv, true);
+      if (ok) showAlert('Informe o CVV (' + cvvLen + ' dígitos).');
+      ok = false;
+    } else setFieldInvalid(cvv, false);
+
+    return ok;
+  }
+
+  function initCardMasks() {
+    const cardInput = document.getElementById('cardNumber');
+    const expiryInput = document.getElementById('cardExpiry');
+    const cvvInput = document.getElementById('cardCvv');
+    const holderInput = document.getElementById('cardHolder');
+
+    if (holderInput) {
+      holderInput.addEventListener('input', function () {
+        this.value = this.value.replace(/[^A-Za-zÀ-ÿ\s'.-]/g, '').slice(0, 60);
+        setFieldInvalid(this, false);
+      });
+    }
+
+    if (cardInput) {
+      cardInput.addEventListener('input', function () {
+        let digits = this.value.replace(/\D/g, '');
+        const brand = detectCardBrand(digits);
+        const max = cardMaxLength(brand || 'VISA');
+        if (digits.length > max) digits = digits.slice(0, max);
+        this.value = formatCardNumber(digits);
+        updateCardBrandUi(digits);
+        setFieldInvalid(this, false);
+
+        const cvv = document.getElementById('cardCvv');
+        if (cvv) {
+          cvv.maxLength = brand === 'AMEX' ? 4 : 3;
+          cvv.placeholder = brand === 'AMEX' ? '1234' : '123';
+        }
+      });
+    }
+
+    if (expiryInput) {
+      expiryInput.addEventListener('input', function () {
+        let digits = this.value.replace(/\D/g, '').slice(0, 4);
+        if (digits.length >= 3) digits = digits.slice(0, 2) + '/' + digits.slice(2);
+        this.value = digits;
+        setFieldInvalid(this, false);
+      });
+    }
+
+    if (cvvInput) {
+      cvvInput.addEventListener('input', function () {
+        const cardDigits = (cardInput && cardInput.value || '').replace(/\D/g, '');
+        const brand = detectCardBrand(cardDigits);
+        const max = brand === 'AMEX' ? 4 : 3;
+        this.value = this.value.replace(/\D/g, '').slice(0, max);
+        setFieldInvalid(this, false);
+      });
+    }
+  }
+
+  function validateStep(step) {
+    showAlert('');
+    if (step === 1) {
+      if (!addressSelect || !addressSelect.value) {
+        setFieldInvalid(addressSelect, true);
+        showAlert('Selecione um endereço de entrega.');
+        return false;
       }
-      if (window.neofarmaToast) window.neofarmaToast('Copiado com sucesso.', 'success');
+      setFieldInvalid(addressSelect, false);
+      const cep = syncCepFromAddress();
+      if (!cep || cep.replace(/\D/g, '').length !== 8) {
+        showAlert('O endereço selecionado não possui CEP válido.');
+        return false;
+      }
+      return true;
+    }
+    if (step === 2) {
+      const selected = form.querySelector('input[name="shipping_service"]:checked');
+      if (!selected) {
+        showAlert('Selecione uma opção de frete.');
+        return false;
+      }
+      return true;
+    }
+    if (step === 3) {
+      if (!paymentMethod.value) {
+        showAlert('Selecione um método de pagamento.');
+        return false;
+      }
+      if (paymentMethod.value === 'CREDIT_CARD') {
+        if (!validateCreditCardFields()) return false;
+      }
+      return true;
+    }
+    if (step === 4) {
+      const terms = document.getElementById('acceptTerms');
+      if (!terms.checked) {
+        setFieldInvalid(terms, true);
+        showAlert('Aceite os termos para finalizar o pedido.');
+        return false;
+      }
+      setFieldInvalid(terms, false);
+      return true;
+    }
+    return true;
+  }
+
+  function updateWizardUi() {
+    document.querySelectorAll('.checkout-wizard__step-item').forEach(function (item) {
+      const n = Number(item.getAttribute('data-step'));
+      item.classList.toggle('is-active', n === currentStep);
+      item.classList.toggle('is-done', n < currentStep);
+    });
+    document.querySelectorAll('[data-step-panel]').forEach(function (panel) {
+      const n = Number(panel.getAttribute('data-step-panel'));
+      panel.classList.toggle('d-none', n !== currentStep);
+    });
+    btnPrev.style.display = currentStep > 1 ? 'inline-flex' : 'none';
+    btnNext.classList.toggle('d-none', currentStep >= TOTAL_STEPS);
+    btnSubmit.classList.toggle('d-none', currentStep !== TOTAL_STEPS);
+    if (currentStep === 4) renderReview();
+  }
+
+  function paymentMethodLabel(method) {
+    if (method === 'PIX') return 'Pix';
+    if (method === 'CREDIT_CARD') return 'Cartão de Crédito';
+    if (method === 'BOLETO') return 'Boleto Bancário';
+    return method;
+  }
+
+  function renderReview() {
+    const addr = getAddressById(addressSelect ? addressSelect.value : '');
+    let html = '';
+    html += '<div class="checkout-wizard__review-card"><h4>Entrega</h4>';
+    if (addr) {
+      html += reviewRow('Endereço', (addr.label || 'Endereço') + ' — ' + addr.street + ', ' + addr.number);
+      html += reviewRow('Cidade', addr.city + '/' + addr.state);
+      html += reviewRow('CEP', formatCepDisplay(addr.zip));
+    }
+    html += reviewRow('Frete', selectedShippingLabel ? selectedShippingLabel + ' — ' + toBrl(selectedShippingPrice) : '—');
+    if (selectedShippingDeadline) html += reviewRow('Prazo', selectedShippingDeadline + ' dia(s) úteis');
+    html += '</div>';
+
+    html += '<div class="checkout-wizard__review-card"><h4>Pagamento</h4>';
+    html += reviewRow('Método', paymentMethodLabel(paymentMethod.value));
+    if (paymentMethod.value === 'CREDIT_CARD') {
+      const holder = document.getElementById('cardHolder');
+      const card = document.getElementById('cardNumber');
+      const expiry = document.getElementById('cardExpiry');
+      const digits = (card && card.value || '').replace(/\D/g, '');
+      if (holder && holder.value.trim()) html += reviewRow('Titular', holder.value.trim());
+      if (digits.length >= 4) html += reviewRow('Cartão', '**** **** **** ' + digits.slice(-4));
+      if (expiry && expiry.value) html += reviewRow('Validade', expiry.value);
+      if (installmentsSelect) html += reviewRow('Parcelamento', installmentsSelect.options[installmentsSelect.selectedIndex].textContent);
+    }
+    html += '</div>';
+
+    html += '<div class="checkout-wizard__review-card"><h4>Valores</h4>';
+    html += reviewRow('Subtotal', toBrl(checkoutSubtotal));
+    html += reviewRow('Frete', toBrl(selectedShippingPrice));
+    html += reviewRow('Total', toBrl(checkoutSubtotal + selectedShippingPrice));
+    html += '</div>';
+
+    reviewSummary.innerHTML = html;
+  }
+
+  function reviewRow(label, value) {
+    return '<div class="checkout-wizard__review-row"><span>' + escapeHtml(label) + '</span><span>' + escapeHtml(value) + '</span></div>';
+  }
+
+  async function persistShippingSelection(cep, serviceCode) {
+    const resp = await fetch('/api/shipping/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cep: cep, service_code: serviceCode }),
+    });
+    return resp.json();
+  }
+
+  function bindShippingRadioEvents(cep, services) {
+    shippingServicesEl.querySelectorAll('input[name="shipping_service"]').forEach(function (radio) {
+      radio.addEventListener('change', async function () {
+        selectedShippingCode = this.value;
+        selectedShippingPrice = Number(this.dataset.price || 0);
+        selectedShippingLabel = this.dataset.label || '';
+        selectedShippingDeadline = Number(this.dataset.deadline || 0);
+        refreshCheckoutTotals();
+        loadPaymentPreview();
+        const data = await persistShippingSelection(cep, selectedShippingCode);
+        checkoutMsg.textContent = data.ok ? '' : (data.message || 'Falha ao salvar frete selecionado.');
+      });
+    });
+  }
+
+  async function calculateShipping(autoSelectFirst) {
+    const cep = (checkoutCep && checkoutCep.value) ? checkoutCep.value.trim() : '';
+    if (!cep || cep.replace(/\D/g, '').length !== 8) {
+      shippingServicesEl.innerHTML = '<div class="small text-danger">CEP inválido. Volte e selecione um endereço com CEP cadastrado.</div>';
+      return false;
+    }
+
+    shippingLoading.classList.remove('d-none');
+    shippingServicesEl.innerHTML = '';
+    checkoutMsg.textContent = '';
+
+    try {
+      const resp = await fetch('/api/shipping/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cep: cep }),
+      });
+      const data = await resp.json();
+      shippingLoading.classList.add('d-none');
+
+      if (!data.ok) {
+        shippingServicesEl.innerHTML = '<div class="small text-danger">' + escapeHtml(data.message || 'Não foi possível calcular o frete.') + '</div>';
+        return false;
+      }
+
+      shippingServicesEl.innerHTML = data.quote.services.map(function (s) {
+        const checked = (selectedShippingCode && String(selectedShippingCode) === String(s.code)) ? ' checked' : '';
+        return '<label>' +
+          '<input type="radio" name="shipping_service" value="' + escapeHtml(s.code) + '"' +
+          ' data-price="' + s.price + '" data-label="' + escapeHtml(s.label) + '" data-deadline="' + s.deadlineDays + '" required' + checked + '> ' +
+          '<span class="ms-1">' + escapeHtml(s.label) + ' — ' + toBrl(s.price) + ' (' + s.deadlineDays + ' dia(s))</span>' +
+          '</label>';
+      }).join('');
+
+      bindShippingRadioEvents(cep, data.quote.services);
+      shippingLoaded = true;
+
+      let selected = shippingServicesEl.querySelector('input[name="shipping_service"]:checked');
+      if (!selected && autoSelectFirst) {
+        selected = shippingServicesEl.querySelector('input[name="shipping_service"]');
+        if (selected) selected.checked = true;
+      }
+      if (selected) {
+        selectedShippingCode = selected.value;
+        selectedShippingPrice = Number(selected.dataset.price || 0);
+        selectedShippingLabel = selected.dataset.label || '';
+        selectedShippingDeadline = Number(selected.dataset.deadline || 0);
+        refreshCheckoutTotals();
+        await persistShippingSelection(cep, selectedShippingCode);
+        loadPaymentPreview();
+      }
+      return true;
     } catch (_) {
-      if (window.neofarmaToast) window.neofarmaToast('Não foi possível copiar.', 'danger');
+      shippingLoading.classList.add('d-none');
+      shippingServicesEl.innerHTML = '<div class="small text-danger">Erro ao calcular frete. Tente novamente.</div>';
+      return false;
     }
   }
 
@@ -155,41 +801,12 @@
     paymentPreviewBox.innerHTML = '<div class="small text-muted">Selecione Pix ou Boleto para ver a prévia.</div>';
   }
 
-  function renderPixPreview(payment) {
-    if (!paymentPreviewBox) return;
-    const qr = payment && payment.pix_qr_code ? String(payment.pix_qr_code) : '';
-    const copyPaste = payment && payment.pix_copy_paste ? String(payment.pix_copy_paste) : '';
-    paymentPreviewBox.innerHTML = `
-      <div class="border rounded p-3 bg-light">
-        <div class="small text-muted">
-          O Pix será exibido na página de <strong>Pedido confirmado</strong>.
-        </div>
-      </div>
-    `;
+  function renderPixPreview() {
+    paymentPreviewBox.innerHTML = '<div class="small text-muted">O Pix será exibido na página de <strong>Pedido confirmado</strong>.</div>';
   }
 
-  function calcLinhaDigitavelSimulada(boletoBarcode) {
-    const raw = String(boletoBarcode || '');
-    const digits = raw.replace(/\\D/g, '');
-    const slice5 = (start) => digits.slice(start, start + 5);
-    return [slice5(0), slice5(5), slice5(10), slice5(15), slice5(20), slice5(25), slice5(30), slice5(35)]
-      .filter(Boolean)
-      .join('.');
-  }
-
-  function renderBoletoPreview(payment) {
-    if (!paymentPreviewBox) return;
-    const barcode = payment && payment.boleto_barcode ? String(payment.boleto_barcode) : '';
-    const dueDate = payment && payment.boleto_due_date ? String(payment.boleto_due_date) : '';
-    const linha = calcLinhaDigitavelSimulada(barcode);
-
-    paymentPreviewBox.innerHTML = `
-      <div class="border rounded p-3 bg-light">
-        <div class="small text-muted">
-          O boleto será exibido na página de <strong>Pedido confirmado</strong>.
-        </div>
-      </div>
-    `;
+  function renderBoletoPreview() {
+    paymentPreviewBox.innerHTML = '<div class="small text-muted">O boleto será exibido na página de <strong>Pedido confirmado</strong>.</div>';
   }
 
   async function loadPaymentPreview() {
@@ -200,150 +817,148 @@
         setPaymentPreviewEmpty();
         return;
       }
-
       const amount = checkoutSubtotal + selectedShippingPrice;
       if (!selectedShippingCode) {
-        paymentPreviewBox.innerHTML = '<div class="small text-muted">Calcule o frete para gerar a prévia.</div>';
+        paymentPreviewBox.innerHTML = '<div class="small text-muted">Selecione o frete para gerar a prévia.</div>';
         return;
       }
-      if (!amount || amount <= 0) {
-        paymentPreviewBox.innerHTML = '<div class="small text-muted">Valor inválido para gerar a prévia.</div>';
-        return;
-      }
-
       paymentPreviewBox.innerHTML = '<div class="small text-muted">Gerando prévia do pagamento...</div>';
-
       const resp = await fetch('/api/checkout/payment-preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ payment_method: method, amount })
+        body: JSON.stringify({ payment_method: method, amount: amount }),
       });
       const data = await resp.json();
-
-      if (!data || !data.ok || !data.payment) {
+      if (!data || !data.ok) {
         paymentPreviewBox.innerHTML = '<div class="small text-danger">Não foi possível gerar a prévia.</div>';
         return;
       }
-
-      if (method === 'PIX') renderPixPreview(data.payment);
-      else renderBoletoPreview(data.payment);
+      if (method === 'PIX') renderPixPreview();
+      else renderBoletoPreview();
     } catch (_) {
       setPaymentPreviewEmpty();
     }
   }
 
-  async function persistShippingSelection(cep, serviceCode) {
-    const resp = await fetch('/api/shipping/select', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cep, service_code: serviceCode })
-    });
-    const data = await resp.json();
-    return data;
-  }
-
-  function bindShippingRadioEvents(cep) {
-    shippingServicesEl.querySelectorAll('input[name="shipping_service"]').forEach((radio) => {
-      radio.addEventListener('change', async function () {
-        selectedShippingCode = this.value;
-        selectedShippingPrice = Number(this.dataset.price || 0);
-        refreshCheckoutTotals();
-        loadPaymentPreview();
-        const data = await persistShippingSelection(cep, selectedShippingCode);
-        if (!data.ok) {
-          checkoutMsg.textContent = data.message || 'Falha ao salvar frete selecionado.';
-        } else {
-          checkoutMsg.textContent = '';
-        }
-      });
-    });
-  }
-
   function updatePaymentFields() {
     const isCredit = paymentMethod.value === 'CREDIT_CARD';
     creditFields.classList.toggle('d-none', !isCredit);
-    const cardInput = document.getElementById('cardNumber');
-    if (isCredit) cardInput.setAttribute('required', 'required');
-    else cardInput.removeAttribute('required');
+    const creditInputs = ['cardHolder', 'cardNumber', 'cardExpiry', 'cardCvv'];
+    creditInputs.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (isCredit) el.setAttribute('required', 'required');
+      else {
+        el.removeAttribute('required');
+        setFieldInvalid(el, false);
+      }
+    });
   }
+
+  initCardMasks();
+
+  if (addressSelect) {
+    addressSelect.addEventListener('change', function () {
+      syncCepFromAddress();
+      shippingLoaded = false;
+      selectedShippingCode = '';
+      selectedShippingLabel = '';
+      selectedShippingPrice = 0;
+      selectedShippingDeadline = 0;
+      refreshCheckoutTotals();
+      if (currentStep >= 2) calculateShipping(true);
+    });
+    syncCepFromAddress();
+  }
+
   paymentMethod.addEventListener('change', function () {
     updatePaymentFields();
     loadPaymentPreview();
   });
   updatePaymentFields();
   refreshCheckoutTotals();
-  loadPaymentPreview();
 
-  document.addEventListener('click', function (ev) {
-    var btn = ev.target && ev.target.closest ? ev.target.closest('.btn-copy-pix') : null;
-    if (btn) {
-      var box = btn.closest('#paymentPreviewBox');
-      var codeEl = box ? box.querySelector('.pix-copy-paste-code') : null;
-      if (!codeEl) return;
-      copyToClipboard(codeEl.textContent || '');
+  document.getElementById('btnRecalcShipping').addEventListener('click', function () {
+    calculateShipping(!selectedShippingCode);
+  });
+
+  btnNext.addEventListener('click', async function () {
+    if (!validateStep(currentStep)) return;
+
+    if (currentStep === 1) {
+      currentStep = 2;
+      updateWizardUi();
+      if (!shippingLoaded) await calculateShipping(true);
       return;
     }
 
-    btn = ev.target && ev.target.closest ? ev.target.closest('.btn-copy-boleto-linha') : null;
-    if (btn) {
-      var box2 = btn.closest('#paymentPreviewBox');
-      var linhaEl = box2 ? box2.querySelector('.boleto-linha-digitavel-code') : null;
-      if (!linhaEl) return;
-      copyToClipboard(linhaEl.textContent || '');
+    if (currentStep === 2 && !validateStep(2)) return;
+
+    if (currentStep === 3) loadPaymentPreview();
+
+    if (currentStep < TOTAL_STEPS) {
+      currentStep += 1;
+      updateWizardUi();
+      if (currentStep === 4) renderReview();
     }
   });
 
-  document.getElementById('btnCalcShipping').addEventListener('click', async () => {
-    const cep = document.getElementById('checkoutCep').value.trim();
-    const resp = await fetch('/api/shipping/quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cep })
-    });
-    const data = await resp.json();
-    if (!data.ok) {
-      shippingServicesEl.textContent = data.message || 'Não foi possível calcular o frete.';
-      return;
-    }
-    shippingServicesEl.innerHTML = data.quote.services.map((s) => {
-      const checked = (selectedShippingCode && String(selectedShippingCode) === String(s.code)) ? 'checked' : '';
-      return `<label class="d-block">
-        <input type="radio" name="shipping_service" value="${s.code}" data-price="${s.price}" required ${checked}> ${s.label} - R$ ${s.price.toFixed(2).replace('.', ',')} (${s.deadlineDays} dias)
-      </label>`;
-    }).join('');
-    bindShippingRadioEvents(cep);
-    const selected = shippingServicesEl.querySelector('input[name="shipping_service"]:checked');
-    if (selected) {
-      selectedShippingCode = selected.value;
-      selectedShippingPrice = Number(selected.dataset.price || 0);
-      refreshCheckoutTotals();
-      loadPaymentPreview();
+  btnPrev.addEventListener('click', function () {
+    if (currentStep > 1) {
+      currentStep -= 1;
+      updateWizardUi();
+      showAlert('');
     }
   });
 
-  document.getElementById('checkoutForm').addEventListener('submit', async (ev) => {
+  form.addEventListener('submit', async function (ev) {
     ev.preventDefault();
-    const form = ev.currentTarget;
+    if (paymentMethod.value === 'CREDIT_CARD' && !validateCreditCardFields()) {
+      currentStep = 3;
+      updateWizardUi();
+      return;
+    }
+    if (!validateStep(4)) return;
+
     const fd = new FormData(form);
     const payload = Object.fromEntries(fd.entries());
     const selectedShip = form.querySelector('input[name="shipping_service"]:checked');
     if (!selectedShip) {
-      checkoutMsg.textContent = 'Selecione um serviço de frete.';
+      showAlert('Selecione um serviço de frete.');
+      currentStep = 2;
+      updateWizardUi();
       return;
     }
     payload.shipping_service = selectedShip.value;
     checkoutMsg.textContent = 'Finalizando pedido...';
-    const resp = await fetch('/api/checkout/finalize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-    if (!data.ok) {
-      checkoutMsg.textContent = data.message || 'Falha ao finalizar checkout.';
-      return;
+    btnSubmit.disabled = true;
+
+    try {
+      const resp = await fetch('/api/checkout/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        checkoutMsg.textContent = data.message || 'Falha ao finalizar checkout.';
+        btnSubmit.disabled = false;
+        return;
+      }
+      window.location.href = data.redirect;
+    } catch (_) {
+      checkoutMsg.textContent = 'Erro de comunicação. Tente novamente.';
+      btnSubmit.disabled = false;
     }
-    window.location.href = data.redirect;
   });
+
+  updateWizardUi();
+
+  if (addressSelect && addressSelect.value && checkoutCep.value) {
+    calculateShipping(!!initialShippingCode).then(function (ok) {
+      if (ok && initialShippingCode) loadPaymentPreview();
+    });
+  }
+})();
 </script>
 <%- include('partials/footer') %>

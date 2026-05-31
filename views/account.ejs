@@ -47,6 +47,16 @@
     if (pay === 'PAID' && st !== 'DELIVERED' && st !== 'CANCELLED') return 'active';
     return 'all';
   }
+  function showOrderTracking(o) {
+    var pay = String(o.pay_status || o.payment_status || '').toUpperCase();
+    var st = String(o.order_status || o.status || '').toUpperCase();
+    return pay === 'PAID' && st !== 'CANCELLED';
+  }
+  function timelineStepClass(done, active) {
+    if (done) return 'completed';
+    if (active) return 'active';
+    return '';
+  }
 %>
 
 <style>
@@ -365,9 +375,78 @@
                             <span>Total</span>
                             <span class="price">R$ <%= fmtMoney(order.total) %></span>
                           </div>
+                          <% if (order.tracking_code) { %>
+                          <div class="info-row">
+                            <span>Rastreio</span>
+                            <span><code><%= order.tracking_code %></code></span>
+                          </div>
+                          <% } %>
                         </div>
                       </div>
+                      <% if (showOrderTracking(order)) {
+                        var st = order.order_status;
+                        var paidDone = true;
+                        var prepDone = ['SHIPPED', 'DELIVERED'].indexOf(st) >= 0;
+                        var prepActive = st === 'PROCESSING';
+                        var shipDone = st === 'DELIVERED';
+                        var shipActive = st === 'SHIPPED';
+                        var delDone = st === 'DELIVERED';
+                        var delActive = st === 'DELIVERED';
+                      %>
+                      <div class="tracking-info collapse" id="tracking-<%= order.id %>">
+                        <div class="tracking-timeline">
+                          <div class="timeline-item <%= timelineStepClass(paidDone, false) %>">
+                            <div class="timeline-icon"><i class="bi bi-check-lg"></i></div>
+                            <div class="timeline-content">
+                              <h5>Pagamento confirmado</h5>
+                              <p>Seu pedido foi recebido e está sendo preparado.</p>
+                              <div class="timeline-date"><%= fmtDate(order.created_at) %></div>
+                            </div>
+                          </div>
+                          <div class="timeline-item <%= timelineStepClass(prepDone, prepActive) %>">
+                            <div class="timeline-icon"><i class="bi bi-box-seam"></i></div>
+                            <div class="timeline-content">
+                              <h5>Preparando envio</h5>
+                              <p>Separando produtos e embalando para transporte.</p>
+                            </div>
+                          </div>
+                          <div class="timeline-item <%= timelineStepClass(shipDone, shipActive) %>">
+                            <div class="timeline-icon"><i class="bi bi-truck"></i></div>
+                            <div class="timeline-content">
+                              <h5>Enviado</h5>
+                              <% if (order.tracking_code) { %>
+                              <div class="shipping-info">
+                                <span class="tracking-number">Rastreio: <strong><%= order.tracking_code %></strong></span>
+                              </div>
+                              <% } else { %>
+                              <p>Aguardando código de rastreio.</p>
+                              <% } %>
+                              <% if (order.shipped_at) { %>
+                              <div class="timeline-date"><%= fmtDateTime(order.shipped_at) %></div>
+                              <% } %>
+                            </div>
+                          </div>
+                          <div class="timeline-item <%= timelineStepClass(delDone, delActive) %>">
+                            <div class="timeline-icon"><i class="bi bi-house-check"></i></div>
+                            <div class="timeline-content">
+                              <h5>Entregue</h5>
+                              <% if (order.delivered_at) { %>
+                              <p>Pedido entregue com sucesso.</p>
+                              <div class="timeline-date"><%= fmtDateTime(order.delivered_at) %></div>
+                              <% } else { %>
+                              <p>Aguardando confirmação de entrega.</p>
+                              <% } %>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <% } %>
                       <div class="order-footer d-flex flex-wrap gap-2 justify-content-end">
+                        <% if (showOrderTracking(order)) { %>
+                        <button type="button" class="btn-track" data-bs-toggle="collapse" data-bs-target="#tracking-<%= order.id %>" aria-expanded="false">
+                          <i class="bi bi-geo-alt"></i> Acompanhar entrega
+                        </button>
+                        <% } %>
                         <a class="btn-details" href="/order-confirmation?order=<%= order.id %>">Ver detalhes</a>
                         <% if (order.can_cancel) { %>
                         <button type="button" class="btn-cancel btn-cancel-order" data-order-id="<%= order.id %>">Cancelar pedido</button>

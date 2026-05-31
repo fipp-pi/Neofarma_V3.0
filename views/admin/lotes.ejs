@@ -44,12 +44,18 @@
 
   <div class="list-header">
     <div>
-      <h2 class="neo-heading">Lotes</h2>
-      <p class="text-muted mb-0">Visualize todos os lotes em estoque, acompanhe vencimentos e trate situações que exigem descarte ou reposição.</p>
+      <h2 class="neo-heading">Centro de lotes</h2>
+      <p class="text-muted mb-0">Controle operacional do estoque: validade, FEFO, ajustes, descarte e rastreabilidade por lote.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-primary btn-sm" href="/admin/compras">
+        <i class="bi bi-cart-plus me-1"></i> Compras
+      </a>
+      <a class="btn btn-outline-primary btn-sm" href="/admin/produtos">
+        <i class="bi bi-box-seam me-1"></i> Produtos
+      </a>
       <a class="btn btn-outline-primary btn-sm" href="/admin/descartes">
-        <i class="bi bi-trash3 me-1"></i> Registrar descarte
+        <i class="bi bi-trash3 me-1"></i> Descartes
       </a>
       <a class="btn btn-outline-primary btn-sm" href="/admin/lotes/export.csv?status=<%= encodeURIComponent(currentStatus) %>&sort=<%= encodeURIComponent(currentSort) %>&search=<%= encodeURIComponent(currentSearch) %><%= hideDisposed ? '&hideDisposed=1' : '' %>">
         <i class="bi bi-download me-1"></i> Exportar CSV
@@ -60,7 +66,29 @@
     </div>
   </div>
 
+  <% if ((expiredAwaiting || 0) > 0) { %>
+  <div class="admin-lotes__ops-bar mb-4">
+    <div class="admin-lotes__ops-bar-text">
+      <i class="bi bi-lightning-charge me-1"></i>
+      <strong><%= expiredAwaiting %></strong> lote(s) vencido(s) aguardam descarte.
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-sm btn-danger" href="<%= lotesQuery({ status: 'EXPIRED', page: '1' }) %>">Ver vencidos</a>
+      <a class="btn btn-sm btn-outline-danger" href="/admin/descartes">Registrar descarte</a>
+    </div>
+  </div>
+  <% } %>
+
   <div class="admin-lotes__stats row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="admin-lotes__stat admin-lotes__stat--neutral">
+        <span class="admin-lotes__stat-icon"><i class="bi bi-boxes"></i></span>
+        <div>
+          <div class="admin-lotes__stat-value"><%= summaryData.totalUnits || 0 %></div>
+          <div class="admin-lotes__stat-label">Unidades em estoque</div>
+        </div>
+      </div>
+    </div>
     <div class="col-6 col-lg-3">
       <a href="<%= lotesQuery({ status: 'VALID', page: '1' }) %>" class="admin-lotes__stat admin-lotes__stat--success text-decoration-none">
         <span class="admin-lotes__stat-icon"><i class="bi bi-check-circle"></i></span>
@@ -88,27 +116,7 @@
         </div>
       </a>
     </div>
-    <div class="col-6 col-lg-3">
-      <div class="admin-lotes__stat admin-lotes__stat--neutral">
-        <span class="admin-lotes__stat-icon"><i class="bi bi-archive"></i></span>
-        <div>
-          <div class="admin-lotes__stat-value"><%= pagination ? pagination.total : 0 %></div>
-          <div class="admin-lotes__stat-label">Resultado do filtro atual</div>
-        </div>
-      </div>
-    </div>
   </div>
-
-  <% if ((expiredAwaiting || 0) > 0) { %>
-  <div class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <div>
-      <strong><i class="bi bi-exclamation-octagon me-1"></i> Atenção:</strong>
-      existem <strong><%= expiredAwaiting %></strong> lote(s) vencido(s) ainda com quantidade em estoque.
-      Registre o descarte após conferência física.
-    </div>
-    <a class="btn btn-sm btn-danger" href="/admin/descartes">Ir para descartes</a>
-  </div>
-  <% } %>
 
   <div class="admin-lotes__tabs mb-3">
     <% statusTabs.forEach(function (t) { %>
@@ -200,7 +208,9 @@
               <th>Status</th>
               <th>Descarte</th>
               <th><a class="admin-lotes__sort-link" href="<%= sortUrl(nextDaysSort) %>">Dias <i class="bi <%= daysArrow %>"></i></a></th>
+              <th>FEFO</th>
               <th class="text-center"><a class="admin-lotes__sort-link" href="<%= sortUrl(nextQtySort) %>">Qtd <i class="bi <%= qtyArrow %>"></i></a></th>
+              <th class="text-end">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -208,10 +218,23 @@
               var rowClass = r.disposal_status === 'FULL' ? 'admin-lotes__row--disposed' : (r.validity_status === 'EXPIRED' ? 'admin-lotes__row--expired' : '');
               var daysNum = Number(r.days_to_expiry);
               var daysClass = daysNum < 0 ? 'admin-lotes__days--danger' : (daysNum <= 30 ? 'admin-lotes__days--warning' : '');
+              var rowPayload = JSON.stringify({
+                id: r.id,
+                product_id: r.product_id,
+                product_name: r.product_name,
+                sku: r.sku,
+                batch_code: r.batch_code,
+                mfg_date: r.mfg_date ? String(r.mfg_date).slice(0, 10) : '',
+                expiry_date: r.expiry_date ? String(r.expiry_date).slice(0, 10) : '',
+                quantity: r.quantity,
+                validity_status: r.validity_status
+              }).replace(/"/g, '&quot;');
             %>
-              <tr class="<%= rowClass %>">
+              <tr class="<%= rowClass %>" data-batch="<%= rowPayload %>">
                 <td class="col-check"><input type="checkbox" class="row-check" value="<%= r.id %>" aria-label="Selecionar lote"></td>
-                <td><span class="cell-truncate-wide fw-semibold" title="<%= r.product_name %>"><%= r.product_name %></span></td>
+                <td>
+                  <a href="/admin/produtos?search=<%= encodeURIComponent(r.sku || r.product_name || '') %>" class="cell-truncate-wide fw-semibold text-decoration-none" title="<%= r.product_name %>"><%= r.product_name %></a>
+                </td>
                 <td class="small text-muted"><%= r.sku || '—' %></td>
                 <td><code class="admin-lotes__batch-code"><%= r.batch_code %></code></td>
                 <td class="text-nowrap small"><%= r.mfg_date ? fmtDate(r.mfg_date) : '—' %></td>
@@ -235,7 +258,25 @@
                   <% } %>
                 </td>
                 <td><span class="admin-lotes__days <%= daysClass %>"><%= r.days_to_expiry %></span></td>
+                <td>
+                  <% if (Number(r.fefo_rank) === 1) { %>
+                    <span class="admin-lotes__badge admin-lotes__badge--success" title="Primeiro lote a sair nas vendas (FEFO)">1º saída</span>
+                  <% } else if (r.fefo_rank) { %>
+                    <span class="admin-lotes__badge admin-lotes__badge--muted" title="Posição na fila FEFO"><%= r.fefo_rank %>º</span>
+                  <% } else { %>
+                    <span class="text-muted small">—</span>
+                  <% } %>
+                </td>
                 <td class="text-center"><span class="admin-lotes__qty-badge"><%= r.quantity %></span></td>
+                <td class="text-end">
+                  <div class="admin-lotes__actions">
+                    <button type="button" class="btn-action btn-view lotes-btn-detail" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
+                    <button type="button" class="btn-action btn-edit lotes-btn-edit" title="Ajustar lote" aria-label="Ajustar lote"><i class="bi bi-pencil"></i></button>
+                    <% if (Number(r.quantity) > 0) { %>
+                      <button type="button" class="btn-action btn-dispose lotes-btn-dispose" title="Registrar descarte" aria-label="Registrar descarte"><i class="bi bi-trash3"></i></button>
+                    <% } %>
+                  </div>
+                </td>
               </tr>
             <% }); %>
           </tbody>
@@ -264,6 +305,149 @@
     <% } %>
   </section>
 </div>
+
+<!-- Modal: detalhe do lote -->
+<div class="modal fade modal-cadastro" id="modalLoteDetail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="loteDetailTitle"><i class="bi bi-info-circle me-2"></i>Lote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="loteDetailBody">
+        <div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Carregando...</div>
+      </div>
+      <div class="modal-footer" id="loteDetailFooter">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ajustar lote -->
+<div class="modal fade modal-cadastro" id="modalLoteEdit" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Ajustar lote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small" id="loteEditProductLabel"></p>
+        <input type="hidden" id="loteEditId">
+        <div class="mb-3">
+          <label class="form-label field-required" for="loteEditCode">Código do lote</label>
+          <input type="text" class="form-control" id="loteEditCode" maxlength="80">
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="loteEditMfg">Fabricação</label>
+            <input type="date" class="form-control" id="loteEditMfg">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label field-required" for="loteEditExpiry">Validade</label>
+            <input type="date" class="form-control" id="loteEditExpiry">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label field-required" for="loteEditQty">Quantidade</label>
+          <input type="number" min="0" step="1" inputmode="numeric" class="form-control" id="loteEditQty">
+        </div>
+        <div class="invalid-feedback d-block" id="loteEditError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-save" id="loteEditSaveBtn">Salvar ajuste</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: descarte rápido -->
+<div class="modal fade modal-cadastro" id="modalLoteDispose" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-trash3 me-2"></i>Descarte rápido</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small" id="loteDisposeLabel"></p>
+        <input type="hidden" id="loteDisposeBatchId">
+        <input type="hidden" id="loteDisposeProductId">
+        <input type="hidden" id="loteDisposeMaxQty">
+        <div class="mb-3">
+          <label class="form-label field-required" for="loteDisposeQty">Quantidade</label>
+          <input type="number" min="1" step="1" inputmode="numeric" class="form-control" id="loteDisposeQty">
+        </div>
+        <div class="mb-0">
+          <label class="form-label field-required" for="loteDisposeReason">Motivo</label>
+          <textarea class="form-control" id="loteDisposeReason" rows="3" maxlength="500" placeholder="Ex.: Produto vencido identificado em conferência"></textarea>
+        </div>
+        <div class="invalid-feedback d-block" id="loteDisposeError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="loteDisposeSaveBtn">Registrar descarte</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .admin-lotes__ops-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, #dc3545, transparent 70%);
+    background: color-mix(in srgb, #dc3545, #fff 92%);
+  }
+  .admin-lotes__ops-bar-text { font-size: 0.9rem; color: #842029; }
+  .admin-lotes__actions {
+    display: inline-flex;
+    gap: 0.35rem;
+    justify-content: flex-end;
+  }
+  .admin-lotes__actions .btn-action {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+    color: #495057;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .admin-lotes__actions .btn-action:hover { border-color: var(--accent-color); color: var(--accent-color); }
+  .admin-lotes__actions .btn-dispose:hover { border-color: #dc3545; color: #dc3545; }
+  .admin-lotes-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+  }
+  .admin-lotes-detail-card {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    background: #fafbfc;
+  }
+  .admin-lotes-detail-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6c757d;
+    margin-bottom: 0.45rem;
+  }
+  .admin-lotes-fefo-current { background: color-mix(in srgb, var(--accent-color), transparent 90%) !important; }
+</style>
 
 <style>
   .admin-lotes__stats { margin-top: 0.25rem; }
@@ -535,14 +719,239 @@
 <%- include('partials/footer') %>
 
 <script>
+(function () {
+  function lotesToast(msg, type) {
+    if (typeof window.neofarmaToast === 'function') return window.neofarmaToast(msg, type);
+    alert(msg);
+  }
+
+  function parseRowData(tr) {
+    try {
+      var raw = tr.getAttribute('data-batch');
+      if (!raw) return null;
+      return JSON.parse(raw.replace(/&quot;/g, '"'));
+    } catch (_) { return null; }
+  }
+
+  function escapeHtml(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(v) {
+    if (!v) return '—';
+    return window.NeoDates ? NeoDates.formatDate(v) : String(v).slice(0, 10);
+  }
+
+  function fmtDateTime(v) {
+    if (!v) return '—';
+    return window.NeoDates ? NeoDates.formatDateTime(v) : String(v);
+  }
+
+  function validityLabel(v) {
+    if (v === 'EXPIRED') return 'Vencido';
+    if (v === 'EXPIRING') return 'A vencer';
+    return 'Válido';
+  }
+
+  async function openDetail(batchId) {
+    var modalEl = document.getElementById('modalLoteDetail');
+    var bodyEl = document.getElementById('loteDetailBody');
+    var titleEl = document.getElementById('loteDetailTitle');
+    var footerEl = document.getElementById('loteDetailFooter');
+    if (!modalEl || !bodyEl) return;
+    titleEl.innerHTML = '<i class="bi bi-info-circle me-2"></i>Lote #' + escapeHtml(batchId);
+    bodyEl.innerHTML = '<div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Carregando...</div>';
+    footerEl.innerHTML = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+    try {
+      var res = await fetch('/admin/lotes/' + encodeURIComponent(batchId));
+      var data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Erro ao carregar lote.');
+      var b = data.batch || {};
+      var p = data.product || {};
+      var usage = data.order_usage || {};
+      var html = '<div class="admin-lotes-detail-grid">';
+      html += '<div class="admin-lotes-detail-card"><div class="admin-lotes-detail-card-title">Produto</div>';
+      html += '<p class="mb-1 fw-semibold">' + escapeHtml(p.name) + '</p>';
+      html += '<p class="mb-1 small text-muted">SKU: ' + escapeHtml(p.sku || '—') + '</p>';
+      html += '<p class="mb-0 small">Estoque vendável: <strong>' + Number(p.valid_stock || 0) + ' un.</strong></p></div>';
+      html += '<div class="admin-lotes-detail-card"><div class="admin-lotes-detail-card-title">Lote</div>';
+      html += '<p class="mb-1"><code>' + escapeHtml(b.batch_code) + '</code></p>';
+      html += '<p class="mb-1 small">Validade: ' + escapeHtml(fmtDate(b.expiry_date)) + ' · ' + escapeHtml(validityLabel(b.validity_status)) + '</p>';
+      html += '<p class="mb-0 small">Saldo atual: <strong>' + Number(b.quantity || 0) + ' un.</strong></p></div>';
+      html += '<div class="admin-lotes-detail-card"><div class="admin-lotes-detail-card-title">Movimentação</div>';
+      html += '<p class="mb-1 small">Pedidos efetivados: <strong>' + Number(usage.orders_count || 0) + '</strong></p>';
+      html += '<p class="mb-1 small">Unidades vendidas: <strong>' + Number(usage.units_sold || 0) + '</strong></p>';
+      if (Number(usage.units_cancelled || 0) > 0) {
+        html += '<p class="mb-1 small text-muted">Cancelados (não contabilizados): <strong>' + Number(usage.units_cancelled || 0) + ' un.</strong> em ' + Number(usage.orders_cancelled_count || 0) + ' pedido(s)</p>';
+      }
+      html += '<p class="mb-0 small">Descartado: <strong>' + Number(b.disposed_qty || 0) + ' un.</strong></p></div></div>';
+
+      html += '<div class="cadastro-edit-section-title">Fila FEFO do produto</div>';
+      if ((data.fefo_queue || []).length) {
+        html += '<div class="table-responsive mb-3"><table class="table table-sm table-custom mb-0"><thead><tr><th>Pos.</th><th>Lote</th><th>Validade</th><th class="text-center">Qtd</th></tr></thead><tbody>';
+        data.fefo_queue.forEach(function (item) {
+          var cls = Number(item.id) === Number(b.id) ? 'admin-lotes-fefo-current' : '';
+          html += '<tr class="' + cls + '"><td>' + (item.fefo_rank || '—') + 'º</td><td><code>' + escapeHtml(item.batch_code) + '</code></td><td>' + escapeHtml(fmtDate(item.expiry_date)) + '</td><td class="text-center">' + Number(item.quantity || 0) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p class="text-muted small mb-3">Nenhum lote vendável na fila FEFO.</p>';
+      }
+
+      html += '<div class="cadastro-edit-section-title">Histórico de descartes</div>';
+      if ((data.disposals || []).length) {
+        html += '<div class="table-responsive mb-3"><table class="table table-sm table-custom mb-0"><thead><tr><th>Data</th><th>Qtd</th><th>Motivo</th><th>Responsável</th></tr></thead><tbody>';
+        data.disposals.forEach(function (d) {
+          html += '<tr><td class="small">' + escapeHtml(fmtDateTime(d.created_at)) + '</td><td>' + Number(d.quantity || 0) + '</td><td>' + escapeHtml(d.reason || '—') + '</td><td class="small">' + escapeHtml(d.disposed_by_name || '—') + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p class="text-muted small mb-3">Nenhum descarte registrado para este lote.</p>';
+      }
+
+      if ((usage.recent || []).length) {
+        html += '<div class="cadastro-edit-section-title">Histórico de saídas em pedidos</div>';
+        html += '<div class="table-responsive"><table class="table table-sm table-custom mb-0"><thead><tr><th>Pedido</th><th>Data</th><th class="text-center">Qtd</th><th>Status</th><th>Contabiliza</th></tr></thead><tbody>';
+        usage.recent.forEach(function (o) {
+          var isSale = Number(o.counts_as_sale) === 1;
+          var statusClass = String(o.order_status || '').toUpperCase() === 'CANCELLED' ? 'text-danger' : '';
+          html += '<tr class="' + (isSale ? '' : 'text-muted') + '">';
+          html += '<td>#' + Number(o.order_id) + '</td>';
+          html += '<td class="small">' + escapeHtml(fmtDateTime(o.created_at)) + '</td>';
+          html += '<td class="text-center">' + Number(o.quantity || 0) + '</td>';
+          html += '<td class="small ' + statusClass + '">' + escapeHtml(o.order_status || '—') + '</td>';
+          html += '<td class="small">' + (isSale ? '<span class="text-success">Sim</span>' : '<span class="text-muted">Não</span>') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      bodyEl.innerHTML = html;
+      footerEl.innerHTML = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>'
+        + '<a class="btn btn-outline-primary" href="/admin/produtos?search=' + encodeURIComponent(p.sku || p.name || '') + '">Ver produto</a>';
+    } catch (err) {
+      bodyEl.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(err.message || 'Erro.') + '</div>';
+    }
+  }
+
+  function openEdit(row) {
+    var data = parseRowData(row);
+    if (!data) return;
+    document.getElementById('loteEditId').value = data.id;
+    document.getElementById('loteEditProductLabel').textContent = data.product_name + (data.sku ? ' · SKU ' + data.sku : '');
+    document.getElementById('loteEditCode').value = data.batch_code || '';
+    document.getElementById('loteEditMfg').value = data.mfg_date || '';
+    document.getElementById('loteEditExpiry').value = data.expiry_date || '';
+    document.getElementById('loteEditQty').value = data.quantity != null ? data.quantity : '';
+    document.getElementById('loteEditError').textContent = '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalLoteEdit')).show();
+  }
+
+  function openDispose(row) {
+    var data = parseRowData(row);
+    if (!data) return;
+    document.getElementById('loteDisposeBatchId').value = data.id;
+    document.getElementById('loteDisposeProductId').value = data.product_id;
+    document.getElementById('loteDisposeMaxQty').value = data.quantity;
+    document.getElementById('loteDisposeLabel').textContent = data.product_name + ' · lote ' + data.batch_code + ' · saldo ' + data.quantity + ' un.';
+    document.getElementById('loteDisposeQty').value = data.validity_status === 'EXPIRED' ? data.quantity : '';
+    document.getElementById('loteDisposeQty').max = data.quantity;
+    document.getElementById('loteDisposeReason').value = data.validity_status === 'EXPIRED' ? 'Produto vencido identificado em conferência de estoque' : '';
+    document.getElementById('loteDisposeError').textContent = '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalLoteDispose')).show();
+  }
+
+  document.addEventListener('click', function (ev) {
+    var row = ev.target.closest('tr[data-batch]');
+    if (!row) return;
+    if (ev.target.closest('.lotes-btn-detail')) { ev.preventDefault(); openDetail(parseRowData(row).id); return; }
+    if (ev.target.closest('.lotes-btn-edit')) { ev.preventDefault(); openEdit(row); return; }
+    if (ev.target.closest('.lotes-btn-dispose')) { ev.preventDefault(); openDispose(row); }
+  });
+
+  document.getElementById('loteEditSaveBtn')?.addEventListener('click', async function () {
+    var id = document.getElementById('loteEditId').value;
+    var errEl = document.getElementById('loteEditError');
+    errEl.textContent = '';
+    var body = {
+      batch_code: document.getElementById('loteEditCode').value.trim(),
+      mfg_date: document.getElementById('loteEditMfg').value || null,
+      expiry_date: document.getElementById('loteEditExpiry').value,
+      quantity: document.getElementById('loteEditQty').value,
+    };
+    if (!body.batch_code || !body.expiry_date) {
+      errEl.textContent = 'Informe código e validade.';
+      return;
+    }
+    this.disabled = true;
+    try {
+      var res = await fetch('/admin/produtos/lotes/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Falha ao salvar.');
+      lotesToast('Lote atualizado com sucesso.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modalLoteEdit')).hide();
+      window.location.reload();
+    } catch (err) {
+      errEl.textContent = err.message || 'Erro ao salvar.';
+    } finally {
+      this.disabled = false;
+    }
+  });
+
+  document.getElementById('loteDisposeSaveBtn')?.addEventListener('click', async function () {
+    var errEl = document.getElementById('loteDisposeError');
+    errEl.textContent = '';
+    var maxQty = Number(document.getElementById('loteDisposeMaxQty').value || 0);
+    var body = {
+      product_id: Number(document.getElementById('loteDisposeProductId').value),
+      batch_id: Number(document.getElementById('loteDisposeBatchId').value),
+      quantity: document.getElementById('loteDisposeQty').value,
+      reason: document.getElementById('loteDisposeReason').value.trim(),
+    };
+    if (!body.quantity || !body.reason) {
+      errEl.textContent = 'Informe quantidade e motivo.';
+      return;
+    }
+    if (Number(body.quantity) > maxQty) {
+      errEl.textContent = 'Quantidade maior que o saldo do lote.';
+      return;
+    }
+    this.disabled = true;
+    try {
+      var res = await fetch('/admin/descartes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Falha ao descartar.');
+      lotesToast(data.message || 'Descarte registrado.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modalLoteDispose')).hide();
+      window.location.href = '/admin/lotes?disposed=1';
+    } catch (err) {
+      errEl.textContent = err.message || 'Erro ao descartar.';
+    } finally {
+      this.disabled = false;
+    }
+  });
+
   document.getElementById('checkAll')?.addEventListener('change', function () {
     document.querySelectorAll('.row-check').forEach(function (c) { c.checked = this.checked; }.bind(this));
   });
 
   document.getElementById('btnDeleteMany')?.addEventListener('click', async function () {
     var ids = Array.from(document.querySelectorAll('.row-check:checked')).map(function (c) { return Number(c.value); });
-    if (!ids.length) return window.neofarmaToast('Selecione ao menos um lote.', 'warning');
-    var ok = await window.neofarmaConfirm({ title: 'Excluir lotes', message: 'Excluir os lotes selecionados? Esta ação não pode ser desfeita.' });
+    if (!ids.length) return lotesToast('Selecione ao menos um lote.', 'warning');
+    var ok = typeof window.neofarmaConfirm === 'function'
+      ? await window.neofarmaConfirm({ title: 'Excluir lotes', message: 'Excluir os lotes selecionados? Esta ação não pode ser desfeita.' })
+      : window.confirm('Excluir os lotes selecionados?');
     if (!ok) return;
     var btn = this;
     btn.disabled = true;
@@ -554,15 +963,16 @@
       });
       var data = await resp.json();
       if (!data.ok) {
-        window.neofarmaToast(data.message || 'Falha na exclusão em massa.', 'danger');
+        lotesToast(data.message || 'Falha na exclusão em massa.', 'danger');
         return;
       }
-      window.neofarmaToast('Lotes excluídos com sucesso.', 'success');
+      lotesToast('Lotes excluídos com sucesso.', 'success');
       window.location.reload();
     } catch (e) {
-      window.neofarmaToast('Erro de conexão. Tente novamente.', 'danger');
+      lotesToast('Erro de conexão. Tente novamente.', 'danger');
     } finally {
       btn.disabled = false;
     }
   });
+})();
 </script>

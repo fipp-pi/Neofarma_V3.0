@@ -3,11 +3,11 @@
 -- Compatível com o código atual (catálogo, carrinho, checkout)
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS neofarma
+CREATE DATABASE IF NOT EXISTS PFS1_10442511034
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE neofarma;
+USE PFS1_10442511034;
 
 -- ==============================
 -- Tabelas de apoio
@@ -388,6 +388,10 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_zip          VARCHAR(8) NULL,
   shipping_service      VARCHAR(20) NULL,
   shipping_deadline_days INT NULL,
+  tracking_code     VARCHAR(80) NULL,
+  shipped_at        DATETIME NULL,
+  delivered_at      DATETIME NULL,
+  delivered_by      BIGINT UNSIGNED NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_orders_customer (customer_id),
@@ -396,7 +400,10 @@ CREATE TABLE IF NOT EXISTS orders (
       ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_orders_address
     FOREIGN KEY (address_id) REFERENCES addresses(id)
-      ON UPDATE CASCADE ON DELETE RESTRICT
+      ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_orders_delivered_by
+    FOREIGN KEY (delivered_by) REFERENCES users(id)
+      ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS order_items (

@@ -4,6 +4,38 @@ function stripDigits(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+/**
+ * Valida data ISO (YYYY-MM-DD) para cadastro.
+ * @param {string} birthDate
+ * @returns {string|null} mensagem de erro ou null se válida
+ */
+function validateBirthDate(birthDate) {
+  const raw = String(birthDate || '').trim();
+  if (!raw) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!match) return 'Informe uma data de nascimento válida.';
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const currentYear = new Date().getFullYear();
+  if (!Number.isFinite(year) || year < 1900 || year > currentYear) {
+    return `Informe um ano de nascimento entre 1900 e ${currentYear}.`;
+  }
+  const bd = new Date(`${raw}T00:00:00`);
+  if (
+    Number.isNaN(bd.getTime())
+    || bd.getFullYear() !== year
+    || bd.getMonth() + 1 !== month
+    || bd.getDate() !== day
+  ) {
+    return 'Informe uma data de nascimento válida.';
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (bd > today) return 'A data de nascimento não pode ser futura.';
+  return null;
+}
+
 const PUBLIC_FIELD_MAP = {
   nome: 'full_name',
   email: 'email',
@@ -57,10 +89,8 @@ function validateRegisterPayload(data) {
   else if (!isValidCpf(cpfDigits)) fields.cpf = 'CPF inválido — verifique os dígitos verificadores.';
 
   if (birthDate) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const bd = new Date(`${birthDate}T00:00:00`);
-    if (bd > today) fields.birth_date = 'A data de nascimento não pode ser futura.';
+    const birthErr = validateBirthDate(birthDate);
+    if (birthErr) fields.birth_date = birthErr;
   }
 
   if (!senha) fields.senha = 'Informe a senha de acesso.';
@@ -143,6 +173,7 @@ async function findRegisterDuplicateFields(payload, userModel, excludeUserId = n
 
 module.exports = {
   stripDigits,
+  validateBirthDate,
   validateRegisterPayload,
   mapRegisterFieldsToPublic,
   findRegisterDuplicateFields,

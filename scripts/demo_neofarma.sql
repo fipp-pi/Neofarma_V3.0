@@ -1,6 +1,7 @@
 -- ============================================================
 -- NEOFARMA — Base de demonstração operacional
--- Gerado por: node scripts/generate_demo_brasil.js
+-- Gerado por: node scripts/old/generate_demo_brasil.js
+-- Imagens: public/assets/img/product-farma/ (22 arquivos)
 -- Pré-requisito: scripts/DB_Neofarma_clean.sql
 -- Senha dos usuários @loja.neofarma.com.br: NeoFarma@2026
 -- Admin original do schema: admin@neofarma.com / Admin@123
@@ -33,31 +34,100 @@ DELETE FROM employees WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%
 DELETE FROM users WHERE email LIKE '%@loja.neofarma.com.br';
 DELETE FROM suppliers WHERE cnpj LIKE '30%' AND corporate_name IN ('Distribuidora Fitonatural Ltda', 'Ervas do Campo Comercial ME', 'Verde Vida Distribuição SA', 'Botica Popular Atacado Ltda', 'Pharma Nativa Supply Ltda', 'Central de Insumos Naturais EPP', 'MaxFito Distribuidora Ltda', 'Organica Trade Importadora SA');
 DELETE FROM labs WHERE name IN ('Herbarium Laboratório Botânico', 'Apsen Farmacêutica', 'Aché Laboratórios Farmacêuticos', 'Legrand Pharma', 'Natulab Laboratório Natural', 'Medley Farmacêutica');
-DELETE FROM categories WHERE slug IN ('fitoterapicos', 'suplementos', 'chas-infusiones', 'dermocosmeticos', 'higiene-natural', 'aromaterapia', 'manipulados', 'infantil-natural');
-DELETE FROM product_types WHERE slug IN ('fitoterapico', 'suplemento-alimentar', 'higiene-pessoal', 'cosmetico-natural', 'cha-medicinal', 'oleo-essencial', 'homeopatia', 'produto-manipulado');
+DELETE FROM categories WHERE slug IN ('oleos-essenciais', 'oleos-vegetais', 'blends-aromaticos', 'chas-medicinais', 'chas-digestivos', 'infusoes-funcionais', 'vitaminas-minerais', 'probioticos-enzimas', 'oleos-omegas', 'extratos-secos', 'tinturas-fluidos', 'xaropes-solucoes', 'cuidados-corporais', 'cuidados-faciais', 'higiene-bucal-natural', 'higiene-pessoal');
+DELETE FROM categories WHERE slug IN ('aromaterapia', 'chas-infusiones', 'suplementacao', 'fitoterapicos', 'dermocosmetica-natural', 'higiene-bem-estar', 'fitoterapicos', 'suplementos', 'dermocosmeticos', 'higiene-natural', 'manipulados', 'infantil-natural', 'oleos-essenciais-legacy', 'fitoterapico-legacy');
+DELETE FROM product_types WHERE slug IN ('capsulas', 'comprimidos', 'gotas', 'tintura', 'xarope', 'ervas-a-granel', 'roll-on', 'creme-gel', 'spray', 'oleo-fracionado', 'fitoterapico', 'suplemento-alimentar', 'higiene-pessoal', 'cosmetico-natural', 'cha-medicinal', 'oleo-essencial', 'homeopatia', 'produto-manipulado');
 SET FOREIGN_KEY_CHECKS = 1;
 
 INSERT INTO roles (name, description) VALUES
 ('ADMIN','Administrador'),('FUNCIONARIO','Funcionário'),('ESTOQUISTA','Estoquista'),('CLIENTE','Cliente')
 ON DUPLICATE KEY UPDATE description=VALUES(description);
 
--- Tipos e categorias
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Fitoterápico', 'fitoterapico', 'Produtos de origem vegetal medicinal', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Suplemento Alimentar', 'suplemento-alimentar', 'Vitaminas, minerais e complementos', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Higiene Pessoal', 'higiene-pessoal', 'Sabonetes, shampoos naturais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Cosmético Natural', 'cosmetico-natural', 'Dermocosméticos à base de ingredientes naturais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Chá Medicinal', 'cha-medicinal', 'Chás funcionais e infusões', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Óleo Essencial', 'oleo-essencial', 'Aromaterapia e uso tópico diluído', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Homeopatia', 'homeopatia', 'Medicamentos homeopáticos', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO product_types (name, slug, description, is_active) VALUES ('Produto Manipulado', 'produto-manipulado', 'Fórmulas magistrais padronizadas', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Fitoterápicos', 'fitoterapicos', 'Linha fitoterápica', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Suplementos', 'suplementos', 'Suplementação alimentar', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Chás e Infusões', 'chas-infusiones', 'Chás funcionais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Dermocosméticos', 'dermocosmeticos', 'Cuidados com pele e cabelo', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Higiene Natural', 'higiene-natural', 'Higiene com ingredientes naturais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Aromaterapia', 'aromaterapia', 'Óleos essenciais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Manipulados', 'manipulados', 'Fórmulas magistrais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
-INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Infantil Natural', 'infantil-natural', 'Linha pediátrica natural', 1) ON DUPLICATE KEY UPDATE name=VALUES(name);
+-- Apresentações físicas (independentes da categoria departamental)
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Cápsulas', 'capsulas', 'Produtos encapsulados de uso oral', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Comprimidos', 'comprimidos', 'Comprimidos sólidos de uso oral', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Gotas', 'gotas', 'Soluções orais em gotas', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Tintura', 'tintura', 'Extratos hidroalcoólicos', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Xarope', 'xarope', 'Soluções viscosas orais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Ervas a Granel', 'ervas-a-granel', 'Plantas medicinais a granel para infusão', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Roll-on', 'roll-on', 'Aplicador roll-on para uso tópico/aromático', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Creme / Gel', 'creme-gel', 'Emulsões e géis para uso tópico', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Spray', 'spray', 'Soluções em spray', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO product_types (name, slug, description, is_active) VALUES ('Óleo fracionado', 'oleo-fracionado', 'Óleos essenciais, vegetais ou blends fracionados', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+
+-- Categorias pai (macro-departamentos — parent_id NULL)
+INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Aromaterapia', 'aromaterapia', 'Óleos essenciais, vegetais e blends para bem-estar olfativo', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;
+INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Chás e Infusões', 'chas-infusiones', 'Chás funcionais, digestivos e infusões medicinais', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;
+INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Suplementação', 'suplementacao', 'Vitaminas, minerais, ômegas e probióticos', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;
+INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Fitoterápicos', 'fitoterapicos', 'Medicamentos e insumos de origem vegetal', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;
+INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Dermocosmética Natural', 'dermocosmetica-natural', 'Cuidados naturais para pele e corpo', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;
+INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, 'Higiene e Bem-estar', 'higiene-bem-estar', 'Higiene pessoal e autocuidado natural', 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;
+
+-- Categorias filhas (sub-departamentos — parent_id aponta para a categoria pai)
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Óleos Essenciais', 'oleos-essenciais', 'Óleos essenciais puros e naturais', 1
+FROM categories p WHERE p.slug = 'aromaterapia' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Óleos Vegetais', 'oleos-vegetais', 'Carreadores vegetais para diluição', 1
+FROM categories p WHERE p.slug = 'aromaterapia' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Blends Aromáticos', 'blends-aromaticos', 'Misturas prontas para aromaterapia', 1
+FROM categories p WHERE p.slug = 'aromaterapia' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Chás Medicinais', 'chas-medicinais', 'Chás de plantas medicinais', 1
+FROM categories p WHERE p.slug = 'chas-infusiones' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Chás Digestivos', 'chas-digestivos', 'Blends para conforto digestivo', 1
+FROM categories p WHERE p.slug = 'chas-infusiones' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Infusões Funcionais', 'infusoes-funcionais', 'Infusões para rotina de bem-estar', 1
+FROM categories p WHERE p.slug = 'chas-infusiones' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Vitaminas e Minerais', 'vitaminas-minerais', 'Suplementação vitamínica e mineral', 1
+FROM categories p WHERE p.slug = 'suplementacao' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Probióticos e Enzimas', 'probioticos-enzimas', 'Suporte à microbiota e digestão', 1
+FROM categories p WHERE p.slug = 'suplementacao' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Óleos e Ômegas', 'oleos-omegas', 'Ácidos graxos essenciais e óleos funcionais', 1
+FROM categories p WHERE p.slug = 'suplementacao' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Extratos Secos', 'extratos-secos', 'Extratos vegetais padronizados', 1
+FROM categories p WHERE p.slug = 'fitoterapicos' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Tinturas e Fluidos', 'tinturas-fluidos', 'Tinturas, soluções e fluidos fitoterápicos', 1
+FROM categories p WHERE p.slug = 'fitoterapicos' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Xaropes e Soluções', 'xaropes-solucoes', 'Xaropes e soluções orais fitoterápicas', 1
+FROM categories p WHERE p.slug = 'fitoterapicos' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Cuidados Corporais', 'cuidados-corporais', 'Hidratantes, géis e óleos corporais', 1
+FROM categories p WHERE p.slug = 'dermocosmetica-natural' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Cuidados Faciais', 'cuidados-faciais', 'Sérums, cremes e tratamentos faciais', 1
+FROM categories p WHERE p.slug = 'dermocosmetica-natural' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Higiene Bucal Natural', 'higiene-bucal-natural', 'Pastas, enxaguantes e sprays bucais naturais', 1
+FROM categories p WHERE p.slug = 'higiene-bem-estar' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
+INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, 'Higiene Pessoal', 'higiene-pessoal', 'Sabonetes, shampoos e desodorantes naturais', 1
+FROM categories p WHERE p.slug = 'higiene-bem-estar' LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
 
 -- Endereços
 INSERT INTO addresses (street, number, complement, district, city, state, country, zip_code) VALUES ('Rua Siqueira Campos', '100', 'Sala 100', 'Centro', 'Presidente Prudente', 'SP', 'Brasil', '19010010');
@@ -111,192 +181,225 @@ INSERT INTO suppliers (corporate_name, trade_name, cnpj, email, phone, address_i
 INSERT INTO suppliers (corporate_name, trade_name, cnpj, email, phone, address_id, is_active) VALUES ('Organica Trade Importadora SA', 'Organica Trade', '30000001555409', 'trade@organica.com.br', '1899102007', @addr_base + 12, 0);
 SET @lab_id := (SELECT id FROM labs WHERE name = 'Herbarium Laboratório Botânico' LIMIT 1);
 SET @supplier_id := (SELECT id FROM suppliers WHERE trade_name = 'Fitonatural' LIMIT 1);
-SET @type_fit := (SELECT id FROM product_types WHERE slug = 'fitoterapico' LIMIT 1);
-SET @type_sup := (SELECT id FROM product_types WHERE slug = 'suplemento-alimentar' LIMIT 1);
-SET @type_hig := (SELECT id FROM product_types WHERE slug = 'higiene-pessoal' LIMIT 1);
-SET @cat_fito := (SELECT id FROM categories WHERE slug = 'fitoterapicos' LIMIT 1);
-SET @cat_sup := (SELECT id FROM categories WHERE slug = 'suplementos' LIMIT 1);
-SET @cat_cha := (SELECT id FROM categories WHERE slug = 'chas-infusiones' LIMIT 1);
+SET @cat_aromaterapia := (SELECT id FROM categories WHERE slug = 'aromaterapia' LIMIT 1);
+SET @cat_oleos_essenciais := (SELECT id FROM categories WHERE slug = 'oleos-essenciais' LIMIT 1);
+SET @cat_oleos_vegetais := (SELECT id FROM categories WHERE slug = 'oleos-vegetais' LIMIT 1);
+SET @cat_blends_aromaticos := (SELECT id FROM categories WHERE slug = 'blends-aromaticos' LIMIT 1);
+SET @cat_chas_infusiones := (SELECT id FROM categories WHERE slug = 'chas-infusiones' LIMIT 1);
+SET @cat_chas_medicinais := (SELECT id FROM categories WHERE slug = 'chas-medicinais' LIMIT 1);
+SET @cat_chas_digestivos := (SELECT id FROM categories WHERE slug = 'chas-digestivos' LIMIT 1);
+SET @cat_infusoes_funcionais := (SELECT id FROM categories WHERE slug = 'infusoes-funcionais' LIMIT 1);
+SET @cat_suplementacao := (SELECT id FROM categories WHERE slug = 'suplementacao' LIMIT 1);
+SET @cat_vitaminas_minerais := (SELECT id FROM categories WHERE slug = 'vitaminas-minerais' LIMIT 1);
+SET @cat_probioticos_enzimas := (SELECT id FROM categories WHERE slug = 'probioticos-enzimas' LIMIT 1);
+SET @cat_oleos_omegas := (SELECT id FROM categories WHERE slug = 'oleos-omegas' LIMIT 1);
+SET @cat_fitoterapicos := (SELECT id FROM categories WHERE slug = 'fitoterapicos' LIMIT 1);
+SET @cat_extratos_secos := (SELECT id FROM categories WHERE slug = 'extratos-secos' LIMIT 1);
+SET @cat_tinturas_fluidos := (SELECT id FROM categories WHERE slug = 'tinturas-fluidos' LIMIT 1);
+SET @cat_xaropes_solucoes := (SELECT id FROM categories WHERE slug = 'xaropes-solucoes' LIMIT 1);
+SET @cat_dermocosmetica_natural := (SELECT id FROM categories WHERE slug = 'dermocosmetica-natural' LIMIT 1);
+SET @cat_cuidados_corporais := (SELECT id FROM categories WHERE slug = 'cuidados-corporais' LIMIT 1);
+SET @cat_cuidados_faciais := (SELECT id FROM categories WHERE slug = 'cuidados-faciais' LIMIT 1);
+SET @cat_higiene_bem_estar := (SELECT id FROM categories WHERE slug = 'higiene-bem-estar' LIMIT 1);
+SET @cat_higiene_bucal_natural := (SELECT id FROM categories WHERE slug = 'higiene-bucal-natural' LIMIT 1);
+SET @cat_higiene_pessoal := (SELECT id FROM categories WHERE slug = 'higiene-pessoal' LIMIT 1);
+SET @cat_suplementos := (SELECT id FROM categories WHERE slug = 'suplementos' LIMIT 1);
+SET @cat_dermocosmeticos := (SELECT id FROM categories WHERE slug = 'dermocosmeticos' LIMIT 1);
+SET @cat_higiene_natural := (SELECT id FROM categories WHERE slug = 'higiene-natural' LIMIT 1);
+SET @cat_manipulados := (SELECT id FROM categories WHERE slug = 'manipulados' LIMIT 1);
+SET @cat_infantil_natural := (SELECT id FROM categories WHERE slug = 'infantil-natural' LIMIT 1);
+SET @cat_oleos_essenciais_legacy := (SELECT id FROM categories WHERE slug = 'oleos-essenciais-legacy' LIMIT 1);
+SET @cat_fitoterapico_legacy := (SELECT id FROM categories WHERE slug = 'fitoterapico-legacy' LIMIT 1);
+SET @type_capsulas := (SELECT id FROM product_types WHERE slug = 'capsulas' LIMIT 1);
+SET @type_comprimidos := (SELECT id FROM product_types WHERE slug = 'comprimidos' LIMIT 1);
+SET @type_gotas := (SELECT id FROM product_types WHERE slug = 'gotas' LIMIT 1);
+SET @type_tintura := (SELECT id FROM product_types WHERE slug = 'tintura' LIMIT 1);
+SET @type_xarope := (SELECT id FROM product_types WHERE slug = 'xarope' LIMIT 1);
+SET @type_ervas_a_granel := (SELECT id FROM product_types WHERE slug = 'ervas-a-granel' LIMIT 1);
+SET @type_roll_on := (SELECT id FROM product_types WHERE slug = 'roll-on' LIMIT 1);
+SET @type_creme_gel := (SELECT id FROM product_types WHERE slug = 'creme-gel' LIMIT 1);
+SET @type_spray := (SELECT id FROM product_types WHERE slug = 'spray' LIMIT 1);
+SET @type_oleo_fracionado := (SELECT id FROM product_types WHERE slug = 'oleo-fracionado' LIMIT 1);
 
 -- Equipe
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Eliane Souza Moraes', 'eliane.moraes@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '90000000094', '1899700100', '1985-06-15', 1 FROM roles r WHERE r.name='FUNCIONARIO' LIMIT 1;
+SELECT r.id, 'Eliane Souza Moraes', 'eliane.moraes@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '90000000094', '1899700100', '1985-06-15', 1 FROM roles r WHERE r.name='FUNCIONARIO' LIMIT 1;
 INSERT INTO employees (user_id, hire_date, salary, role_title)
 SELECT u.id, '2022-03-01', 3200, 'Atendente de Balcão' FROM users u WHERE u.email='eliane.moraes@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Robson Pereira Lima', 'robson.lima@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '90000000175', '1899700101', '1985-06-15', 1 FROM roles r WHERE r.name='ESTOQUISTA' LIMIT 1;
+SELECT r.id, 'Robson Pereira Lima', 'robson.lima@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '90000000175', '1899700101', '1985-06-15', 1 FROM roles r WHERE r.name='ESTOQUISTA' LIMIT 1;
 INSERT INTO employees (user_id, hire_date, salary, role_title)
 SELECT u.id, '2022-03-01', 2800, 'Estoquista' FROM users u WHERE u.email='robson.lima@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Marcos Antônio Ribeiro', 'marcos.ribeiro@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '90000000256', '1899700102', '1985-06-15', 1 FROM roles r WHERE r.name='ADMIN' LIMIT 1;
+SELECT r.id, 'Marcos Antônio Ribeiro', 'marcos.ribeiro@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '90000000256', '1899700102', '1985-06-15', 1 FROM roles r WHERE r.name='ADMIN' LIMIT 1;
 INSERT INTO employees (user_id, hire_date, salary, role_title)
 SELECT u.id, '2022-03-01', 8500, 'Gerente Operacional' FROM users u WHERE u.email='marcos.ribeiro@loja.neofarma.com.br' LIMIT 1;
 
 -- Clientes PF
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Ana Beatriz Ferreira', 'ana.beatriz@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000108', '1799600100', '1970-01-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Ana Beatriz Ferreira', 'ana.beatriz@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000108', '1799600100', '1970-01-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 0, 0 FROM users u WHERE u.email='ana.beatriz@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 0, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='ana.beatriz@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Carlos Eduardo Souza', 'carlos.eduardo2@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000280', '1799600101', '1971-02-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Carlos Eduardo Souza', 'carlos.eduardo2@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000280', '1799600101', '1971-02-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 1, 17 FROM users u WHERE u.email='carlos.eduardo2@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 1, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='carlos.eduardo2@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Mariana Oliveira Lima', 'mariana.oliveira3@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000361', '1799600102', '1972-03-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Mariana Oliveira Lima', 'mariana.oliveira3@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000361', '1799600102', '1972-03-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 2, 34 FROM users u WHERE u.email='mariana.oliveira3@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 2, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='mariana.oliveira3@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'João Pedro Almeida', 'joao.pedro4@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000442', '1799600103', '1973-04-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'João Pedro Almeida', 'joao.pedro4@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000442', '1799600103', '1973-04-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 3, 51 FROM users u WHERE u.email='joao.pedro4@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 3, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='joao.pedro4@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Fernanda Rocha Martins', 'fernanda.rocha5@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000523', '1799600104', '1974-05-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Fernanda Rocha Martins', 'fernanda.rocha5@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000523', '1799600104', '1974-05-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 4, 68 FROM users u WHERE u.email='fernanda.rocha5@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 4, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='fernanda.rocha5@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Ricardo Henrique Dias', 'ricardo.henrique6@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000604', '1799600105', '1975-06-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Ricardo Henrique Dias', 'ricardo.henrique6@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000604', '1799600105', '1975-06-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 5, 85 FROM users u WHERE u.email='ricardo.henrique6@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 5, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='ricardo.henrique6@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Juliana Costa Pereira', 'juliana.costa7@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000795', '1799600106', '1976-07-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Juliana Costa Pereira', 'juliana.costa7@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000795', '1799600106', '1976-07-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 6, 102 FROM users u WHERE u.email='juliana.costa7@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 6, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='juliana.costa7@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Lucas Gabriel Santos', 'lucas.gabriel8@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000876', '1799600107', '1977-08-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Lucas Gabriel Santos', 'lucas.gabriel8@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000876', '1799600107', '1977-08-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 7, 119 FROM users u WHERE u.email='lucas.gabriel8@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 7, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='lucas.gabriel8@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Patrícia Mendes Barbosa', 'patricia.mendes9@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000000957', '1799600108', '1978-09-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Patrícia Mendes Barbosa', 'patricia.mendes9@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000000957', '1799600108', '1978-09-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 8, 136 FROM users u WHERE u.email='patricia.mendes9@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 8, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='patricia.mendes9@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Roberto Carlos Nunes', 'roberto.carlos10@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001090', '1799600109', '1979-10-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Roberto Carlos Nunes', 'roberto.carlos10@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001090', '1799600109', '1979-10-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 9, 153 FROM users u WHERE u.email='roberto.carlos10@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 9, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='roberto.carlos10@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Camila Duarte Freitas', 'camila.duarte11@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001171', '1799600110', '1980-11-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Camila Duarte Freitas', 'camila.duarte11@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001171', '1799600110', '1980-11-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 10, 170 FROM users u WHERE u.email='camila.duarte11@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 10, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='camila.duarte11@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Bruno Henrique Castro', 'bruno.henrique12@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001252', '1799600111', '1981-12-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Bruno Henrique Castro', 'bruno.henrique12@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001252', '1799600111', '1981-12-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 11, 187 FROM users u WHERE u.email='bruno.henrique12@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 11, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='bruno.henrique12@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Larissa Aparecida Melo', 'larissa.aparecida13@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001333', '1799600112', '1982-01-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Larissa Aparecida Melo', 'larissa.aparecida13@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001333', '1799600112', '1982-01-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 12, 204 FROM users u WHERE u.email='larissa.aparecida13@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 12, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='larissa.aparecida13@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Diego Augusto Ribeiro', 'diego.augusto14@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001414', '1799600113', '1983-02-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Diego Augusto Ribeiro', 'diego.augusto14@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001414', '1799600113', '1983-02-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 13, 221 FROM users u WHERE u.email='diego.augusto14@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 13, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='diego.augusto14@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Amanda Cristina Gomes', 'amanda.cristina15@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001503', '1799600114', '1984-03-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Amanda Cristina Gomes', 'amanda.cristina15@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001503', '1799600114', '1984-03-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 14, 238 FROM users u WHERE u.email='amanda.cristina15@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 14, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='amanda.cristina15@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Felipe Andrade Teixeira', 'felipe.andrade16@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001686', '1799600115', '1985-04-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Felipe Andrade Teixeira', 'felipe.andrade16@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001686', '1799600115', '1985-04-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 15, 255 FROM users u WHERE u.email='felipe.andrade16@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 15, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='felipe.andrade16@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Bianca Luiza Carvalho', 'bianca.luiza17@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001767', '1799600116', '1986-05-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Bianca Luiza Carvalho', 'bianca.luiza17@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001767', '1799600116', '1986-05-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 16, 272 FROM users u WHERE u.email='bianca.luiza17@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 16, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='bianca.luiza17@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Thiago Rafael Pinto', 'thiago.rafael18@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001848', '1799600117', '1987-06-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Thiago Rafael Pinto', 'thiago.rafael18@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001848', '1799600117', '1987-06-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 17, 289 FROM users u WHERE u.email='thiago.rafael18@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 17, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='thiago.rafael18@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Gabriela Moura Azevedo', 'gabriela.moura19@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000001929', '1799600118', '1988-07-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Gabriela Moura Azevedo', 'gabriela.moura19@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000001929', '1799600118', '1988-07-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 18, 306 FROM users u WHERE u.email='gabriela.moura19@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 18, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='gabriela.moura19@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Vinícius Luís Correia', 'vinicius.luis20@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002062', '1799600119', '1989-08-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Vinícius Luís Correia', 'vinicius.luis20@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002062', '1799600119', '1989-08-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 19, 323 FROM users u WHERE u.email='vinicius.luis20@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 19, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='vinicius.luis20@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Helena Vitória Cardoso', 'helena.vitoria21@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002143', '1799600120', '1990-09-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Helena Vitória Cardoso', 'helena.vitoria21@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002143', '1799600120', '1990-09-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 20, 340 FROM users u WHERE u.email='helena.vitoria21@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 20, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='helena.vitoria21@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Matheus Antônio Lopes', 'matheus.antonio22@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002224', '1799600121', '1991-10-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Matheus Antônio Lopes', 'matheus.antonio22@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002224', '1799600121', '1991-10-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 21, 357 FROM users u WHERE u.email='matheus.antonio22@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 21, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='matheus.antonio22@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Isabela Fernanda Vieira', 'isabela.fernanda23@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002305', '1799600122', '1992-11-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Isabela Fernanda Vieira', 'isabela.fernanda23@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002305', '1799600122', '1992-11-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 22, 374 FROM users u WHERE u.email='isabela.fernanda23@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 22, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='isabela.fernanda23@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Guilherme Augusto Ramos', 'guilherme.augusto24@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002496', '1799600123', '1993-12-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Guilherme Augusto Ramos', 'guilherme.augusto24@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002496', '1799600123', '1993-12-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 23, 391 FROM users u WHERE u.email='guilherme.augusto24@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 23, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='guilherme.augusto24@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Beatriz Helena Monteiro', 'beatriz.helena25@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002577', '1799600124', '1994-01-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Beatriz Helena Monteiro', 'beatriz.helena25@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002577', '1799600124', '1994-01-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 24, 408 FROM users u WHERE u.email='beatriz.helena25@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 24, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='beatriz.helena25@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Rafaela Cristiane Farias', 'rafaela.cristiane26@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002658', '1799600125', '1995-02-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Rafaela Cristiane Farias', 'rafaela.cristiane26@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002658', '1799600125', '1995-02-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 25, 425 FROM users u WHERE u.email='rafaela.cristiane26@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 25, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='rafaela.cristiane26@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Daniel Augusto Borges', 'daniel.augusto27@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002739', '1799600126', '1996-03-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Daniel Augusto Borges', 'daniel.augusto27@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002739', '1799600126', '1996-03-15', 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 26, 442 FROM users u WHERE u.email='daniel.augusto27@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 26, 'Residencial', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='daniel.augusto27@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Natália Souza Rezende', 'natalia.souza28@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '10000002810', '1799600127', '1997-04-15', 0 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Natália Souza Rezende', 'natalia.souza28@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '10000002810', '1799600127', '1997-04-15', 0 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 27, 459 FROM users u WHERE u.email='natalia.souza28@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
@@ -304,471 +407,471 @@ SELECT c.id, @addr_base + 27, 'Residencial', 1 FROM customers c INNER JOIN users
 
 -- Clientes PJ
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Clínica Bem Viver Ltda', 'empresa.clinica-bem-viver-lt@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '40000000000025', '1135500100', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Clínica Bem Viver Ltda', 'empresa.clinica-bem-viver-lt@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '40000000000025', '1135500100', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 28, 100 FROM users u WHERE u.email='empresa.clinica-bem-viver-lt@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 28, 'Matriz', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='empresa.clinica-bem-viver-lt@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Distribuidora Fitonatural ME', 'empresa.distribuidora-fitona@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '40000000333342', '1135500101', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Distribuidora Fitonatural ME', 'empresa.distribuidora-fitona@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '40000000333342', '1135500101', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 29, 150 FROM users u WHERE u.email='empresa.distribuidora-fitona@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 29, 'Matriz', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='empresa.distribuidora-fitona@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Laboratório Verde Vida SA', 'empresa.laboratorio-verde-vi@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '40000000666660', '1135500102', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Laboratório Verde Vida SA', 'empresa.laboratorio-verde-vi@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '40000000666660', '1135500102', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 30, 200 FROM users u WHERE u.email='empresa.laboratorio-verde-vi@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 30, 'Matriz', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='empresa.laboratorio-verde-vi@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO users (role_id, full_name, email, password_hash, document, phone, birth_date, is_active)
-SELECT r.id, 'Rede Saúde Integrada Ltda', 'empresa.rede-saude-integrada@loja.neofarma.com.br', '$2b$10$MtTaGf7Rr/jZUmPvoBNqMe/0U8YRY85R7I4gOjWSNuUkh//wT47Zu', '40000000999987', '1135500103', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
+SELECT r.id, 'Rede Saúde Integrada Ltda', 'empresa.rede-saude-integrada@loja.neofarma.com.br', '$2b$10$Y1AI4ffGhFQ3T1M5C9x3eeJv5CVKVZSoFHGczfXaxsG7jXIBKWE9O', '40000000999987', '1135500103', NULL, 1 FROM roles r WHERE r.name='CLIENTE' LIMIT 1;
 INSERT INTO customers (user_id, default_address_id, loyalty_points)
 SELECT u.id, @addr_base + 31, 250 FROM users u WHERE u.email='empresa.rede-saude-integrada@loja.neofarma.com.br' LIMIT 1;
 INSERT INTO customer_addresses (customer_id, address_id, label, is_default)
 SELECT c.id, @addr_base + 31, 'Matriz', 1 FROM customers c INNER JOIN users u ON u.id=c.user_id WHERE u.email='empresa.rede-saude-integrada@loja.neofarma.com.br' LIMIT 1;
 
--- Produtos
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Chá de Camomila NeoHerbs 20g', 'cha-de-camomila-neoherbs-20g', 'NF-0001', '7891000000014', 'Chá de Camomila NeoHerbs 20g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 12.90, 11.35, 'DISCONTINUED');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0001' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0001' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Extrato Seco de Valeriana 60 cápsulas', 'extrato-seco-de-valeriana-60-capsulas', 'NF-0002', '7891000000021', 'Extrato Seco de Valeriana 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0002' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0002' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Óleo de Melaleuca 30ml', 'oleo-de-melaleuca-30ml', 'NF-0003', '7891000000038', 'Óleo de Melaleuca 30ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0003' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0003' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Própolis Verde Spray 30ml', 'propolis-verde-spray-30ml', 'NF-0004', '7891000000045', 'Própolis Verde Spray 30ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0004' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0004' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Mel de Manuka UMF 10+ 250g', 'mel-de-manuka-umf-10-250g', 'NF-0005', '7891000000052', 'Mel de Manuka UMF 10+ 250g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0005' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0005' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Shampoo de Alecrim 300ml', 'shampoo-de-alecrim-300ml', 'NF-0006', '7891000000069', 'Shampoo de Alecrim 300ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0006' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0006' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Sabonete de Calêndula 90g', 'sabonete-de-calendula-90g', 'NF-0007', '7891000000076', 'Sabonete de Calêndula 90g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0007' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0007' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Complexo B Natural 60 comprimidos', 'complexo-b-natural-60-comprimidos', 'NF-0008', '7891000000083', 'Complexo B Natural 60 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0008' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0008' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Vitamina D3 2000UI 60 cápsulas', 'vitamina-d3-2000ui-60-capsulas', 'NF-0009', '7891000000090', 'Vitamina D3 2000UI 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0009' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0009' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Magnésio Quelato 120 cápsulas', 'magnesio-quelato-120-capsulas', 'NF-0010', '7891000000106', 'Magnésio Quelato 120 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0010' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0010' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Gel de Arnica Montana 100g', 'gel-de-arnica-montana-100g', 'NF-0011', '7891000000113', 'Gel de Arnica Montana 100g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0011' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0011' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Pomada de Própolis 30g', 'pomada-de-propolis-30g', 'NF-0012', '7891000000120', 'Pomada de Própolis 30g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 48.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0012' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0012' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Óleo Essencial de Lavanda 10ml', 'oleo-essencial-de-lavanda-10ml', 'NF-0013', '7891000000137', 'Óleo Essencial de Lavanda 10ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0013' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0013' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Óleo Essencial de Eucalipto 10ml', 'oleo-essencial-de-eucalipto-10ml', 'NF-0014', '7891000000144', 'Óleo Essencial de Eucalipto 10ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 54.50, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0014' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0014' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Chá de Erva-Doce 50g', 'cha-de-erva-doce-50g', 'NF-0015', '7891000000151', 'Chá de Erva-Doce 50g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0015' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0015' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Chá de Hibisco com Gengibre 40g', 'cha-de-hibisco-com-gengibre-40g', 'NF-0016', '7891000000168', 'Chá de Hibisco com Gengibre 40g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0016' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0016' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Colágeno Hidrolisado 300g', 'colageno-hidrolisado-300g', 'NF-0017', '7891000000175', 'Colágeno Hidrolisado 300g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 64.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0017' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0017' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Ômega 3 EPA/DHA 120 cápsulas', 'omega-3-epa-dha-120-capsulas', 'NF-0018', '7891000000182', 'Ômega 3 EPA/DHA 120 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0018' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0018' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Probiótico 10 cepas 30 cápsulas', 'probiotico-10-cepas-30-capsulas', 'NF-0019', '7891000000199', 'Probiótico 10 cepas 30 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0019' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0019' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Cúrcuma com Piperina 60 cápsulas', 'curcuma-com-piperina-60-capsulas', 'NF-0020', '7891000000205', 'Cúrcuma com Piperina 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 73.70, NULL, 'DISCONTINUED');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0020' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0020' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Ginkgo Biloba 80mg 60 cápsulas', 'ginkgo-biloba-80mg-60-capsulas', 'NF-0021', '7891000000212', 'Ginkgo Biloba 80mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0021' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0021' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Passiflora Incarnata 500mg 60 cápsulas', 'passiflora-incarnata-500mg-60-capsulas', 'NF-0022', '7891000000229', 'Passiflora Incarnata 500mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0022' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0022' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Crataegus Oxyacantha 60 cápsulas', 'crataegus-oxyacantha-60-capsulas', 'NF-0023', '7891000000236', 'Crataegus Oxyacantha 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 83.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0023' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0023' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Gel Hidratante de Aloe Vera 200g', 'gel-hidratante-de-aloe-vera-200g', 'NF-0024', '7891000000243', 'Gel Hidratante de Aloe Vera 200g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0024' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0024' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Repelente Natural Citronela 100ml', 'repelente-natural-citronela-100ml', 'NF-0025', '7891000000250', 'Repelente Natural Citronela 100ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 89.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0025' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0025' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Desodorante Crystal Natural 80g', 'desodorante-crystal-natural-80g', 'NF-0026', '7891000000267', 'Desodorante Crystal Natural 80g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0026' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0026' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Creme Dental Sem Flúor 90g', 'creme-dental-sem-fluor-90g', 'NF-0027', '7891000000274', 'Creme Dental Sem Flúor 90g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0027' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0027' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Enxaguante Bucal de Própolis 250ml', 'enxaguante-bucal-de-propolis-250ml', 'NF-0028', '7891000000281', 'Enxaguante Bucal de Própolis 250ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0028' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0028' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Loção Capilar de Jaborandi 200ml', 'locao-capilar-de-jaborandi-200ml', 'NF-0029', '7891000000298', 'Loção Capilar de Jaborandi 200ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0029' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0029' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Óleo de Rosa Mosqueta 30ml', 'oleo-de-rosa-mosqueta-30ml', 'NF-0030', '7891000000304', 'Óleo de Rosa Mosqueta 30ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0030' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0030' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Sérum Facial Vitamina C 30ml', 'serum-facial-vitamina-c-30ml', 'NF-0031', '7891000000311', 'Sérum Facial Vitamina C 30ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0031' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0031' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Máscara de Argila Verde 100g', 'mascara-de-argila-verde-100g', 'NF-0032', '7891000000328', 'Máscara de Argila Verde 100g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0032' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0032' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Echinacea Purpurea 60 cápsulas', 'echinacea-purpurea-60-capsulas', 'NF-0033', '7891000000335', 'Echinacea Purpurea 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0033' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0033' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Guaraná em Pó 100g', 'guarana-em-po-100g', 'NF-0034', '7891000000342', 'Guaraná em Pó 100g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 38.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0034' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0034' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Maca Peruana 500mg 60 cápsulas', 'maca-peruana-500mg-60-capsulas', 'NF-0035', '7891000000359', 'Maca Peruana 500mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0035' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0035' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Spirulina 500mg 120 comprimidos', 'spirulina-500mg-120-comprimidos', 'NF-0036', '7891000000366', 'Spirulina 500mg 120 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0036' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0036' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Clorella 500mg 120 comprimidos', 'clorella-500mg-120-comprimidos', 'NF-0037', '7891000000373', 'Clorella 500mg 120 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 48.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0037' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0037' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Psyllium 500mg 120 cápsulas', 'psyllium-500mg-120-capsulas', 'NF-0038', '7891000000380', 'Psyllium 500mg 120 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0038' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0038' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Melatonina 3mg 60 cápsulas', 'melatonina-3mg-60-capsulas', 'NF-0039', '7891000000397', 'Melatonina 3mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 54.50, NULL, 'DISCONTINUED');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0039' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0039' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Ashwagandha 300mg 60 cápsulas', 'ashwagandha-300mg-60-capsulas', 'NF-0040', '7891000000403', 'Ashwagandha 300mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0040' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0040' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Rhodiola Rosea 300mg 60 cápsulas', 'rhodiola-rosea-300mg-60-capsulas', 'NF-0041', '7891000000410', 'Rhodiola Rosea 300mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0041' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0041' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Calendula Officinalis Tintura 50ml', 'calendula-officinalis-tintura-50ml', 'NF-0042', '7891000000427', 'Calendula Officinalis Tintura 50ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 64.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0042' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0042' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Hamamelis Virginiana Tônico 200ml', 'hamamelis-virginiana-tonico-200ml', 'NF-0043', '7891000000434', 'Hamamelis Virginiana Tônico 200ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0043' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0043' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Calêndula Pomada Infantil 50g', 'calendula-pomada-infantil-50g', 'NF-0044', '7891000000441', 'Calêndula Pomada Infantil 50g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0044' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0044' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Óleo de Copaíba 30ml', 'oleo-de-copaiba-30ml', 'NF-0045', '7891000000458', 'Óleo de Copaíba 30ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 73.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0045' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0045' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Spray Nasal Sal Marinho 50ml', 'spray-nasal-sal-marinho-50ml', 'NF-0046', '7891000000465', 'Spray Nasal Sal Marinho 50ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0046' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0046' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Xarope de Própolis Infantil 100ml', 'xarope-de-propolis-infantil-100ml', 'NF-0047', '7891000000472', 'Xarope de Própolis Infantil 100ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0047' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0047' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Fórmula Magistral Base Creme 100g', 'formula-magistral-base-creme-100g', 'NF-0048', '7891000000489', 'Fórmula Magistral Base Creme 100g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 83.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0048' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0048' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Homeopatia Ignatia 30CH', 'homeopatia-ignatia-30ch', 'NF-0049', '7891000000496', 'Homeopatia Ignatia 30CH. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0049' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0049' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Homeopatia Arnica 6CH', 'homeopatia-arnica-6ch', 'NF-0050', '7891000000502', 'Homeopatia Arnica 6CH. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 89.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0050' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0050' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Fitoterápico Boldo do Chile 60 cápsulas', 'fitoterapico-boldo-do-chile-60-capsulas', 'NF-0051', '7891000000519', 'Fitoterápico Boldo do Chile 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0051' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0051' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Dipirona Monoidratada 500mg 20 comprimidos', 'dipirona-monoidratada-500mg-20-comprimidos', 'NF-0052', '7891000000526', 'Dipirona Monoidratada 500mg 20 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0052' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0052' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Paracetamol 750mg 20 comprimidos', 'paracetamol-750mg-20-comprimidos', 'NF-0053', '7891000000533', 'Paracetamol 750mg 20 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0053' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0053' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Ibuprofeno 400mg 20 cápsulas', 'ibuprofeno-400mg-20-capsulas', 'NF-0054', '7891000000540', 'Ibuprofeno 400mg 20 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0054' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0054' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Loratadina 10mg 12 comprimidos', 'loratadina-10mg-12-comprimidos', 'NF-0055', '7891000000557', 'Loratadina 10mg 12 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0055' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0055' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Omeprazol 20mg 28 cápsulas', 'omeprazol-20mg-28-capsulas', 'NF-0056', '7891000000564', 'Omeprazol 20mg 28 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 28.90, 25.43, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0056' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0056' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Soro Fisiológico 0,9% 500ml', 'soro-fisiologico-0-9-500ml', 'NF-0057', '7891000000571', 'Soro Fisiológico 0,9% 500ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0057' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0057' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Fralda Descartável P 36un', 'fralda-descartavel-p-36un', 'NF-0058', '7891000000588', 'Fralda Descartável P 36un. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'DISCONTINUED');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0058' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0058' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Lenço Umedecido 96un', 'lenco-umedecido-96un', 'NF-0059', '7891000000595', 'Lenço Umedecido 96un. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0059' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0059' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Protetor Solar FPS 50 120ml', 'protetor-solar-fps-50-120ml', 'NF-0060', '7891000000601', 'Protetor Solar FPS 50 120ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0060' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0060' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Multivitamínico Mulher 60 cápsulas', 'multivitaminico-mulher-60-capsulas', 'NF-0061', '7891000000618', 'Multivitamínico Mulher 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0061' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0061' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Multivitamínico Homem 60 cápsulas', 'multivitaminico-homem-60-capsulas', 'NF-0062', '7891000000625', 'Multivitamínico Homem 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 48.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0062' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0062' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Zinco Quelato 30mg 60 cápsulas', 'zinco-quelato-30mg-60-capsulas', 'NF-0063', '7891000000632', 'Zinco Quelato 30mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0063' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0063' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Ferro Quelato 30mg 60 cápsulas', 'ferro-quelato-30mg-60-capsulas', 'NF-0064', '7891000000649', 'Ferro Quelato 30mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 54.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0064' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0064' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Vitamina C 1000mg 30 comprimidos', 'vitamina-c-1000mg-30-comprimidos', 'NF-0065', '7891000000656', 'Vitamina C 1000mg 30 comprimidos. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0065' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0065' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Vitamina B12 1000mcg 60 cápsulas', 'vitamina-b12-1000mcg-60-capsulas', 'NF-0066', '7891000000663', 'Vitamina B12 1000mcg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0066' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0066' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Chá de Espinheira-Santa 50g', 'cha-de-espinheira-santa-50g', 'NF-0067', '7891000000670', 'Chá de Espinheira-Santa 50g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 64.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0067' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0067' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Chá de Carqueja 50g', 'cha-de-carqueja-50g', 'NF-0068', '7891000000687', 'Chá de Carqueja 50g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0068' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0068' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Chá de Boldo 50g', 'cha-de-boldo-50g', 'NF-0069', '7891000000694', 'Chá de Boldo 50g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0069' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0069' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Chá de Maracujá 50g', 'cha-de-maracuja-50g', 'NF-0070', '7891000000700', 'Chá de Maracujá 50g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 73.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0070' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0070' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Óleo Essencial de Tea Tree 10ml', 'oleo-essencial-de-tea-tree-10ml', 'NF-0071', '7891000000717', 'Óleo Essencial de Tea Tree 10ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0071' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0071' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Óleo Essencial de Hortelã-Pimenta 10ml', 'oleo-essencial-de-hortela-pimenta-10ml', 'NF-0072', '7891000000724', 'Óleo Essencial de Hortelã-Pimenta 10ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0072' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0072' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Difusor Ultrassônico 300ml', 'difusor-ultrassonico-300ml', 'NF-0073', '7891000000731', 'Difusor Ultrassônico 300ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 83.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0073' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0073' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Hidratante Corporal Urucum 200ml', 'hidratante-corporal-urucum-200ml', 'NF-0074', '7891000000748', 'Hidratante Corporal Urucum 200ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0074' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0074' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Condicionador de Babosa 300ml', 'condicionador-de-babosa-300ml', 'NF-0075', '7891000000755', 'Condicionador de Babosa 300ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 89.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0075' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0075' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Sabonete Líquido Neutro 500ml', 'sabonete-liquido-neutro-500ml', 'NF-0076', '7891000000762', 'Sabonete Líquido Neutro 500ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0076' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0076' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Pasta de Dentes Própolis 90g', 'pasta-de-dentes-propolis-90g', 'NF-0077', '7891000000779', 'Pasta de Dentes Própolis 90g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'DISCONTINUED');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0077' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0077' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Fio Dental com Cera 50m', 'fio-dental-com-cera-50m', 'NF-0078', '7891000000786', 'Fio Dental com Cera 50m. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 19.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0078' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0078' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Escova Dental Macia', 'escova-dental-macia', 'NF-0079', '7891000000793', 'Escova Dental Macia. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0079' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0079' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Whey Protein Natural 900g', 'whey-protein-natural-900g', 'NF-0080', '7891000000809', 'Whey Protein Natural 900g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0080' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0080' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'BCAA 2:1:1 120 cápsulas', 'bcaa-2-1-1-120-capsulas', 'NF-0081', '7891000000816', 'BCAA 2:1:1 120 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0081' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0081' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Creatina Monoidratada 300g', 'creatina-monoidratada-300g', 'NF-0082', '7891000000823', 'Creatina Monoidratada 300g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0082' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0082' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Glucosamina + Condroitina 60 cápsulas', 'glucosamina-condroitina-60-capsulas', 'NF-0083', '7891000000830', 'Glucosamina + Condroitina 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0083' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0083' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Colágeno Tipo II 60 cápsulas', 'colageno-tipo-ii-60-capsulas', 'NF-0084', '7891000000847', 'Colágeno Tipo II 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0084' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0084' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Hyaluronic Acid 50mg 60 cápsulas', 'hyaluronic-acid-50mg-60-capsulas', 'NF-0085', '7891000000854', 'Hyaluronic Acid 50mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0085' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0085' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Berberina 500mg 60 cápsulas', 'berberina-500mg-60-capsulas', 'NF-0086', '7891000000861', 'Berberina 500mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0086' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0086' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Resveratrol 200mg 60 cápsulas', 'resveratrol-200mg-60-capsulas', 'NF-0087', '7891000000878', 'Resveratrol 200mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 48.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0087' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0087' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Coenzima Q10 100mg 60 cápsulas', 'coenzima-q10-100mg-60-capsulas', 'NF-0088', '7891000000885', 'Coenzima Q10 100mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0088' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0088' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Óleo de Prímula 1000mg 60 cápsulas', 'oleo-de-primula-1000mg-60-capsulas', 'NF-0089', '7891000000892', 'Óleo de Prímula 1000mg 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 54.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0089' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0089' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Equinácea + Vitamina C 60 cápsulas', 'equinacea-vitamina-c-60-capsulas', 'NF-0090', '7891000000908', 'Equinácea + Vitamina C 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0090' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0090' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Própolis Verde 60 cápsulas', 'propolis-verde-60-capsulas', 'NF-0091', '7891000000915', 'Própolis Verde 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0091' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0091' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Melatonina Líquida 30ml', 'melatonina-liquida-30ml', 'NF-0092', '7891000000922', 'Melatonina Líquida 30ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 64.10, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0092' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0092' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Valeriana Gotas 20ml', 'valeriana-gotas-20ml', 'NF-0093', '7891000000939', 'Valeriana Gotas 20ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0093' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0093' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Passiflora Gotas 20ml', 'passiflora-gotas-20ml', 'NF-0094', '7891000000946', 'Passiflora Gotas 20ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0094' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0094' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Pomada Hemorroidária Natural 30g', 'pomada-hemorroidaria-natural-30g', 'NF-0095', '7891000000953', 'Pomada Hemorroidária Natural 30g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 73.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0095' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0095' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Creme para Assaduras 60g', 'creme-para-assaduras-60g', 'NF-0096', '7891000000960', 'Creme para Assaduras 60g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'DISCONTINUED');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0096' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0096' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Talco Natural 100g', 'talco-natural-100g', 'NF-0097', '7891000000977', 'Talco Natural 100g. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0097' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0097' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Álcool Gel 70% 500ml', 'alcool-gel-70-500ml', 'NF-0098', '7891000000984', 'Álcool Gel 70% 500ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 83.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0098' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0098' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Água Oxigenada 10 Volumes 100ml', 'agua-oxigenada-10-volumes-100ml', 'NF-0099', '7891000000991', 'Água Oxigenada 10 Volumes 100ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0099' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0099' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Iodopovidona Tópico 100ml', 'iodopovidona-topico-100ml', 'NF-0100', '7891000001004', 'Iodopovidona Tópico 100ml. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 89.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0100' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0100' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Termômetro Digital', 'termometro-digital', 'NF-0101', '7891000001011', 'Termômetro Digital. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0101' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0101' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Medidor de Pressão de Pulso', 'medidor-de-pressao-de-pulso', 'NF-0102', '7891000001028', 'Medidor de Pressão de Pulso. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0102' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0102' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Glicosímetro + 10 tiras', 'glicosimetro-10-tiras', 'NF-0103', '7891000001035', 'Glicosímetro + 10 tiras. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0103' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0103' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Máscara Descartável Tripla 50un', 'mascara-descartavel-tripla-50un', 'NF-0104', '7891000001042', 'Máscara Descartável Tripla 50un. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0104' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0104' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Luvas de Procedimento 100un', 'luvas-de-procedimento-100un', 'NF-0105', '7891000001059', 'Luvas de Procedimento 100un. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'INACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0105' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0105' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Atadura Crepe 10cm', 'atadura-crepe-10cm', 'NF-0106', '7891000001066', 'Atadura Crepe 10cm. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0106' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-1.webp', 0 FROM products p WHERE p.sku='NF-0106' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Homeopatia Pulsatilla 30CH', 'homeopatia-pulsatilla-30ch', 'NF-0107', '7891000001073', 'Homeopatia Pulsatilla 30CH. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0107' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-2.webp', 0 FROM products p WHERE p.sku='NF-0107' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_hig, 'Homeopatia Nux Vomica 30CH', 'homeopatia-nux-vomica-30ch', 'NF-0108', '7891000001080', 'Homeopatia Nux Vomica 30CH. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cha FROM products p WHERE p.sku='NF-0108' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-3.webp', 0 FROM products p WHERE p.sku='NF-0108' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_fit, 'Homeopatia Rhus Toxicodendron 6CH', 'homeopatia-rhus-toxicodendron-6ch', 'NF-0109', '7891000001097', 'Homeopatia Rhus Toxicodendron 6CH. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fito FROM products p WHERE p.sku='NF-0109' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-4.webp', 0 FROM products p WHERE p.sku='NF-0109' LIMIT 1;
-INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, @type_sup, 'Fitoterápico Artichoke 60 cápsulas', 'fitoterapico-artichoke-60-capsulas', 'NF-0110', '7891000001103', 'Fitoterápico Artichoke 60 cápsulas. Produto comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
-INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_sup FROM products p WHERE p.sku='NF-0110' LIMIT 1;
-INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-5.webp', 0 FROM products p WHERE p.sku='NF-0110' LIMIT 1;
+-- Produtos (categoria departamental + apresentação física)
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Valeriana Officinalis 500mg', 'valeriana-officinalis-500mg', 'NF-0001', '7891000000014', 'Valeriana Officinalis 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 12.90, 11.35, 'DISCONTINUED');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0001' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtiFlex%20400mg.png', 0 FROM products p WHERE p.sku='NF-0001' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Passiflora Incarnata 400mg', 'passiflora-incarnata-400mg', 'NF-0002', '7891000000021', 'Passiflora Incarnata 400mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0002' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtroFlex%20%E2%80%93%20Fitoter%C3%A1pico%20para%20Articula%C3%A7%C3%B5es%20500mg.png', 0 FROM products p WHERE p.sku='NF-0002' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'ArtroFlex Articulações 500mg', 'artroflex-articulacoes-500mg', 'NF-0003', '7891000000038', 'ArtroFlex Articulações 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0003' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/BioErvas%20Imunidade%20400mg.png', 0 FROM products p WHERE p.sku='NF-0003' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'CalmErvas 300mg', 'calmervas-300mg', 'NF-0004', '7891000000045', 'CalmErvas 300mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0004' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CalmErvas%20300mg.png', 0 FROM products p WHERE p.sku='NF-0004' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'CardioErvas 350mg', 'cardioervas-350mg', 'NF-0005', '7891000000052', 'CardioErvas 350mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0005' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioErvas%20350mg.png', 0 FROM products p WHERE p.sku='NF-0005' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'BioErvas Imunidade 400mg', 'bioervas-imunidade-400mg', 'NF-0006', '7891000000069', 'BioErvas Imunidade 400mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0006' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioVerde%20%E2%80%93%20C%C3%A1psulas%20para%20Sa%C3%BAde%20do%20Cora%C3%A7%C3%A3o%20350mg.png', 0 FROM products p WHERE p.sku='NF-0006' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'DepuraVida 500mg', 'depuravida-500mg', 'NF-0007', '7891000000076', 'DepuraVida 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0007' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/DepuraVida%20500mg.png', 0 FROM products p WHERE p.sku='NF-0007' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Fitocaps Relax 500mg', 'fitocaps-relax-500mg', 'NF-0008', '7891000000083', 'Fitocaps Relax 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0008' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Dermaverde%20%E2%80%93%20Creme%20Fitoter%C3%A1pico%20para%20Pele%2060g.png', 0 FROM products p WHERE p.sku='NF-0008' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Fitolife Energy 450mg', 'fitolife-energy-450mg', 'NF-0009', '7891000000090', 'Fitolife Energy 450mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0009' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitocaps%20Relax%20500mg.png', 0 FROM products p WHERE p.sku='NF-0009' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'SonoNatural 300mg', 'sononatural-300mg', 'NF-0010', '7891000000106', 'SonoNatural 300mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0010' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitolife%20Energy%20450mg.png', 0 FROM products p WHERE p.sku='NF-0010' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'VitalFemme 300mg', 'vitalfemme-300mg', 'NF-0011', '7891000000113', 'VitalFemme 300mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 44.90, 39.51, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0011' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais%20500mg.png', 0 FROM products p WHERE p.sku='NF-0011' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Ginkgo Biloba 80mg', 'ginkgo-biloba-80mg', 'NF-0012', '7891000000120', 'Ginkgo Biloba 80mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 48.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0012' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais.png', 0 FROM products p WHERE p.sku='NF-0012' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Cúrcuma com Piperina 500mg', 'curcuma-com-piperina-500mg', 'NF-0013', '7891000000137', 'Cúrcuma com Piperina 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0013' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax.png', 0 FROM products p WHERE p.sku='NF-0013' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_tintura, 'Tintura de Hypericum perforatum', 'tintura-de-hypericum-perforatum', 'NF-0014', '7891000000144', 'Tintura de Hypericum perforatum. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 54.50, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_tinturas_fluidos FROM products p WHERE p.sku='NF-0014' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/HepatoClean%20%E2%80%93%20Xarope%20Fitoter%C3%A1pico%20Hep%C3%A1tico%20150ml.png', 0 FROM products p WHERE p.sku='NF-0014' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_tintura, 'Tintura de Passiflora incarnata', 'tintura-de-passiflora-incarnata', 'NF-0015', '7891000000151', 'Tintura de Passiflora incarnata. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_tinturas_fluidos FROM products p WHERE p.sku='NF-0015' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ImunoKids%20%E2%80%93%20Xarope%20Infantil%20Fitoter%C3%A1pico%20120ml.png', 0 FROM products p WHERE p.sku='NF-0015' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_gotas, 'Gotas de Melatonina 3mg/ml', 'gotas-de-melatonina-3mg-ml', 'NF-0016', '7891000000168', 'Gotas de Melatonina 3mg/ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_tinturas_fluidos FROM products p WHERE p.sku='NF-0016' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Naturalis%20Digest%20350mg.png', 0 FROM products p WHERE p.sku='NF-0016' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_gotas, 'Valeriana Gotas 20ml', 'valeriana-gotas-20ml', 'NF-0017', '7891000000175', 'Valeriana Gotas 20ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 64.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_tinturas_fluidos FROM products p WHERE p.sku='NF-0017' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoErvas%20Digest%20%E2%80%93%20Ch%C3%A1%20Fitoter%C3%A1pico.png', 0 FROM products p WHERE p.sku='NF-0017' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_gotas, 'Passiflora Gotas 20ml', 'passiflora-gotas-20ml', 'NF-0018', '7891000000182', 'Passiflora Gotas 20ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_tinturas_fluidos FROM products p WHERE p.sku='NF-0018' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoHerbal%20Detox%20300mg.png', 0 FROM products p WHERE p.sku='NF-0018' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_xarope, 'HepatoClean Xarope Hepático 150ml', 'hepatoclean-xarope-hepatico-150ml', 'NF-0019', '7891000000199', 'HepatoClean Xarope Hepático 150ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 70.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_xaropes_solucoes FROM products p WHERE p.sku='NF-0019' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/RespiraBem%20%E2%80%93%20Inalador%20Fitoter%C3%A1pico%20Nasal.png', 0 FROM products p WHERE p.sku='NF-0019' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_xarope, 'ImunoKids Xarope Infantil 120ml', 'imunokids-xarope-infantil-120ml', 'NF-0020', '7891000000205', 'ImunoKids Xarope Infantil 120ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 73.70, NULL, 'DISCONTINUED');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_xaropes_solucoes FROM products p WHERE p.sku='NF-0020' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonoNatural%20%E2%80%93%20C%C3%A1psulas%20para%20Relaxamento%20300mg.png', 0 FROM products p WHERE p.sku='NF-0020' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_xarope, 'Xarope de Própolis Verde 100ml', 'xarope-de-propolis-verde-100ml', 'NF-0021', '7891000000212', 'Xarope de Própolis Verde 100ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_xaropes_solucoes FROM products p WHERE p.sku='NF-0021' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonosFit%20250mg.png', 0 FROM products p WHERE p.sku='NF-0021' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Camomila Matricaria 20g', 'cha-de-camomila-matricaria-20g', 'NF-0022', '7891000000229', 'Chá de Camomila Matricaria 20g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_medicinais FROM products p WHERE p.sku='NF-0022' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/VitalFemme%20%E2%80%93%20Suplemento%20Fitoter%C3%A1pico%20Feminino%20300mg.png', 0 FROM products p WHERE p.sku='NF-0022' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Erva-Doce 50g', 'cha-de-erva-doce-50g', 'NF-0023', '7891000000236', 'Chá de Erva-Doce 50g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 83.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_medicinais FROM products p WHERE p.sku='NF-0023' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtiFlex%20400mg.png', 0 FROM products p WHERE p.sku='NF-0023' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Espinheira-Santa 50g', 'cha-de-espinheira-santa-50g', 'NF-0024', '7891000000243', 'Chá de Espinheira-Santa 50g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_medicinais FROM products p WHERE p.sku='NF-0024' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtroFlex%20%E2%80%93%20Fitoter%C3%A1pico%20para%20Articula%C3%A7%C3%B5es%20500mg.png', 0 FROM products p WHERE p.sku='NF-0024' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'NeoErvas Digest Chá Fitoterápico', 'neoervas-digest-cha-fitoterapico', 'NF-0025', '7891000000250', 'NeoErvas Digest Chá Fitoterápico. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 89.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_digestivos FROM products p WHERE p.sku='NF-0025' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/BioErvas%20Imunidade%20400mg.png', 0 FROM products p WHERE p.sku='NF-0025' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Boldo do Chile 40g', 'cha-de-boldo-do-chile-40g', 'NF-0026', '7891000000267', 'Chá de Boldo do Chile 40g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_digestivos FROM products p WHERE p.sku='NF-0026' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CalmErvas%20300mg.png', 0 FROM products p WHERE p.sku='NF-0026' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Carqueja 50g', 'cha-de-carqueja-50g', 'NF-0027', '7891000000274', 'Chá de Carqueja 50g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_digestivos FROM products p WHERE p.sku='NF-0027' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioErvas%20350mg.png', 0 FROM products p WHERE p.sku='NF-0027' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Infusão Noite Tranquila 30g', 'infusao-noite-tranquila-30g', 'NF-0028', '7891000000281', 'Infusão Noite Tranquila 30g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_infusoes_funcionais FROM products p WHERE p.sku='NF-0028' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioVerde%20%E2%80%93%20C%C3%A1psulas%20para%20Sa%C3%BAde%20do%20Cora%C3%A7%C3%A3o%20350mg.png', 0 FROM products p WHERE p.sku='NF-0028' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Hibisco com Gengibre 40g', 'cha-de-hibisco-com-gengibre-40g', 'NF-0029', '7891000000298', 'Chá de Hibisco com Gengibre 40g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_infusoes_funcionais FROM products p WHERE p.sku='NF-0029' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/DepuraVida%20500mg.png', 0 FROM products p WHERE p.sku='NF-0029' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Chá de Maracujá 50g', 'cha-de-maracuja-50g', 'NF-0030', '7891000000304', 'Chá de Maracujá 50g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_infusoes_funcionais FROM products p WHERE p.sku='NF-0030' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Dermaverde%20%E2%80%93%20Creme%20Fitoter%C3%A1pico%20para%20Pele%2060g.png', 0 FROM products p WHERE p.sku='NF-0030' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo Essencial Lavanda Angustifolia 10ml', 'oleo-essencial-lavanda-angustifolia-10ml', 'NF-0031', '7891000000311', 'Óleo Essencial Lavanda Angustifolia 10ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_essenciais FROM products p WHERE p.sku='NF-0031' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitocaps%20Relax%20500mg.png', 0 FROM products p WHERE p.sku='NF-0031' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo Essencial Melaleuca 30ml', 'oleo-essencial-melaleuca-30ml', 'NF-0032', '7891000000328', 'Óleo Essencial Melaleuca 30ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_essenciais FROM products p WHERE p.sku='NF-0032' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitolife%20Energy%20450mg.png', 0 FROM products p WHERE p.sku='NF-0032' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo Essencial Eucalipto 10ml', 'oleo-essencial-eucalipto-10ml', 'NF-0033', '7891000000335', 'Óleo Essencial Eucalipto 10ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_essenciais FROM products p WHERE p.sku='NF-0033' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais%20500mg.png', 0 FROM products p WHERE p.sku='NF-0033' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo Essencial Tea Tree 10ml', 'oleo-essencial-tea-tree-10ml', 'NF-0034', '7891000000342', 'Óleo Essencial Tea Tree 10ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 38.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_essenciais FROM products p WHERE p.sku='NF-0034' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais.png', 0 FROM products p WHERE p.sku='NF-0034' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo Essencial Hortelã-Pimenta 10ml', 'oleo-essencial-hortela-pimenta-10ml', 'NF-0035', '7891000000359', 'Óleo Essencial Hortelã-Pimenta 10ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_essenciais FROM products p WHERE p.sku='NF-0035' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax.png', 0 FROM products p WHERE p.sku='NF-0035' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Blend Aromático Breathe 10ml', 'blend-aromatico-breathe-10ml', 'NF-0036', '7891000000366', 'Blend Aromático Breathe 10ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_blends_aromaticos FROM products p WHERE p.sku='NF-0036' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/HepatoClean%20%E2%80%93%20Xarope%20Fitoter%C3%A1pico%20Hep%C3%A1tico%20150ml.png', 0 FROM products p WHERE p.sku='NF-0036' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Blend Calm Night 10ml', 'blend-calm-night-10ml', 'NF-0037', '7891000000373', 'Blend Calm Night 10ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 48.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_blends_aromaticos FROM products p WHERE p.sku='NF-0037' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ImunoKids%20%E2%80%93%20Xarope%20Infantil%20Fitoter%C3%A1pico%20120ml.png', 0 FROM products p WHERE p.sku='NF-0037' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_roll_on, 'Roll-on Calm Essence Lavanda', 'roll-on-calm-essence-lavanda', 'NF-0038', '7891000000380', 'Roll-on Calm Essence Lavanda. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_blends_aromaticos FROM products p WHERE p.sku='NF-0038' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Naturalis%20Digest%20350mg.png', 0 FROM products p WHERE p.sku='NF-0038' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_roll_on, 'Roll-on Focus Menthol', 'roll-on-focus-menthol', 'NF-0039', '7891000000397', 'Roll-on Focus Menthol. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 54.50, NULL, 'DISCONTINUED');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_blends_aromaticos FROM products p WHERE p.sku='NF-0039' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoErvas%20Digest%20%E2%80%93%20Ch%C3%A1%20Fitoter%C3%A1pico.png', 0 FROM products p WHERE p.sku='NF-0039' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo Vegetal de Amêndoas Doces 100ml', 'oleo-vegetal-de-amendoas-doces-100ml', 'NF-0040', '7891000000403', 'Óleo Vegetal de Amêndoas Doces 100ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_vegetais FROM products p WHERE p.sku='NF-0040' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoHerbal%20Detox%20300mg.png', 0 FROM products p WHERE p.sku='NF-0040' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo de Rosa Mosqueta Puro 30ml', 'oleo-de-rosa-mosqueta-puro-30ml', 'NF-0041', '7891000000410', 'Óleo de Rosa Mosqueta Puro 30ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_vegetais FROM products p WHERE p.sku='NF-0041' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/RespiraBem%20%E2%80%93%20Inalador%20Fitoter%C3%A1pico%20Nasal.png', 0 FROM products p WHERE p.sku='NF-0041' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo de Coco Extra Virgem 200ml', 'oleo-de-coco-extra-virgem-200ml', 'NF-0042', '7891000000427', 'Óleo de Coco Extra Virgem 200ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 64.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_vegetais FROM products p WHERE p.sku='NF-0042' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonoNatural%20%E2%80%93%20C%C3%A1psulas%20para%20Relaxamento%20300mg.png', 0 FROM products p WHERE p.sku='NF-0042' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Kit Aromaterapia — difusor + blend', 'kit-aromaterapia-difusor-blend', 'NF-0043', '7891000000434', 'Kit Aromaterapia — difusor + blend. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_aromaterapia FROM products p WHERE p.sku='NF-0043' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonosFit%20250mg.png', 0 FROM products p WHERE p.sku='NF-0043' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Vitamina D3 2000 UI', 'vitamina-d3-2000-ui', 'NF-0044', '7891000000441', 'Vitamina D3 2000 UI. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0044' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/VitalFemme%20%E2%80%93%20Suplemento%20Fitoter%C3%A1pico%20Feminino%20300mg.png', 0 FROM products p WHERE p.sku='NF-0044' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Magnésio Quelato 200mg', 'magnesio-quelato-200mg', 'NF-0045', '7891000000458', 'Magnésio Quelato 200mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 73.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0045' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtiFlex%20400mg.png', 0 FROM products p WHERE p.sku='NF-0045' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Vitamina C 1000mg', 'vitamina-c-1000mg', 'NF-0046', '7891000000465', 'Vitamina C 1000mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0046' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtroFlex%20%E2%80%93%20Fitoter%C3%A1pico%20para%20Articula%C3%A7%C3%B5es%20500mg.png', 0 FROM products p WHERE p.sku='NF-0046' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Complexo B Natural', 'complexo-b-natural', 'NF-0047', '7891000000472', 'Complexo B Natural. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0047' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/BioErvas%20Imunidade%20400mg.png', 0 FROM products p WHERE p.sku='NF-0047' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Zinco Quelato 30mg', 'zinco-quelato-30mg', 'NF-0048', '7891000000489', 'Zinco Quelato 30mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 83.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0048' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CalmErvas%20300mg.png', 0 FROM products p WHERE p.sku='NF-0048' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Ferro Quelato 30mg', 'ferro-quelato-30mg', 'NF-0049', '7891000000496', 'Ferro Quelato 30mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0049' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioErvas%20350mg.png', 0 FROM products p WHERE p.sku='NF-0049' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Multivitamínico Mulher', 'multivitaminico-mulher', 'NF-0050', '7891000000502', 'Multivitamínico Mulher. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 89.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0050' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioVerde%20%E2%80%93%20C%C3%A1psulas%20para%20Sa%C3%BAde%20do%20Cora%C3%A7%C3%A3o%20350mg.png', 0 FROM products p WHERE p.sku='NF-0050' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Ômega 3 EPA/DHA 120 cápsulas', 'omega-3-epa-dha-120-capsulas', 'NF-0051', '7891000000519', 'Ômega 3 EPA/DHA 120 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_omegas FROM products p WHERE p.sku='NF-0051' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/DepuraVida%20500mg.png', 0 FROM products p WHERE p.sku='NF-0051' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Óleo de Prímula 1000mg', 'oleo-de-primula-1000mg', 'NF-0052', '7891000000526', 'Óleo de Prímula 1000mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_omegas FROM products p WHERE p.sku='NF-0052' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Dermaverde%20%E2%80%93%20Creme%20Fitoter%C3%A1pico%20para%20Pele%2060g.png', 0 FROM products p WHERE p.sku='NF-0052' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Probiótico 10 cepas 30 cápsulas', 'probiotico-10-cepas-30-capsulas', 'NF-0053', '7891000000533', 'Probiótico 10 cepas 30 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_probioticos_enzimas FROM products p WHERE p.sku='NF-0053' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitocaps%20Relax%20500mg.png', 0 FROM products p WHERE p.sku='NF-0053' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Psyllium 500mg', 'psyllium-500mg', 'NF-0054', '7891000000540', 'Psyllium 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_probioticos_enzimas FROM products p WHERE p.sku='NF-0054' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitolife%20Energy%20450mg.png', 0 FROM products p WHERE p.sku='NF-0054' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Colágeno Hidrolisado 300g', 'colageno-hidrolisado-300g', 'NF-0055', '7891000000557', 'Colágeno Hidrolisado 300g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0055' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais%20500mg.png', 0 FROM products p WHERE p.sku='NF-0055' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Spirulina 500mg', 'spirulina-500mg', 'NF-0056', '7891000000564', 'Spirulina 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 28.90, 25.43, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0056' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais.png', 0 FROM products p WHERE p.sku='NF-0056' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Maca Peruana 500mg', 'maca-peruana-500mg', 'NF-0057', '7891000000571', 'Maca Peruana 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0057' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax.png', 0 FROM products p WHERE p.sku='NF-0057' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Dermaverde Creme Fitoterápico Pele 60g', 'dermaverde-creme-fitoterapico-pele-60g', 'NF-0058', '7891000000588', 'Dermaverde Creme Fitoterápico Pele 60g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'DISCONTINUED');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_corporais FROM products p WHERE p.sku='NF-0058' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/HepatoClean%20%E2%80%93%20Xarope%20Fitoter%C3%A1pico%20Hep%C3%A1tico%20150ml.png', 0 FROM products p WHERE p.sku='NF-0058' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Gel de Arnica Montana 100g', 'gel-de-arnica-montana-100g', 'NF-0059', '7891000000595', 'Gel de Arnica Montana 100g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_corporais FROM products p WHERE p.sku='NF-0059' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ImunoKids%20%E2%80%93%20Xarope%20Infantil%20Fitoter%C3%A1pico%20120ml.png', 0 FROM products p WHERE p.sku='NF-0059' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Gel Hidratante Aloe Vera 200g', 'gel-hidratante-aloe-vera-200g', 'NF-0060', '7891000000601', 'Gel Hidratante Aloe Vera 200g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_corporais FROM products p WHERE p.sku='NF-0060' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Naturalis%20Digest%20350mg.png', 0 FROM products p WHERE p.sku='NF-0060' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Hidratante Corporal Urucum 200ml', 'hidratante-corporal-urucum-200ml', 'NF-0061', '7891000000618', 'Hidratante Corporal Urucum 200ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_corporais FROM products p WHERE p.sku='NF-0061' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoErvas%20Digest%20%E2%80%93%20Ch%C3%A1%20Fitoter%C3%A1pico.png', 0 FROM products p WHERE p.sku='NF-0061' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Pomada de Própolis 30g', 'pomada-de-propolis-30g', 'NF-0062', '7891000000625', 'Pomada de Própolis 30g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 48.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_corporais FROM products p WHERE p.sku='NF-0062' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoHerbal%20Detox%20300mg.png', 0 FROM products p WHERE p.sku='NF-0062' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Sérum Facial Vitamina C 30ml', 'serum-facial-vitamina-c-30ml', 'NF-0063', '7891000000632', 'Sérum Facial Vitamina C 30ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_faciais FROM products p WHERE p.sku='NF-0063' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/RespiraBem%20%E2%80%93%20Inalador%20Fitoter%C3%A1pico%20Nasal.png', 0 FROM products p WHERE p.sku='NF-0063' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Máscara de Argila Verde 100g', 'mascara-de-argila-verde-100g', 'NF-0064', '7891000000649', 'Máscara de Argila Verde 100g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 54.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_faciais FROM products p WHERE p.sku='NF-0064' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonoNatural%20%E2%80%93%20C%C3%A1psulas%20para%20Relaxamento%20300mg.png', 0 FROM products p WHERE p.sku='NF-0064' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Creme Calêndula Facial 50g', 'creme-calendula-facial-50g', 'NF-0065', '7891000000656', 'Creme Calêndula Facial 50g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_faciais FROM products p WHERE p.sku='NF-0065' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonosFit%20250mg.png', 0 FROM products p WHERE p.sku='NF-0065' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Sabonete Líquido Neutro 500ml', 'sabonete-liquido-neutro-500ml', 'NF-0066', '7891000000663', 'Sabonete Líquido Neutro 500ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_pessoal FROM products p WHERE p.sku='NF-0066' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/VitalFemme%20%E2%80%93%20Suplemento%20Fitoter%C3%A1pico%20Feminino%20300mg.png', 0 FROM products p WHERE p.sku='NF-0066' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Shampoo de Alecrim 300ml', 'shampoo-de-alecrim-300ml', 'NF-0067', '7891000000670', 'Shampoo de Alecrim 300ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 64.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_pessoal FROM products p WHERE p.sku='NF-0067' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtiFlex%20400mg.png', 0 FROM products p WHERE p.sku='NF-0067' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Desodorante Crystal Natural 80g', 'desodorante-crystal-natural-80g', 'NF-0068', '7891000000687', 'Desodorante Crystal Natural 80g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_pessoal FROM products p WHERE p.sku='NF-0068' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtroFlex%20%E2%80%93%20Fitoter%C3%A1pico%20para%20Articula%C3%A7%C3%B5es%20500mg.png', 0 FROM products p WHERE p.sku='NF-0068' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'Repelente Natural Citronela 100ml', 'repelente-natural-citronela-100ml', 'NF-0069', '7891000000694', 'Repelente Natural Citronela 100ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_bem_estar FROM products p WHERE p.sku='NF-0069' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/BioErvas%20Imunidade%20400mg.png', 0 FROM products p WHERE p.sku='NF-0069' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Creme Dental Sem Flúor 90g', 'creme-dental-sem-fluor-90g', 'NF-0070', '7891000000700', 'Creme Dental Sem Flúor 90g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 73.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_bucal_natural FROM products p WHERE p.sku='NF-0070' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CalmErvas%20300mg.png', 0 FROM products p WHERE p.sku='NF-0070' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'Enxaguante Bucal de Própolis 250ml', 'enxaguante-bucal-de-propolis-250ml', 'NF-0071', '7891000000717', 'Enxaguante Bucal de Própolis 250ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_bucal_natural FROM products p WHERE p.sku='NF-0071' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioErvas%20350mg.png', 0 FROM products p WHERE p.sku='NF-0071' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'Própolis Verde Spray 30ml', 'propolis-verde-spray-30ml', 'NF-0072', '7891000000724', 'Própolis Verde Spray 30ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_bucal_natural FROM products p WHERE p.sku='NF-0072' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioVerde%20%E2%80%93%20C%C3%A1psulas%20para%20Sa%C3%BAde%20do%20Cora%C3%A7%C3%A3o%20350mg.png', 0 FROM products p WHERE p.sku='NF-0072' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'RespiraBem Inalador Fitoterápico Nasal', 'respirabem-inalador-fitoterapico-nasal', 'NF-0073', '7891000000731', 'RespiraBem Inalador Fitoterápico Nasal. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 83.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fitoterapicos FROM products p WHERE p.sku='NF-0073' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/DepuraVida%20500mg.png', 0 FROM products p WHERE p.sku='NF-0073' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'Spray Nasal Sal Marinho 50ml', 'spray-nasal-sal-marinho-50ml', 'NF-0074', '7891000000748', 'Spray Nasal Sal Marinho 50ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fitoterapicos FROM products p WHERE p.sku='NF-0074' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Dermaverde%20%E2%80%93%20Creme%20Fitoter%C3%A1pico%20para%20Pele%2060g.png', 0 FROM products p WHERE p.sku='NF-0074' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Mel de Manuka UMF 10+ 250g', 'mel-de-manuka-umf-10-250g', 'NF-0075', '7891000000755', 'Mel de Manuka UMF 10+ 250g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 89.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_infusiones FROM products p WHERE p.sku='NF-0075' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitocaps%20Relax%20500mg.png', 0 FROM products p WHERE p.sku='NF-0075' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Guaraná em Pó 100g', 'guarana-em-po-100g', 'NF-0076', '7891000000762', 'Guaraná em Pó 100g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_infusoes_funcionais FROM products p WHERE p.sku='NF-0076' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitolife%20Energy%20450mg.png', 0 FROM products p WHERE p.sku='NF-0076' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Ashwagandha 300mg', 'ashwagandha-300mg', 'NF-0077', '7891000000779', 'Ashwagandha 300mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'DISCONTINUED');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0077' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais%20500mg.png', 0 FROM products p WHERE p.sku='NF-0077' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Rhodiola Rosea 300mg', 'rhodiola-rosea-300mg', 'NF-0078', '7891000000786', 'Rhodiola Rosea 300mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 19.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0078' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais.png', 0 FROM products p WHERE p.sku='NF-0078' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Melatonina 3mg', 'melatonina-3mg', 'NF-0079', '7891000000793', 'Melatonina 3mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0079' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax.png', 0 FROM products p WHERE p.sku='NF-0079' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Equinácea + Vitamina C', 'equinacea-vitamina-c', 'NF-0080', '7891000000809', 'Equinácea + Vitamina C. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0080' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/HepatoClean%20%E2%80%93%20Xarope%20Fitoter%C3%A1pico%20Hep%C3%A1tico%20150ml.png', 0 FROM products p WHERE p.sku='NF-0080' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Berberina 500mg', 'berberina-500mg', 'NF-0081', '7891000000816', 'Berberina 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 28.90, 25.43, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0081' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ImunoKids%20%E2%80%93%20Xarope%20Infantil%20Fitoter%C3%A1pico%20120ml.png', 0 FROM products p WHERE p.sku='NF-0081' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Coenzima Q10 100mg', 'coenzima-q10-100mg', 'NF-0082', '7891000000823', 'Coenzima Q10 100mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0082' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Naturalis%20Digest%20350mg.png', 0 FROM products p WHERE p.sku='NF-0082' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Hyaluronic Acid 50mg', 'hyaluronic-acid-50mg', 'NF-0083', '7891000000830', 'Hyaluronic Acid 50mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_faciais FROM products p WHERE p.sku='NF-0083' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoErvas%20Digest%20%E2%80%93%20Ch%C3%A1%20Fitoter%C3%A1pico.png', 0 FROM products p WHERE p.sku='NF-0083' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'Loção Capilar Jaborandi 200ml', 'locao-capilar-jaborandi-200ml', 'NF-0084', '7891000000847', 'Loção Capilar Jaborandi 200ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_pessoal FROM products p WHERE p.sku='NF-0084' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoHerbal%20Detox%20300mg.png', 0 FROM products p WHERE p.sku='NF-0084' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Condicionador de Babosa 300ml', 'condicionador-de-babosa-300ml', 'NF-0085', '7891000000854', 'Condicionador de Babosa 300ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_pessoal FROM products p WHERE p.sku='NF-0085' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/RespiraBem%20%E2%80%93%20Inalador%20Fitoter%C3%A1pico%20Nasal.png', 0 FROM products p WHERE p.sku='NF-0085' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Sabonete de Calêndula 90g', 'sabonete-de-calendula-90g', 'NF-0086', '7891000000861', 'Sabonete de Calêndula 90g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 44.90, 39.51, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_higiene_pessoal FROM products p WHERE p.sku='NF-0086' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonoNatural%20%E2%80%93%20C%C3%A1psulas%20para%20Relaxamento%20300mg.png', 0 FROM products p WHERE p.sku='NF-0086' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_oleo_fracionado, 'Óleo de Copaíba 30ml', 'oleo-de-copaiba-30ml', 'NF-0087', '7891000000878', 'Óleo de Copaíba 30ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 48.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_vegetais FROM products p WHERE p.sku='NF-0087' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonosFit%20250mg.png', 0 FROM products p WHERE p.sku='NF-0087' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_spray, 'Hamamelis Virginiana Tônico 200ml', 'hamamelis-virginiana-tonico-200ml', 'NF-0088', '7891000000885', 'Hamamelis Virginiana Tônico 200ml. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 51.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_faciais FROM products p WHERE p.sku='NF-0088' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/VitalFemme%20%E2%80%93%20Suplemento%20Fitoter%C3%A1pico%20Feminino%20300mg.png', 0 FROM products p WHERE p.sku='NF-0088' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_creme_gel, 'Calêndula Pomada Infantil 50g', 'calendula-pomada-infantil-50g', 'NF-0089', '7891000000892', 'Calêndula Pomada Infantil 50g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 54.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_cuidados_corporais FROM products p WHERE p.sku='NF-0089' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtiFlex%20400mg.png', 0 FROM products p WHERE p.sku='NF-0089' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Whey Protein Natural 900g', 'whey-protein-natural-900g', 'NF-0090', '7891000000908', 'Whey Protein Natural 900g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 57.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0090' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ArtroFlex%20%E2%80%93%20Fitoter%C3%A1pico%20para%20Articula%C3%A7%C3%B5es%20500mg.png', 0 FROM products p WHERE p.sku='NF-0090' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Creatina Monoidratada 300g', 'creatina-monoidratada-300g', 'NF-0091', '7891000000915', 'Creatina Monoidratada 300g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 60.90, 53.59, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0091' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/BioErvas%20Imunidade%20400mg.png', 0 FROM products p WHERE p.sku='NF-0091' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'BCAA 2:1:1', 'bcaa-2-1-1', 'NF-0092', '7891000000922', 'BCAA 2:1:1. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 64.10, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0092' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CalmErvas%20300mg.png', 0 FROM products p WHERE p.sku='NF-0092' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Glucosamina + Condroitina', 'glucosamina-condroitina', 'NF-0093', '7891000000939', 'Glucosamina + Condroitina. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 67.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_oleos_omegas FROM products p WHERE p.sku='NF-0093' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioErvas%20350mg.png', 0 FROM products p WHERE p.sku='NF-0093' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Colágeno Tipo II', 'colageno-tipo-ii', 'NF-0094', '7891000000946', 'Colágeno Tipo II. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 70.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0094' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/CardioVerde%20%E2%80%93%20C%C3%A1psulas%20para%20Sa%C3%BAde%20do%20Cora%C3%A7%C3%A3o%20350mg.png', 0 FROM products p WHERE p.sku='NF-0094' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Resveratrol 200mg', 'resveratrol-200mg', 'NF-0095', '7891000000953', 'Resveratrol 200mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 73.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_vitaminas_minerais FROM products p WHERE p.sku='NF-0095' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/DepuraVida%20500mg.png', 0 FROM products p WHERE p.sku='NF-0095' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_comprimidos, 'Clorella 500mg', 'clorella-500mg', 'NF-0096', '7891000000960', 'Clorella 500mg. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 76.90, 67.67, 'DISCONTINUED');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0096' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Dermaverde%20%E2%80%93%20Creme%20Fitoter%C3%A1pico%20para%20Pele%2060g.png', 0 FROM products p WHERE p.sku='NF-0096' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Própolis Verde 60 cápsulas', 'propolis-verde-60-capsulas', 'NF-0097', '7891000000977', 'Própolis Verde 60 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 80.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_fitoterapicos FROM products p WHERE p.sku='NF-0097' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitocaps%20Relax%20500mg.png', 0 FROM products p WHERE p.sku='NF-0097' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Boldo do Chile 60 cápsulas', 'boldo-do-chile-60-capsulas', 'NF-0098', '7891000000984', 'Boldo do Chile 60 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 83.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0098' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitolife%20Energy%20450mg.png', 0 FROM products p WHERE p.sku='NF-0098' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Artichoke 60 cápsulas', 'artichoke-60-capsulas', 'NF-0099', '7891000000991', 'Artichoke 60 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 86.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0099' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais%20500mg.png', 0 FROM products p WHERE p.sku='NF-0099' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Milk Thistle 60 cápsulas', 'milk-thistle-60-capsulas', 'NF-0100', '7891000001004', 'Milk Thistle 60 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 1, 89.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0100' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax%20%E2%80%93%20C%C3%A1psulas%20Calmantes%20Naturais.png', 0 FROM products p WHERE p.sku='NF-0100' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Saw Palmetto 60 cápsulas', 'saw-palmetto-60-capsulas', 'NF-0101', '7891000001011', 'Saw Palmetto 60 cápsulas. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 12.90, 11.35, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0101' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Fitorelax.png', 0 FROM products p WHERE p.sku='NF-0101' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Açúcar de Coco 300g', 'acucar-de-coco-300g', 'NF-0102', '7891000001028', 'Açúcar de Coco 300g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 16.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_chas_infusiones FROM products p WHERE p.sku='NF-0102' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/HepatoClean%20%E2%80%93%20Xarope%20Fitoter%C3%A1pico%20Hep%C3%A1tico%20150ml.png', 0 FROM products p WHERE p.sku='NF-0102' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_ervas_a_granel, 'Farinha de Amêndoas 200g', 'farinha-de-amendoas-200g', 'NF-0103', '7891000001035', 'Farinha de Amêndoas 200g. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 19.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_suplementacao FROM products p WHERE p.sku='NF-0103' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/ImunoKids%20%E2%80%93%20Xarope%20Infantil%20Fitoter%C3%A1pico%20120ml.png', 0 FROM products p WHERE p.sku='NF-0103' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Valeriana Officinalis 500mg — ref. 2', 'valeriana-officinalis-500mg-ref-2', 'NF-0104', '7891000001042', 'Valeriana Officinalis 500mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 22.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0104' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/Naturalis%20Digest%20350mg.png', 0 FROM products p WHERE p.sku='NF-0104' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'Passiflora Incarnata 400mg — ref. 2', 'passiflora-incarnata-400mg-ref-2', 'NF-0105', '7891000001059', 'Passiflora Incarnata 400mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 25.70, NULL, 'INACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0105' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoErvas%20Digest%20%E2%80%93%20Ch%C3%A1%20Fitoter%C3%A1pico.png', 0 FROM products p WHERE p.sku='NF-0105' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'ArtroFlex Articulações 500mg — ref. 2', 'artroflex-articulacoes-500mg-ref-2', 'NF-0106', '7891000001066', 'ArtroFlex Articulações 500mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 28.90, 25.43, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0106' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/NeoHerbal%20Detox%20300mg.png', 0 FROM products p WHERE p.sku='NF-0106' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'CalmErvas 300mg — ref. 2', 'calmervas-300mg-ref-2', 'NF-0107', '7891000001073', 'CalmErvas 300mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 32.10, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0107' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/RespiraBem%20%E2%80%93%20Inalador%20Fitoter%C3%A1pico%20Nasal.png', 0 FROM products p WHERE p.sku='NF-0107' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'CardioErvas 350mg — ref. 2', 'cardioervas-350mg-ref-2', 'NF-0108', '7891000001080', 'CardioErvas 350mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 35.30, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0108' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonoNatural%20%E2%80%93%20C%C3%A1psulas%20para%20Relaxamento%20300mg.png', 0 FROM products p WHERE p.sku='NF-0108' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'BioErvas Imunidade 400mg — ref. 2', 'bioervas-imunidade-400mg-ref-2', 'NF-0109', '7891000001097', 'BioErvas Imunidade 400mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 38.50, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0109' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/SonosFit%20250mg.png', 0 FROM products p WHERE p.sku='NF-0109' LIMIT 1;
+INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
+VALUES (@lab_id, @supplier_id, @type_capsulas, 'DepuraVida 500mg — ref. 2', 'depuravida-500mg-ref-2', 'NF-0110', '7891000001103', 'DepuraVida 500mg — ref. 2. Produto fitoterápico comercializado pela NeoFarma.', 'Composição conforme rótulo e bula.', 'Uso conforme orientação farmacêutica ou bula.', 0, 41.70, NULL, 'ACTIVE');
+INSERT INTO product_categories (product_id, category_id) SELECT p.id, @cat_extratos_secos FROM products p WHERE p.sku='NF-0110' LIMIT 1;
+INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product-farma/VitalFemme%20%E2%80%93%20Suplemento%20Fitoter%C3%A1pico%20Feminino%20300mg.png', 0 FROM products p WHERE p.sku='NF-0110' LIMIT 1;
 
 -- Lotes (FEFO: vencido, próximo, válido)
 INSERT INTO inventory_batches (product_id, batch_code, mfg_date, expiry_date, quantity)

@@ -7,9 +7,10 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
-const { isValidEan13 } = require('../util/ean13');
+const { isValidEan13 } = require('../../util/ean13');
 
-const OUT = path.join(__dirname, 'demo_neofarma.sql');
+const OUT = path.join(__dirname, '..', 'demo_neofarma.sql');
+const IMAGE_DIR = path.join(__dirname, '..', '..', 'public', 'assets', 'img', 'product-farma');
 const EMAIL_DOMAIN = '@loja.neofarma.com.br';
 const PASSWORD_PLAIN = 'NeoFarma@2026';
 
@@ -87,6 +88,23 @@ function emailLocal(part) {
   return `${part}${EMAIL_DOMAIN}`;
 }
 
+function loadProductFarmaImages() {
+  if (!fs.existsSync(IMAGE_DIR)) {
+    throw new Error(`Pasta de imagens não encontrada: ${IMAGE_DIR}`);
+  }
+  const files = fs.readdirSync(IMAGE_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name))
+    .filter((name) => !/^pessoa\d+/i.test(name))
+    .filter((name) => !/^neofarma/i.test(name))
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  if (!files.length) {
+    throw new Error(`Nenhuma imagem de produto em ${IMAGE_DIR}`);
+  }
+  return files.map((name) => `/assets/img/product-farma/${encodeURIComponent(name)}`);
+}
+
 const PO_STATUSES = [
   ['DRAFT', 'PENDING', null],
   ['DRAFT', 'PENDING', 'PIX'],
@@ -130,25 +148,223 @@ const STREETS = [
 ];
 
 const PRODUCT_TYPES = [
-  ['Fitoterápico', 'fitoterapico', 'Produtos de origem vegetal medicinal'],
-  ['Suplemento Alimentar', 'suplemento-alimentar', 'Vitaminas, minerais e complementos'],
-  ['Higiene Pessoal', 'higiene-pessoal', 'Sabonetes, shampoos naturais'],
-  ['Cosmético Natural', 'cosmetico-natural', 'Dermocosméticos à base de ingredientes naturais'],
-  ['Chá Medicinal', 'cha-medicinal', 'Chás funcionais e infusões'],
-  ['Óleo Essencial', 'oleo-essencial', 'Aromaterapia e uso tópico diluído'],
-  ['Homeopatia', 'homeopatia', 'Medicamentos homeopáticos'],
-  ['Produto Manipulado', 'produto-manipulado', 'Fórmulas magistrais padronizadas'],
+  ['Cápsulas', 'capsulas', 'Produtos encapsulados de uso oral'],
+  ['Comprimidos', 'comprimidos', 'Comprimidos sólidos de uso oral'],
+  ['Gotas', 'gotas', 'Soluções orais em gotas'],
+  ['Tintura', 'tintura', 'Extratos hidroalcoólicos'],
+  ['Xarope', 'xarope', 'Soluções viscosas orais'],
+  ['Ervas a Granel', 'ervas-a-granel', 'Plantas medicinais a granel para infusão'],
+  ['Roll-on', 'roll-on', 'Aplicador roll-on para uso tópico/aromático'],
+  ['Creme / Gel', 'creme-gel', 'Emulsões e géis para uso tópico'],
+  ['Spray', 'spray', 'Soluções em spray'],
+  ['Óleo fracionado', 'oleo-fracionado', 'Óleos essenciais, vegetais ou blends fracionados'],
 ];
 
-const CATEGORIES = [
-  ['Fitoterápicos', 'fitoterapicos', 'Linha fitoterápica'],
-  ['Suplementos', 'suplementos', 'Suplementação alimentar'],
-  ['Chás e Infusões', 'chas-infusiones', 'Chás funcionais'],
-  ['Dermocosméticos', 'dermocosmeticos', 'Cuidados com pele e cabelo'],
-  ['Higiene Natural', 'higiene-natural', 'Higiene com ingredientes naturais'],
-  ['Aromaterapia', 'aromaterapia', 'Óleos essenciais'],
-  ['Manipulados', 'manipulados', 'Fórmulas magistrais'],
-  ['Infantil Natural', 'infantil-natural', 'Linha pediátrica natural'],
+/** Macro-departamentos (parent_id NULL) e sub-departamentos (filhas). */
+const CATEGORY_TREE = [
+  {
+    name: 'Aromaterapia',
+    slug: 'aromaterapia',
+    description: 'Óleos essenciais, vegetais e blends para bem-estar olfativo',
+    children: [
+      ['Óleos Essenciais', 'oleos-essenciais', 'Óleos essenciais puros e naturais'],
+      ['Óleos Vegetais', 'oleos-vegetais', 'Carreadores vegetais para diluição'],
+      ['Blends Aromáticos', 'blends-aromaticos', 'Misturas prontas para aromaterapia'],
+    ],
+  },
+  {
+    name: 'Chás e Infusões',
+    slug: 'chas-infusiones',
+    description: 'Chás funcionais, digestivos e infusões medicinais',
+    children: [
+      ['Chás Medicinais', 'chas-medicinais', 'Chás de plantas medicinais'],
+      ['Chás Digestivos', 'chas-digestivos', 'Blends para conforto digestivo'],
+      ['Infusões Funcionais', 'infusoes-funcionais', 'Infusões para rotina de bem-estar'],
+    ],
+  },
+  {
+    name: 'Suplementação',
+    slug: 'suplementacao',
+    description: 'Vitaminas, minerais, ômegas e probióticos',
+    children: [
+      ['Vitaminas e Minerais', 'vitaminas-minerais', 'Suplementação vitamínica e mineral'],
+      ['Probióticos e Enzimas', 'probioticos-enzimas', 'Suporte à microbiota e digestão'],
+      ['Óleos e Ômegas', 'oleos-omegas', 'Ácidos graxos essenciais e óleos funcionais'],
+    ],
+  },
+  {
+    name: 'Fitoterápicos',
+    slug: 'fitoterapicos',
+    description: 'Medicamentos e insumos de origem vegetal',
+    children: [
+      ['Extratos Secos', 'extratos-secos', 'Extratos vegetais padronizados'],
+      ['Tinturas e Fluidos', 'tinturas-fluidos', 'Tinturas, soluções e fluidos fitoterápicos'],
+      ['Xaropes e Soluções', 'xaropes-solucoes', 'Xaropes e soluções orais fitoterápicas'],
+    ],
+  },
+  {
+    name: 'Dermocosmética Natural',
+    slug: 'dermocosmetica-natural',
+    description: 'Cuidados naturais para pele e corpo',
+    children: [
+      ['Cuidados Corporais', 'cuidados-corporais', 'Hidratantes, géis e óleos corporais'],
+      ['Cuidados Faciais', 'cuidados-faciais', 'Sérums, cremes e tratamentos faciais'],
+    ],
+  },
+  {
+    name: 'Higiene e Bem-estar',
+    slug: 'higiene-bem-estar',
+    description: 'Higiene pessoal e autocuidado natural',
+    children: [
+      ['Higiene Bucal Natural', 'higiene-bucal-natural', 'Pastas, enxaguantes e sprays bucais naturais'],
+      ['Higiene Pessoal', 'higiene-pessoal', 'Sabonetes, shampoos e desodorantes naturais'],
+    ],
+  },
+];
+
+/** Slugs legados de seeds anteriores (limpeza idempotente). */
+const LEGACY_CATEGORY_SLUGS = [
+  'fitoterapicos', 'suplementos', 'dermocosmeticos', 'higiene-natural', 'manipulados', 'infantil-natural',
+  'oleos-essenciais-legacy', 'fitoterapico-legacy',
+];
+const LEGACY_TYPE_SLUGS = [
+  'fitoterapico', 'suplemento-alimentar', 'higiene-pessoal', 'cosmetico-natural', 'cha-medicinal',
+  'oleo-essencial', 'homeopatia', 'produto-manipulado',
+];
+
+function allCategorySlugs() {
+  const slugs = [];
+  CATEGORY_TREE.forEach((parent) => {
+    slugs.push(parent.slug);
+    (parent.children || []).forEach(([, childSlug]) => slugs.push(childSlug));
+  });
+  return [...new Set([...slugs, ...LEGACY_CATEGORY_SLUGS])];
+}
+
+function childCategorySlugs() {
+  const slugs = [];
+  CATEGORY_TREE.forEach((parent) => {
+    (parent.children || []).forEach(([, childSlug]) => slugs.push(childSlug));
+  });
+  return slugs;
+}
+
+function parentCategorySlugs() {
+  return CATEGORY_TREE.map((p) => p.slug);
+}
+
+function sqlVar(prefix, slug) {
+  return `@${prefix}_${String(slug).replace(/-/g, '_')}`;
+}
+
+/**
+ * Catálogo base: nome, categoria (pai ou filha), apresentação física (tipo), receita opcional.
+ * categorySlug / typeSlug referem-se aos slugs definidos acima.
+ */
+const PRODUCT_CATALOG = [
+  { name: 'Valeriana Officinalis 500mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Passiflora Incarnata 400mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'ArtroFlex Articulações 500mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'CalmErvas 300mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'CardioErvas 350mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'BioErvas Imunidade 400mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'DepuraVida 500mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Fitocaps Relax 500mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Fitolife Energy 450mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'SonoNatural 300mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'VitalFemme 300mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas', rx: true },
+  { name: 'Ginkgo Biloba 80mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Cúrcuma com Piperina 500mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Tintura de Hypericum perforatum', categorySlug: 'tinturas-fluidos', typeSlug: 'tintura' },
+  { name: 'Tintura de Passiflora incarnata', categorySlug: 'tinturas-fluidos', typeSlug: 'tintura' },
+  { name: 'Gotas de Melatonina 3mg/ml', categorySlug: 'tinturas-fluidos', typeSlug: 'gotas' },
+  { name: 'Valeriana Gotas 20ml', categorySlug: 'tinturas-fluidos', typeSlug: 'gotas' },
+  { name: 'Passiflora Gotas 20ml', categorySlug: 'tinturas-fluidos', typeSlug: 'gotas' },
+  { name: 'HepatoClean Xarope Hepático 150ml', categorySlug: 'xaropes-solucoes', typeSlug: 'xarope', rx: true },
+  { name: 'ImunoKids Xarope Infantil 120ml', categorySlug: 'xaropes-solucoes', typeSlug: 'xarope' },
+  { name: 'Xarope de Própolis Verde 100ml', categorySlug: 'xaropes-solucoes', typeSlug: 'xarope' },
+  { name: 'Chá de Camomila Matricaria 20g', categorySlug: 'chas-medicinais', typeSlug: 'ervas-a-granel' },
+  { name: 'Chá de Erva-Doce 50g', categorySlug: 'chas-medicinais', typeSlug: 'ervas-a-granel' },
+  { name: 'Chá de Espinheira-Santa 50g', categorySlug: 'chas-medicinais', typeSlug: 'ervas-a-granel' },
+  { name: 'NeoErvas Digest Chá Fitoterápico', categorySlug: 'chas-digestivos', typeSlug: 'ervas-a-granel' },
+  { name: 'Chá de Boldo do Chile 40g', categorySlug: 'chas-digestivos', typeSlug: 'ervas-a-granel' },
+  { name: 'Chá de Carqueja 50g', categorySlug: 'chas-digestivos', typeSlug: 'ervas-a-granel' },
+  { name: 'Infusão Noite Tranquila 30g', categorySlug: 'infusoes-funcionais', typeSlug: 'ervas-a-granel' },
+  { name: 'Chá de Hibisco com Gengibre 40g', categorySlug: 'infusoes-funcionais', typeSlug: 'ervas-a-granel' },
+  { name: 'Chá de Maracujá 50g', categorySlug: 'infusoes-funcionais', typeSlug: 'ervas-a-granel' },
+  { name: 'Óleo Essencial Lavanda Angustifolia 10ml', categorySlug: 'oleos-essenciais', typeSlug: 'oleo-fracionado' },
+  { name: 'Óleo Essencial Melaleuca 30ml', categorySlug: 'oleos-essenciais', typeSlug: 'oleo-fracionado' },
+  { name: 'Óleo Essencial Eucalipto 10ml', categorySlug: 'oleos-essenciais', typeSlug: 'oleo-fracionado' },
+  { name: 'Óleo Essencial Tea Tree 10ml', categorySlug: 'oleos-essenciais', typeSlug: 'oleo-fracionado' },
+  { name: 'Óleo Essencial Hortelã-Pimenta 10ml', categorySlug: 'oleos-essenciais', typeSlug: 'oleo-fracionado' },
+  { name: 'Blend Aromático Breathe 10ml', categorySlug: 'blends-aromaticos', typeSlug: 'oleo-fracionado' },
+  { name: 'Blend Calm Night 10ml', categorySlug: 'blends-aromaticos', typeSlug: 'oleo-fracionado' },
+  { name: 'Roll-on Calm Essence Lavanda', categorySlug: 'blends-aromaticos', typeSlug: 'roll-on' },
+  { name: 'Roll-on Focus Menthol', categorySlug: 'blends-aromaticos', typeSlug: 'roll-on' },
+  { name: 'Óleo Vegetal de Amêndoas Doces 100ml', categorySlug: 'oleos-vegetais', typeSlug: 'oleo-fracionado' },
+  { name: 'Óleo de Rosa Mosqueta Puro 30ml', categorySlug: 'oleos-vegetais', typeSlug: 'oleo-fracionado' },
+  { name: 'Óleo de Coco Extra Virgem 200ml', categorySlug: 'oleos-vegetais', typeSlug: 'oleo-fracionado' },
+  { name: 'Kit Aromaterapia — difusor + blend', categorySlug: 'aromaterapia', typeSlug: 'oleo-fracionado' },
+  { name: 'Vitamina D3 2000 UI', categorySlug: 'vitaminas-minerais', typeSlug: 'capsulas' },
+  { name: 'Magnésio Quelato 200mg', categorySlug: 'vitaminas-minerais', typeSlug: 'capsulas' },
+  { name: 'Vitamina C 1000mg', categorySlug: 'vitaminas-minerais', typeSlug: 'comprimidos' },
+  { name: 'Complexo B Natural', categorySlug: 'vitaminas-minerais', typeSlug: 'comprimidos' },
+  { name: 'Zinco Quelato 30mg', categorySlug: 'vitaminas-minerais', typeSlug: 'capsulas' },
+  { name: 'Ferro Quelato 30mg', categorySlug: 'vitaminas-minerais', typeSlug: 'capsulas' },
+  { name: 'Multivitamínico Mulher', categorySlug: 'suplementacao', typeSlug: 'capsulas' },
+  { name: 'Ômega 3 EPA/DHA 120 cápsulas', categorySlug: 'oleos-omegas', typeSlug: 'capsulas' },
+  { name: 'Óleo de Prímula 1000mg', categorySlug: 'oleos-omegas', typeSlug: 'capsulas' },
+  { name: 'Probiótico 10 cepas 30 cápsulas', categorySlug: 'probioticos-enzimas', typeSlug: 'capsulas' },
+  { name: 'Psyllium 500mg', categorySlug: 'probioticos-enzimas', typeSlug: 'capsulas' },
+  { name: 'Colágeno Hidrolisado 300g', categorySlug: 'suplementacao', typeSlug: 'comprimidos' },
+  { name: 'Spirulina 500mg', categorySlug: 'suplementacao', typeSlug: 'comprimidos' },
+  { name: 'Maca Peruana 500mg', categorySlug: 'suplementacao', typeSlug: 'capsulas' },
+  { name: 'Dermaverde Creme Fitoterápico Pele 60g', categorySlug: 'cuidados-corporais', typeSlug: 'creme-gel' },
+  { name: 'Gel de Arnica Montana 100g', categorySlug: 'cuidados-corporais', typeSlug: 'creme-gel' },
+  { name: 'Gel Hidratante Aloe Vera 200g', categorySlug: 'cuidados-corporais', typeSlug: 'creme-gel' },
+  { name: 'Hidratante Corporal Urucum 200ml', categorySlug: 'cuidados-corporais', typeSlug: 'creme-gel' },
+  { name: 'Pomada de Própolis 30g', categorySlug: 'cuidados-corporais', typeSlug: 'creme-gel' },
+  { name: 'Sérum Facial Vitamina C 30ml', categorySlug: 'cuidados-faciais', typeSlug: 'creme-gel' },
+  { name: 'Máscara de Argila Verde 100g', categorySlug: 'cuidados-faciais', typeSlug: 'creme-gel' },
+  { name: 'Creme Calêndula Facial 50g', categorySlug: 'cuidados-faciais', typeSlug: 'creme-gel' },
+  { name: 'Sabonete Líquido Neutro 500ml', categorySlug: 'higiene-pessoal', typeSlug: 'creme-gel' },
+  { name: 'Shampoo de Alecrim 300ml', categorySlug: 'higiene-pessoal', typeSlug: 'creme-gel' },
+  { name: 'Desodorante Crystal Natural 80g', categorySlug: 'higiene-pessoal', typeSlug: 'creme-gel' },
+  { name: 'Repelente Natural Citronela 100ml', categorySlug: 'higiene-bem-estar', typeSlug: 'spray' },
+  { name: 'Creme Dental Sem Flúor 90g', categorySlug: 'higiene-bucal-natural', typeSlug: 'creme-gel' },
+  { name: 'Enxaguante Bucal de Própolis 250ml', categorySlug: 'higiene-bucal-natural', typeSlug: 'spray' },
+  { name: 'Própolis Verde Spray 30ml', categorySlug: 'higiene-bucal-natural', typeSlug: 'spray' },
+  { name: 'RespiraBem Inalador Fitoterápico Nasal', categorySlug: 'fitoterapicos', typeSlug: 'spray' },
+  { name: 'Spray Nasal Sal Marinho 50ml', categorySlug: 'fitoterapicos', typeSlug: 'spray' },
+  { name: 'Mel de Manuka UMF 10+ 250g', categorySlug: 'chas-infusiones', typeSlug: 'ervas-a-granel' },
+  { name: 'Guaraná em Pó 100g', categorySlug: 'infusoes-funcionais', typeSlug: 'ervas-a-granel' },
+  { name: 'Ashwagandha 300mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Rhodiola Rosea 300mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Melatonina 3mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Equinácea + Vitamina C', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Berberina 500mg', categorySlug: 'extratos-secos', typeSlug: 'capsulas', rx: true },
+  { name: 'Coenzima Q10 100mg', categorySlug: 'vitaminas-minerais', typeSlug: 'capsulas' },
+  { name: 'Hyaluronic Acid 50mg', categorySlug: 'cuidados-faciais', typeSlug: 'capsulas' },
+  { name: 'Loção Capilar Jaborandi 200ml', categorySlug: 'higiene-pessoal', typeSlug: 'spray' },
+  { name: 'Condicionador de Babosa 300ml', categorySlug: 'higiene-pessoal', typeSlug: 'creme-gel' },
+  { name: 'Sabonete de Calêndula 90g', categorySlug: 'higiene-pessoal', typeSlug: 'creme-gel' },
+  { name: 'Óleo de Copaíba 30ml', categorySlug: 'oleos-vegetais', typeSlug: 'oleo-fracionado' },
+  { name: 'Hamamelis Virginiana Tônico 200ml', categorySlug: 'cuidados-faciais', typeSlug: 'spray' },
+  { name: 'Calêndula Pomada Infantil 50g', categorySlug: 'cuidados-corporais', typeSlug: 'creme-gel' },
+  { name: 'Whey Protein Natural 900g', categorySlug: 'suplementacao', typeSlug: 'comprimidos' },
+  { name: 'Creatina Monoidratada 300g', categorySlug: 'suplementacao', typeSlug: 'comprimidos' },
+  { name: 'BCAA 2:1:1', categorySlug: 'suplementacao', typeSlug: 'capsulas' },
+  { name: 'Glucosamina + Condroitina', categorySlug: 'oleos-omegas', typeSlug: 'capsulas' },
+  { name: 'Colágeno Tipo II', categorySlug: 'suplementacao', typeSlug: 'capsulas' },
+  { name: 'Resveratrol 200mg', categorySlug: 'vitaminas-minerais', typeSlug: 'capsulas' },
+  { name: 'Clorella 500mg', categorySlug: 'suplementacao', typeSlug: 'comprimidos' },
+  { name: 'Própolis Verde 60 cápsulas', categorySlug: 'fitoterapicos', typeSlug: 'capsulas' },
+  { name: 'Boldo do Chile 60 cápsulas', categorySlug: 'extratos-secos', typeSlug: 'capsulas', rx: true },
+  { name: 'Artichoke 60 cápsulas', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Milk Thistle 60 cápsulas', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Saw Palmetto 60 cápsulas', categorySlug: 'extratos-secos', typeSlug: 'capsulas' },
+  { name: 'Açúcar de Coco 300g', categorySlug: 'chas-infusiones', typeSlug: 'ervas-a-granel' },
+  { name: 'Farinha de Amêndoas 200g', categorySlug: 'suplementacao', typeSlug: 'ervas-a-granel' },
 ];
 
 const LABS = [
@@ -171,46 +387,18 @@ const SUPPLIERS = [
   ['Organica Trade Importadora SA', 'Organica Trade', 'trade@organica.com.br'],
 ];
 
-const PRODUCT_NAMES = [
-  'Chá de Camomila NeoHerbs 20g', 'Extrato Seco de Valeriana 60 cápsulas', 'Óleo de Melaleuca 30ml',
-  'Própolis Verde Spray 30ml', 'Mel de Manuka UMF 10+ 250g', 'Shampoo de Alecrim 300ml',
-  'Sabonete de Calêndula 90g', 'Complexo B Natural 60 comprimidos', 'Vitamina D3 2000UI 60 cápsulas',
-  'Magnésio Quelato 120 cápsulas', 'Gel de Arnica Montana 100g', 'Pomada de Própolis 30g',
-  'Óleo Essencial de Lavanda 10ml', 'Óleo Essencial de Eucalipto 10ml', 'Chá de Erva-Doce 50g',
-  'Chá de Hibisco com Gengibre 40g', 'Colágeno Hidrolisado 300g', 'Ômega 3 EPA/DHA 120 cápsulas',
-  'Probiótico 10 cepas 30 cápsulas', 'Cúrcuma com Piperina 60 cápsulas', 'Ginkgo Biloba 80mg 60 cápsulas',
-  'Passiflora Incarnata 500mg 60 cápsulas', 'Crataegus Oxyacantha 60 cápsulas', 'Gel Hidratante de Aloe Vera 200g',
-  'Repelente Natural Citronela 100ml', 'Desodorante Crystal Natural 80g', 'Creme Dental Sem Flúor 90g',
-  'Enxaguante Bucal de Própolis 250ml', 'Loção Capilar de Jaborandi 200ml', 'Óleo de Rosa Mosqueta 30ml',
-  'Sérum Facial Vitamina C 30ml', 'Máscara de Argila Verde 100g', 'Echinacea Purpurea 60 cápsulas',
-  'Guaraná em Pó 100g', 'Maca Peruana 500mg 60 cápsulas', 'Spirulina 500mg 120 comprimidos',
-  'Clorella 500mg 120 comprimidos', 'Psyllium 500mg 120 cápsulas', 'Melatonina 3mg 60 cápsulas',
-  'Ashwagandha 300mg 60 cápsulas', 'Rhodiola Rosea 300mg 60 cápsulas', 'Calendula Officinalis Tintura 50ml',
-  'Hamamelis Virginiana Tônico 200ml', 'Calêndula Pomada Infantil 50g', 'Óleo de Copaíba 30ml',
-  'Spray Nasal Sal Marinho 50ml', 'Xarope de Própolis Infantil 100ml', 'Fórmula Magistral Base Creme 100g',
-  'Homeopatia Ignatia 30CH', 'Homeopatia Arnica 6CH', 'Fitoterápico Boldo do Chile 60 cápsulas',
-  'Dipirona Monoidratada 500mg 20 comprimidos', 'Paracetamol 750mg 20 comprimidos', 'Ibuprofeno 400mg 20 cápsulas',
-  'Loratadina 10mg 12 comprimidos', 'Omeprazol 20mg 28 cápsulas', 'Soro Fisiológico 0,9% 500ml',
-  'Fralda Descartável P 36un', 'Lenço Umedecido 96un', 'Protetor Solar FPS 50 120ml',
-  'Multivitamínico Mulher 60 cápsulas', 'Multivitamínico Homem 60 cápsulas', 'Zinco Quelato 30mg 60 cápsulas',
-  'Ferro Quelato 30mg 60 cápsulas', 'Vitamina C 1000mg 30 comprimidos', 'Vitamina B12 1000mcg 60 cápsulas',
-  'Chá de Espinheira-Santa 50g', 'Chá de Carqueja 50g', 'Chá de Boldo 50g', 'Chá de Maracujá 50g',
-  'Óleo Essencial de Tea Tree 10ml', 'Óleo Essencial de Hortelã-Pimenta 10ml', 'Difusor Ultrassônico 300ml',
-  'Hidratante Corporal Urucum 200ml', 'Condicionador de Babosa 300ml', 'Sabonete Líquido Neutro 500ml',
-  'Pasta de Dentes Própolis 90g', 'Fio Dental com Cera 50m', 'Escova Dental Macia',
-  'Whey Protein Natural 900g', 'BCAA 2:1:1 120 cápsulas', 'Creatina Monoidratada 300g',
-  'Glucosamina + Condroitina 60 cápsulas', 'Colágeno Tipo II 60 cápsulas', 'Hyaluronic Acid 50mg 60 cápsulas',
-  'Berberina 500mg 60 cápsulas', 'Resveratrol 200mg 60 cápsulas', 'Coenzima Q10 100mg 60 cápsulas',
-  'Óleo de Prímula 1000mg 60 cápsulas', 'Equinácea + Vitamina C 60 cápsulas', 'Própolis Verde 60 cápsulas',
-  'Melatonina Líquida 30ml', 'Valeriana Gotas 20ml', 'Passiflora Gotas 20ml',
-  'Pomada Hemorroidária Natural 30g', 'Creme para Assaduras 60g', 'Talco Natural 100g',
-  'Álcool Gel 70% 500ml', 'Água Oxigenada 10 Volumes 100ml', 'Iodopovidona Tópico 100ml',
-  'Termômetro Digital', 'Medidor de Pressão de Pulso', 'Glicosímetro + 10 tiras',
-  'Máscara Descartável Tripla 50un', 'Luvas de Procedimento 100un', 'Atadura Crepe 10cm',
-  'Homeopatia Pulsatilla 30CH', 'Homeopatia Nux Vomica 30CH', 'Homeopatia Rhus Toxicodendron 6CH',
-  'Fitoterápico Artichoke 60 cápsulas', 'Fitoterápico Milk Thistle 60 cápsulas', 'Fitoterápico Saw Palmetto 60 cápsulas',
-  'Óleo de Coco Extra Virgem 200ml', 'Açúcar de Coco 300g', 'Farinha de Amêndoas 200g',
-];
+function validateCatalogRefs() {
+  const catSlugs = new Set(allCategorySlugs());
+  const typeSlugs = new Set(PRODUCT_TYPES.map(([, slug]) => slug));
+  PRODUCT_CATALOG.forEach((item, idx) => {
+    if (!catSlugs.has(item.categorySlug)) {
+      throw new Error(`Produto #${idx + 1} (${item.name}): categoria inválida "${item.categorySlug}"`);
+    }
+    if (!typeSlugs.has(item.typeSlug)) {
+      throw new Error(`Produto #${idx + 1} (${item.name}): tipo inválido "${item.typeSlug}"`);
+    }
+  });
+}
 
 function validateCoherenceInMemory(productCount, orderCount, disposalCount, poCount) {
   const byProduct = new Map();
@@ -314,13 +502,15 @@ WHERE po.notes LIKE 'OC-2024-%' AND po.status = 'RECEIVED' AND poi.quantity_rece
 
 async function main() {
   const hash = await bcrypt.hash(PASSWORD_PLAIN, 10);
+  const productImages = loadProductFarmaImages();
   const lines = [];
   const { products: P, clientsPf, clientsPj, orders: O, purchaseOrders: PO, disposals: D, appointments: A, prescriptions: R, addresses: ADDR } = COUNTS;
   const totalClients = clientsPf + clientsPj;
 
   lines.push('-- ============================================================');
   lines.push('-- NEOFARMA — Base de demonstração operacional');
-  lines.push('-- Gerado por: node scripts/generate_demo_brasil.js');
+  lines.push('-- Gerado por: node scripts/old/generate_demo_brasil.js');
+  lines.push(`-- Imagens: public/assets/img/product-farma/ (${productImages.length} arquivos)`);
   lines.push('-- Pré-requisito: scripts/DB_Neofarma_clean.sql');
   lines.push(`-- Senha dos usuários @loja.neofarma.com.br: ${PASSWORD_PLAIN}`);
   lines.push('-- Admin original do schema: admin@neofarma.com / Admin@123');
@@ -355,8 +545,9 @@ async function main() {
     `DELETE FROM users WHERE email LIKE '%${EMAIL_DOMAIN}'`,
     `DELETE FROM suppliers WHERE cnpj LIKE '30%' AND corporate_name IN (${SUPPLIERS.map(([c]) => esc(c)).join(', ')})`,
     `DELETE FROM labs WHERE name IN (${LABS.map(([n]) => esc(n)).join(', ')})`,
-    `DELETE FROM categories WHERE slug IN (${CATEGORIES.map(([, s]) => esc(s)).join(', ')})`,
-    `DELETE FROM product_types WHERE slug IN (${PRODUCT_TYPES.map(([, s]) => esc(s)).join(', ')})`,
+    `DELETE FROM categories WHERE slug IN (${childCategorySlugs().map((s) => esc(s)).join(', ')})`,
+    `DELETE FROM categories WHERE slug IN (${[...parentCategorySlugs(), ...LEGACY_CATEGORY_SLUGS].map((s) => esc(s)).join(', ')})`,
+    `DELETE FROM product_types WHERE slug IN (${[...PRODUCT_TYPES.map(([, s]) => s), ...LEGACY_TYPE_SLUGS].map((s) => esc(s)).join(', ')})`,
   ];
   clean.forEach((q) => lines.push(`${q};`));
   lines.push('SET FOREIGN_KEY_CHECKS = 1;');
@@ -367,12 +558,26 @@ async function main() {
 ON DUPLICATE KEY UPDATE description=VALUES(description);`);
 
   lines.push('');
-  lines.push('-- Tipos e categorias');
+  lines.push('-- Apresentações físicas (independentes da categoria departamental)');
   PRODUCT_TYPES.forEach(([name, slug, desc]) => {
-    lines.push(`INSERT INTO product_types (name, slug, description, is_active) VALUES (${esc(name)}, ${esc(slug)}, ${esc(desc)}, 1) ON DUPLICATE KEY UPDATE name=VALUES(name);`);
+    lines.push(`INSERT INTO product_types (name, slug, description, is_active) VALUES (${esc(name)}, ${esc(slug)}, ${esc(desc)}, 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);`);
   });
-  CATEGORIES.forEach(([name, slug, desc]) => {
-    lines.push(`INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, ${esc(name)}, ${esc(slug)}, ${esc(desc)}, 1) ON DUPLICATE KEY UPDATE name=VALUES(name);`);
+
+  lines.push('');
+  lines.push('-- Categorias pai (macro-departamentos — parent_id NULL)');
+  CATEGORY_TREE.forEach((parent) => {
+    lines.push(`INSERT INTO categories (parent_id, name, slug, description, is_active) VALUES (NULL, ${esc(parent.name)}, ${esc(parent.slug)}, ${esc(parent.description)}, 1) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), parent_id=NULL;`);
+  });
+
+  lines.push('');
+  lines.push('-- Categorias filhas (sub-departamentos — parent_id aponta para a categoria pai)');
+  CATEGORY_TREE.forEach((parent) => {
+    (parent.children || []).forEach(([childName, childSlug, childDesc]) => {
+      lines.push(`INSERT INTO categories (parent_id, name, slug, description, is_active)
+SELECT p.id, ${esc(childName)}, ${esc(childSlug)}, ${esc(childDesc)}, 1
+FROM categories p WHERE p.slug = ${esc(parent.slug)} LIMIT 1
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);`);
+    });
   });
 
   lines.push('');
@@ -397,12 +602,12 @@ ON DUPLICATE KEY UPDATE description=VALUES(description);`);
 
   lines.push('SET @lab_id := (SELECT id FROM labs WHERE name = \'Herbarium Laboratório Botânico\' LIMIT 1);');
   lines.push('SET @supplier_id := (SELECT id FROM suppliers WHERE trade_name = \'Fitonatural\' LIMIT 1);');
-  lines.push('SET @type_fit := (SELECT id FROM product_types WHERE slug = \'fitoterapico\' LIMIT 1);');
-  lines.push('SET @type_sup := (SELECT id FROM product_types WHERE slug = \'suplemento-alimentar\' LIMIT 1);');
-  lines.push('SET @type_hig := (SELECT id FROM product_types WHERE slug = \'higiene-pessoal\' LIMIT 1);');
-  lines.push('SET @cat_fito := (SELECT id FROM categories WHERE slug = \'fitoterapicos\' LIMIT 1);');
-  lines.push('SET @cat_sup := (SELECT id FROM categories WHERE slug = \'suplementos\' LIMIT 1);');
-  lines.push('SET @cat_cha := (SELECT id FROM categories WHERE slug = \'chas-infusiones\' LIMIT 1);');
+  allCategorySlugs().forEach((slug) => {
+    lines.push(`SET ${sqlVar('cat', slug)} := (SELECT id FROM categories WHERE slug = ${esc(slug)} LIMIT 1);`);
+  });
+  PRODUCT_TYPES.forEach(([, slug]) => {
+    lines.push(`SET ${sqlVar('type', slug)} := (SELECT id FROM product_types WHERE slug = ${esc(slug)} LIMIT 1);`);
+  });
 
   lines.push('');
   lines.push('-- Equipe');
@@ -448,10 +653,12 @@ SELECT c.id, @addr_base + ${(clientsPf + j) % ADDR}, 'Matriz', 1 FROM customers 
   }
 
   lines.push('');
-  lines.push('-- Produtos');
+  lines.push('-- Produtos (categoria departamental + apresentação física)');
   const slugUsed = new Set();
   for (let i = 0; i < P; i++) {
-    const name = PRODUCT_NAMES[i % PRODUCT_NAMES.length] + (i >= PRODUCT_NAMES.length ? ` — ref. ${i + 1}` : '');
+    const base = PRODUCT_CATALOG[i % PRODUCT_CATALOG.length];
+    const suffix = i >= PRODUCT_CATALOG.length ? ` — ref. ${Math.floor(i / PRODUCT_CATALOG.length) + 1}` : '';
+    const name = `${base.name}${suffix}`;
     let slug = slugify(name);
     if (slugUsed.has(slug)) slug = `${slug}-${i + 1}`;
     slugUsed.add(slug);
@@ -460,13 +667,13 @@ SELECT c.id, @addr_base + ${(clientsPf + j) % ADDR}, 'Matriz', 1 FROM customers 
     const price = (12.9 + (i % 25) * 3.2).toFixed(2);
     const promo = i % 5 === 0 ? (Number(price) * 0.88).toFixed(2) : null;
     const status = i % 19 === 0 ? 'DISCONTINUED' : i % 13 === 0 ? 'INACTIVE' : 'ACTIVE';
-    const typeVar = i % 3 === 0 ? '@type_fit' : i % 3 === 1 ? '@type_sup' : '@type_hig';
-    const rx = i % 11 === 0 ? 1 : 0;
-    const catVar = i % 3 === 0 ? '@cat_fito' : i % 3 === 1 ? '@cat_sup' : '@cat_cha';
+    const typeVar = sqlVar('type', base.typeSlug);
+    const catVar = sqlVar('cat', base.categorySlug);
+    const rx = base.rx ? 1 : (i % 11 === 0 ? 1 : 0);
     lines.push(`INSERT INTO products (lab_id, main_supplier_id, product_type_id, name, slug, sku, ean13, description, composition, usage_info, prescription_required, unit_price, promotional_price, status)
-VALUES (@lab_id, @supplier_id, ${typeVar}, ${esc(name)}, ${esc(slug)}, ${esc(sku)}, ${esc(ean)}, ${esc(`${name}. Produto comercializado pela NeoFarma.`)}, ${esc('Composição conforme rótulo e bula.')}, ${esc('Uso conforme orientação farmacêutica ou bula.')}, ${rx}, ${price}, ${promo || 'NULL'}, ${esc(status)});`);
+VALUES (@lab_id, @supplier_id, ${typeVar}, ${esc(name)}, ${esc(slug)}, ${esc(sku)}, ${esc(ean)}, ${esc(`${name}. Produto fitoterápico comercializado pela NeoFarma.`)}, ${esc('Composição conforme rótulo e bula.')}, ${esc('Uso conforme orientação farmacêutica ou bula.')}, ${rx}, ${price}, ${promo || 'NULL'}, ${esc(status)});`);
     lines.push(`INSERT INTO product_categories (product_id, category_id) SELECT p.id, ${catVar} FROM products p WHERE p.sku=${esc(sku)} LIMIT 1;`);
-    lines.push(`INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, '/assets/img/product/product-${(i % 5) + 1}.webp', 0 FROM products p WHERE p.sku=${esc(sku)} LIMIT 1;`);
+    lines.push(`INSERT INTO product_images (product_id, image_url, sort_order) SELECT p.id, ${esc(productImages[i % productImages.length])}, 0 FROM products p WHERE p.sku=${esc(sku)} LIMIT 1;`);
   }
 
   lines.push('');
@@ -657,6 +864,7 @@ SELECT pr.id, p.id, 'Conforme prescrição médica', 2, ${r % 2} FROM prescripti
   lines.push(`-- Cliente:      ${clientEmail(0)} / ${PASSWORD_PLAIN}`);
   lines.push('-- ============================================================');
 
+  validateCatalogRefs();
   validateCoherenceInMemory(P, O, D, PO);
 
   fs.writeFileSync(OUT, lines.join('\n'), 'utf8');

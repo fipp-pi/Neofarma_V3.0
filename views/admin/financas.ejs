@@ -103,7 +103,7 @@
                 <% if (revenueByDay && revenueByDay.length) { %>
                   <% revenueByDay.forEach(function(r) { %>
                     <tr>
-                      <td><%= r.day || '-' %></td>
+                      <td><%= fmtDate(r.day) %></td>
                       <td><%= r.orders_count || 0 %></td>
                       <td class="text-end">R$ <%= toLocaleString(r.revenue) %></td>
                     </tr>

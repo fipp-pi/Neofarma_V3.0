@@ -2,7 +2,7 @@
  * Carrega dados e metadados dos relatórios financeiros (admin).
  */
 const displayLabels = require('../utils/displayLabels');
-const { formatDateTimeSecBr } = require('../utils/dateFormat');
+const { formatDateTimeSecBr, formatDateBr } = require('../utils/dateFormat');
 const FinanceAdmin = require('../models/FinanceAdmin');
 
 const REPORT_META = {
@@ -265,7 +265,7 @@ function getCsvForReport(filters, data) {
     lines.push('');
     lines.push('dia;transacoes;receita');
     (data.revenueByDay || []).forEach((r) => {
-      lines.push(`${r.day || ''};${r.orders_count || 0};${Number(r.revenue || 0).toFixed(2)}`);
+      lines.push(`${formatDateBr(r.day) || ''};${r.orders_count || 0};${Number(r.revenue || 0).toFixed(2)}`);
     });
     lines.push('');
     lines.push('produto;sku;qtd;receita');
@@ -334,8 +334,9 @@ function getCsvForReport(filters, data) {
 
 function describeFilters(filters) {
   const parts = [];
-  if (filters.from && filters.to) parts.push(`Período: ${filters.from} a ${filters.to}`);
-  else if (filters.days) parts.push(`Últimos ${filters.days} dias`);
+  if (filters.from && filters.to) {
+    parts.push(`Período: ${formatDateBr(filters.from)} a ${formatDateBr(filters.to)}`);
+  } else if (filters.days) parts.push(`Últimos ${filters.days} dias`);
   if (filters.search) parts.push(`Busca: "${filters.search}"`);
   if (filters.category_id) parts.push(`Categoria #${filters.category_id}`);
   if (filters.product_type_id) parts.push(`Tipo #${filters.product_type_id}`);

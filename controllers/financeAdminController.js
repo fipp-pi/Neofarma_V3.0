@@ -262,6 +262,23 @@ async function apiListOrdersFinance(req, res, next) {
   }
 }
 
+/**
+ * GET /admin/financas/orders/:id — detalhe do pedido com itens, lotes e totais.
+ */
+async function apiGetOrderFinanceDetail(req, res, next) {
+  try {
+    const orderId = parseInt(req.params.id, 10);
+    if (!orderId) return res.status(400).json({ ok: false, message: 'Pedido inválido.' });
+
+    const detail = await FinanceAdmin.getOrderFinanceDetail(orderId);
+    if (!detail) return res.status(404).json({ ok: false, message: 'Pedido não encontrado.' });
+
+    return res.json({ ok: true, ...detail });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   renderFinanceDashboard,
   renderFinanceReportsPage,
@@ -271,4 +288,5 @@ module.exports = {
   renderFinanceOrdersPage,
   apiMarkPayment,
   apiListOrdersFinance,
+  apiGetOrderFinanceDetail,
 };

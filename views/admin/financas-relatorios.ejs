@@ -374,7 +374,7 @@
             <thead><tr><th>Dia</th><th>Transações</th><th class="text-end">Receita</th></tr></thead>
             <tbody>
               <% if (revenueByDay && revenueByDay.length) { revenueByDay.forEach(function(r) { %>
-                <tr><td><%= r.day %></td><td><%= r.orders_count || 0 %></td><td class="text-end fw-semibold">R$ <%= fmtMoney(r.revenue) %></td></tr>
+                <tr><td><%= fmtDate(r.day) %></td><td><%= r.orders_count || 0 %></td><td class="text-end fw-semibold">R$ <%= fmtMoney(r.revenue) %></td></tr>
               <% }) } else { %>
                 <tr><td colspan="3" class="text-muted text-center py-4">Sem dados no período</td></tr>
               <% } %>

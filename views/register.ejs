@@ -554,6 +554,28 @@
 
   function stripDigits(v) { return String(v || '').replace(/\D/g, ''); }
 
+  function validateBirthDateClient(birthDate) {
+    var raw = String(birthDate || '').trim();
+    if (!raw) return null;
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+    if (!match) return 'Informe uma data de nascimento válida.';
+    var year = Number(match[1]);
+    var month = Number(match[2]);
+    var day = Number(match[3]);
+    var currentYear = new Date().getFullYear();
+    if (!year || year < 1900 || year > currentYear) {
+      return 'Informe um ano de nascimento entre 1900 e ' + currentYear + '.';
+    }
+    var bd = new Date(raw + 'T00:00:00');
+    if (isNaN(bd.getTime()) || bd.getFullYear() !== year || (bd.getMonth() + 1) !== month || bd.getDate() !== day) {
+      return 'Informe uma data de nascimento válida.';
+    }
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (bd > today) return 'A data de nascimento não pode ser futura.';
+    return null;
+  }
+
   function formatCpf(v) {
     var d = stripDigits(v).slice(0, 11);
     if (d.length <= 3) return d;
@@ -653,10 +675,8 @@
       else if (!validarCpf(cpfDigits)) errors.document = 'CPF inválido — verifique os dígitos verificadores.';
 
       if (birthDate) {
-        var today = new Date();
-        today.setHours(0, 0, 0, 0);
-        var bd = new Date(birthDate + 'T00:00:00');
-        if (bd > today) errors.birth_date = 'A data de nascimento não pode ser futura.';
+        var birthErr = validateBirthDateClient(birthDate);
+        if (birthErr) errors.birth_date = birthErr;
       }
     }
 
@@ -1077,6 +1097,16 @@
   });
 
   $('btnCriarConta').addEventListener('click', submitRegistration);
+
+  (function initBirthDateLimits() {
+    var birthEl = $('birth_date');
+    if (!birthEl) return;
+    birthEl.min = '1900-01-01';
+    var today = new Date();
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
+    var dd = String(today.getDate()).padStart(2, '0');
+    birthEl.max = today.getFullYear() + '-' + mm + '-' + dd;
+  })();
 
   $('formRegister').addEventListener('submit', function (e) {
     e.preventDefault();

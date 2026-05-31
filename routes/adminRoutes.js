@@ -7,6 +7,7 @@ const financeAdminController = require('../controllers/financeAdminController');
 const serviceAppointmentAdminController = require('../controllers/serviceAppointmentAdminController');
 const purchaseAdminController = require('../controllers/purchaseAdminController');
 const employeeAdminController = require('../controllers/employeeAdminController');
+const fulfillmentAdminController = require('../controllers/fulfillmentAdminController');
 const promotionAdminController = require('../controllers/promotionAdminController');
 const { uploadProductImage } = require('../middleware/uploadProductImage');
 
@@ -24,6 +25,7 @@ router.get('/api/slug-disponivel', admin.checkSlugAvailability);
 // ===== Gestão global de lotes =====
 router.get('/lotes', inventoryAdminController.listAllBatchesPage);
 router.get('/lotes/export.csv', inventoryAdminController.exportCsv);
+router.get('/lotes/:id', inventoryAdminController.getBatchDetail);
 router.post('/lotes/delete-many', inventoryAdminController.deleteManyBatches);
 
 // ===== Funcionários (RF_B1) =====
@@ -72,12 +74,20 @@ router.post('/descartes', inventoryAdminController.registerDisposal);
 // ===== Financeiro =====
 router.get('/financas', financeAdminController.renderFinanceDashboard);
 router.get('/financas/orders', financeAdminController.apiListOrdersFinance);
+router.get('/financas/orders/:id', financeAdminController.apiGetOrderFinanceDetail);
 router.get('/financas/relatorios', financeAdminController.renderFinanceReportsPage);
 router.get('/financas/relatorios/export.csv', financeAdminController.exportFinanceReportCsv);
 router.get('/financas/relatorios/imprimir', financeAdminController.exportFinanceReportPrint);
 router.get('/financas/recibos', financeAdminController.renderFinanceReceiptsPage);
 router.get('/financas/pedidos', financeAdminController.renderFinanceOrdersPage);
 router.post('/financas/orders/:id/mark-payment', financeAdminController.apiMarkPayment);
+
+// ===== Expedição de pedidos da loja =====
+router.get('/expedicao', fulfillmentAdminController.renderPage);
+router.get('/expedicao/pedidos', fulfillmentAdminController.apiListOrders);
+router.get('/expedicao/pedidos/:id', fulfillmentAdminController.apiGetOrderDetail);
+router.post('/expedicao/pedidos/:id/despachar', fulfillmentAdminController.apiMarkShipped);
+router.post('/expedicao/pedidos/:id/entregar', fulfillmentAdminController.apiMarkDelivered);
 
 // ===== Agendamentos de serviços =====
 router.get('/agendamentos-servicos', serviceAppointmentAdminController.renderPage);
@@ -124,6 +134,7 @@ router.post('/produtos/:id/lotes', inventoryAdminController.createBatch);
 router.put('/produtos/lotes/:batchId', inventoryAdminController.updateBatch);
 router.delete('/produtos/lotes/:batchId', inventoryAdminController.deleteBatch);
 router.delete('/produtos/imagens/:id', admin.deleteProductImage);
+router.get('/produtos/:id/exclusao', admin.getProductDeletionInfo);
 router.delete('/produtos/:id', admin.deleteProduct);
 
 module.exports = router;

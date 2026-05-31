@@ -181,11 +181,32 @@ async function listOrdersFinance(options = {}) {
       u.email,
       p.pix_copy_paste,
       p.boleto_barcode,
-      p.pix_qr_code
+      p.pix_qr_code,
+      COALESCE(fi.qty_fulfilled, 0) + COALESCE(pi.qty_pending, 0) AS items_qty,
+      COALESCE(fi.lines_fulfilled, 0) + COALESCE(pi.lines_pending, 0) AS items_lines,
+      COALESCE(NULLIF(fi.items_preview, ''), pi.items_preview) AS items_preview
     FROM orders o
     INNER JOIN customers c ON c.id = o.customer_id
     INNER JOIN users u ON u.id = c.user_id
     LEFT JOIN payments p ON p.order_id = o.id
+    LEFT JOIN (
+      SELECT oi.order_id,
+             SUM(oi.quantity) AS qty_fulfilled,
+             COUNT(*) AS lines_fulfilled,
+             SUBSTRING_INDEX(GROUP_CONCAT(p.name ORDER BY oi.id SEPARATOR ' · '), ' · ', 2) AS items_preview
+      FROM order_items oi
+      INNER JOIN products p ON p.id = oi.product_id
+      GROUP BY oi.order_id
+    ) fi ON fi.order_id = o.id
+    LEFT JOIN (
+      SELECT opi.order_id,
+             SUM(opi.quantity) AS qty_pending,
+             COUNT(*) AS lines_pending,
+             SUBSTRING_INDEX(GROUP_CONCAT(p.name ORDER BY opi.id SEPARATOR ' · '), ' · ', 2) AS items_preview
+      FROM order_pending_items opi
+      INNER JOIN products p ON p.id = opi.product_id
+      GROUP BY opi.order_id
+    ) pi ON pi.order_id = o.id
     ${where}
     ORDER BY o.created_at DESC, o.id DESC
     LIMIT ${pageSize} OFFSET ${offset}`,
@@ -205,6 +226,126 @@ async function listOrdersFinance(options = {}) {
 
   const total = Number(countRows && countRows[0] && countRows[0].total ? countRows[0].total : 0);
   return { orders: rows || [], total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+}
+
+/**
+ * Detalhe completo do pedido para o admin financeiro (cliente, entrega, pagamento e itens).
+ *
+ * @param {number|string} orderId
+ * @returns {Promise<{ order: object, items: object[], pending_items: object[], summary: object }|null>}
+ */
+async function getOrderFinanceDetail(orderId) {
+  const id = Number(orderId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+
+  const [orderRows] = await pool.execute(
+    `SELECT
+      o.id,
+      o.customer_id,
+      o.address_id,
+      o.status AS order_status,
+      o.subtotal,
+      o.shipping_cost,
+      o.total,
+      o.payment_method,
+      o.payment_status,
+      o.shipping_zip,
+      o.shipping_service,
+      o.shipping_deadline_days,
+      o.tracking_code,
+      o.shipped_at,
+      o.delivered_at,
+      o.delivered_by,
+      o.created_at,
+      o.updated_at,
+      u.full_name,
+      u.email,
+      u.phone,
+      a.street,
+      a.number,
+      a.complement,
+      a.district,
+      a.city,
+      a.state,
+      a.zip_code,
+      pay.amount AS payment_amount,
+      pay.status AS payment_record_status,
+      pay.pix_copy_paste,
+      pay.boleto_barcode,
+      pay.boleto_due_date,
+      pay.card_brand,
+      pay.card_last4,
+      pay.installments,
+      du.full_name AS delivered_by_name
+     FROM orders o
+     INNER JOIN customers c ON c.id = o.customer_id
+     INNER JOIN users u ON u.id = c.user_id
+     INNER JOIN addresses a ON a.id = o.address_id
+     LEFT JOIN payments pay ON pay.order_id = o.id
+     LEFT JOIN users du ON du.id = o.delivered_by
+     WHERE o.id = ?
+     LIMIT 1`,
+    [id]
+  );
+  const order = orderRows[0];
+  if (!order) return null;
+
+  const [itemRows] = await pool.execute(
+    `SELECT
+      oi.id,
+      oi.product_id,
+      oi.batch_id,
+      oi.quantity,
+      oi.unit_price,
+      oi.line_total,
+      p.name AS product_name,
+      p.sku,
+      l.name AS lab_name,
+      ib.batch_code,
+      ib.expiry_date
+     FROM order_items oi
+     INNER JOIN products p ON p.id = oi.product_id
+     LEFT JOIN labs l ON l.id = p.lab_id
+     LEFT JOIN inventory_batches ib ON ib.id = oi.batch_id
+     WHERE oi.order_id = ?
+     ORDER BY oi.id ASC`,
+    [id]
+  );
+
+  const [pendingRows] = await pool.execute(
+    `SELECT
+      opi.id,
+      opi.product_id,
+      opi.quantity,
+      opi.unit_price,
+      opi.line_total,
+      p.name AS product_name,
+      p.sku
+     FROM order_pending_items opi
+     INNER JOIN products p ON p.id = opi.product_id
+     WHERE opi.order_id = ?
+     ORDER BY opi.id ASC`,
+    [id]
+  );
+
+  const fulfilledQty = itemRows.reduce((acc, row) => acc + Number(row.quantity || 0), 0);
+  const pendingQty = pendingRows.reduce((acc, row) => acc + Number(row.quantity || 0), 0);
+
+  return {
+    order,
+    items: itemRows,
+    pending_items: pendingRows,
+    summary: {
+      lines_fulfilled: itemRows.length,
+      lines_pending: pendingRows.length,
+      qty_fulfilled: fulfilledQty,
+      qty_pending: pendingQty,
+      qty_total: fulfilledQty + pendingQty,
+      subtotal: Number(order.subtotal || 0),
+      shipping: Number(order.shipping_cost || 0),
+      total: Number(order.total || 0),
+    },
+  };
 }
 
 /**
@@ -741,6 +882,7 @@ module.exports = {
   getFinanceSummary,
   getRevenueByPaymentMethod,
   listOrdersFinance,
+  getOrderFinanceDetail,
   getMostSoldProducts,
   getRevenueByDay,
   listRecentReceipts,

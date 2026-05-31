@@ -220,7 +220,7 @@
                   <button type="button" class="btn-action btn-stock" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="abrirModalLotes(this)" title="Lotes"><i class="bi bi-archive"></i></button>
                   <button type="button" class="btn-action btn-view" onclick="verProd(<%= item.id %>)" title="Ver informações" aria-label="Ver informações"><i class="bi bi-info-circle"></i></button>
                   <button type="button" class="btn-action btn-edit" data-item="<%= encodeURIComponent(JSON.stringify(item)) %>" onclick="editarProd(this)" title="Editar"><i class="bi bi-pencil"></i></button>
-                  <button type="button" class="btn-action btn-delete" onclick="abrirModalExclusao(<%= item.id %>, '<%= (item.name || "").replace(/'/g, "\\'").replace(/"/g, '&quot;') %>')" title="Excluir"><i class="bi bi-trash"></i></button>
+                  <button type="button" class="btn-action btn-delete" data-delete="<%= encodeURIComponent(JSON.stringify({ id: item.id, name: item.name || '' })) %>" onclick="abrirModalExclusao(this)" title="Excluir"><i class="bi bi-trash"></i></button>
                   </div>
                 </td>
               </tr>
@@ -270,6 +270,16 @@
   .modal-cadastro .btn-save:hover { background: color-mix(in srgb, var(--accent-color), black 12%); border-color: color-mix(in srgb, var(--accent-color), black 12%); color: var(--contrast-color); }
   .modal-header-danger { background: #dc3545; color: #fff; }
   .modal-header-danger .btn-close { filter: brightness(0) invert(1); }
+  .prod-delete-warnings { margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px; background: #fff8e6; border: 1px solid #ffe08a; }
+  .prod-delete-warnings__title { font-size: 0.85rem; font-weight: 600; color: #856404; margin-bottom: 0.35rem; }
+  .prod-delete-blockers { margin: 0; padding: 0; list-style: none; }
+  .prod-delete-blockers li { padding: 0.85rem 1rem; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; margin-bottom: 0.65rem; background: #fff; }
+  .prod-delete-blockers li:last-child { margin-bottom: 0; }
+  .prod-delete-blockers__title { font-weight: 600; color: #842029; display: block; }
+  .prod-delete-blockers__detail { font-size: 0.875rem; color: #495057; margin-top: 0.15rem; }
+  .prod-delete-blockers__desc { font-size: 0.8rem; color: #6c757d; margin-top: 0.25rem; }
+  .prod-delete-recommendations { margin: 0; padding-left: 1.1rem; color: #495057; font-size: 0.875rem; }
+  .prod-delete-recommendations li + li { margin-top: 0.35rem; }
   .field-required::after { content: ' *'; color: #dc3545; font-weight: 600; }
   .form-control.is-invalid, .form-select.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12); }
   .invalid-feedback { display: none; font-size: 0.8rem; color: #dc3545; margin-top: 0.2rem; }
@@ -487,7 +497,7 @@
             </div>
             <div class="col-md-2">
               <label for="batch_quantity" class="form-label form-label-sm mb-0 field-required">Quantidade</label>
-              <input type="number" min="0" class="form-control form-control-sm" id="batch_quantity" placeholder="0">
+              <input type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-sm" id="batch_quantity" placeholder="0">
               <div class="invalid-feedback" id="batch_quantity_error">Quantidade inválida.</div>
             </div>
             <div class="col-md-1 d-grid align-items-end">
@@ -531,10 +541,35 @@
       </div>
       <div class="modal-body">
         <p class="mb-0">Tem certeza que deseja remover o produto <strong id="exclusaoNome"></strong>?<br>Esta ação não pode ser desfeita.</p>
+        <div id="exclusaoWarnings" class="prod-delete-warnings" hidden></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Sim, Excluir</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmarExclusao"><i class="bi bi-trash me-1"></i> Sim, excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal vínculos impedindo exclusão -->
+<div class="modal fade" id="modalExclusaoBloqueada" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-warning-subtle border-bottom">
+        <h5 class="modal-title text-danger-emphasis"><i class="bi bi-shield-exclamation me-2"></i>Exclusão não permitida</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">O produto <strong id="bloqueioNome"></strong> possui vínculos no sistema e não pode ser removido.</p>
+        <p class="small text-muted mb-2">Motivos identificados:</p>
+        <ul class="prod-delete-blockers" id="bloqueioLista"></ul>
+        <div class="mt-3">
+          <p class="small fw-semibold mb-2">O que fazer:</p>
+          <ul class="prod-delete-recommendations" id="bloqueioRecomendacoes"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendi</button>
       </div>
     </div>
   </div>
@@ -760,12 +795,15 @@
     var batch_code = document.getElementById('batch_code').value.trim();
     var mfg_date = document.getElementById('batch_mfg_date').value;
     var expiry_date = document.getElementById('batch_expiry_date').value;
-    var quantity = parseInt(document.getElementById('batch_quantity').value || '0', 10);
+    var qtyRaw = document.getElementById('batch_quantity').value;
+    var qtyParsed = window.NeoWholeUnits
+      ? NeoWholeUnits.parseWholeUnits(qtyRaw, { allowZero: true, emptyMessage: 'Informe uma quantidade válida (0 ou mais).' })
+      : { ok: !Number.isNaN(parseInt(qtyRaw || '0', 10)), value: parseInt(qtyRaw || '0', 10), message: 'Informe uma quantidade válida (0 ou mais).' };
     var ok = true;
 
     if (!batch_code) { setFieldError('batch_code', 'Informe o código do lote.'); ok = false; }
     if (!expiry_date) { setFieldError('batch_expiry_date', 'Informe a data de validade.'); ok = false; }
-    if (Number.isNaN(quantity) || quantity < 0) { setFieldError('batch_quantity', 'Informe uma quantidade válida (0 ou mais).'); ok = false; }
+    if (!qtyParsed.ok) { setFieldError('batch_quantity', qtyParsed.message); ok = false; }
     if (mfg_date && expiry_date && mfg_date > expiry_date) {
       setFieldError('batch_mfg_date', 'A fabricação não pode ser posterior à validade.');
       ok = false;
@@ -1139,7 +1177,16 @@
     var batch_code = document.getElementById('batch_code').value.trim();
     var mfg_date = document.getElementById('batch_mfg_date').value || null;
     var expiry_date = document.getElementById('batch_expiry_date').value;
-    var quantity = parseInt(document.getElementById('batch_quantity').value || '0', 10);
+    var qtyRaw = document.getElementById('batch_quantity').value;
+    var qtyParsed = window.NeoWholeUnits
+      ? NeoWholeUnits.parseWholeUnits(qtyRaw, { allowZero: true, emptyMessage: 'Informe uma quantidade válida (0 ou mais).' })
+      : { ok: !Number.isNaN(parseInt(qtyRaw || '0', 10)), value: parseInt(qtyRaw || '0', 10) };
+    if (!qtyParsed.ok) {
+      setFieldError('batch_quantity', qtyParsed.message);
+      setProdBatchFeedback('Corrija a quantidade do lote.', true);
+      return;
+    }
+    var quantity = qtyParsed.value;
 
     var editId = this.getAttribute('data-edit-id');
     var url = editId ? ('/admin/produtos/lotes/' + editId) : ('/admin/produtos/' + prodId + '/lotes');
@@ -1219,34 +1266,147 @@
       .catch(function() { setProdImageFeedback('Erro ao enviar imagem.', true); });
   });
   var exclusaoId = null;
-  function abrirModalExclusao(id, nome) {
-    exclusaoId = id;
-    document.getElementById('exclusaoNome').textContent = nome || ('#' + id);
-    new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+  var exclusaoNome = '';
+
+  function renderExclusaoWarnings(warnings) {
+    var box = document.getElementById('exclusaoWarnings');
+    if (!box) return;
+    if (!warnings || !warnings.length) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="prod-delete-warnings__title"><i class="bi bi-exclamation-triangle me-1"></i> Também será removido automaticamente:</div>' +
+      '<ul class="mb-0 small ps-3">' +
+      warnings.map(function (w) {
+        return '<li><strong>' + w.title + ':</strong> ' + (w.detail || w.description) + '</li>';
+      }).join('') +
+      '</ul>';
   }
-  document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
+
+  function mostrarBloqueioExclusao(nome, payload) {
+    document.getElementById('bloqueioNome').textContent = nome || 'selecionado';
+    var lista = document.getElementById('bloqueioLista');
+    var recs = document.getElementById('bloqueioRecomendacoes');
+    var blockers = (payload && payload.blockers) || [];
+    var recommendations = (payload && payload.recommendations) || [
+      'Altere o status do produto para Inativo ou Descontinuado para retirá-lo da vitrine.',
+    ];
+
+    lista.innerHTML = blockers.length
+      ? blockers.map(function (b) {
+        return '<li>' +
+          '<span class="prod-delete-blockers__title"><i class="bi bi-link-45deg me-1"></i>' + b.title + '</span>' +
+          '<div class="prod-delete-blockers__detail">' + (b.detail || ('' + b.count + ' registro(s)')) + '</div>' +
+          '<div class="prod-delete-blockers__desc">' + (b.description || '') + '</div>' +
+          '</li>';
+      }).join('')
+      : '<li><span class="prod-delete-blockers__detail">Existem vínculos que impedem a exclusão deste produto.</span></li>';
+
+    recs.innerHTML = recommendations.map(function (r) {
+      return '<li>' + r + '</li>';
+    }).join('');
+
+    var modalEl = document.getElementById('modalExclusaoBloqueada');
+    var openOthers = Array.prototype.filter.call(
+      document.querySelectorAll('.modal.show'),
+      function (el) { return el !== modalEl; }
+    );
+    if (openOthers.length) {
+      var maxZ = 1050;
+      openOthers.forEach(function (el) {
+        var z = parseInt(el.style.zIndex || window.getComputedStyle(el).zIndex, 10);
+        if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+      });
+      modalEl.style.zIndex = String(maxZ + 10);
+    }
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    modalEl.addEventListener('hidden.bs.modal', function () {
+      modalEl.style.zIndex = '';
+    }, { once: true });
+  }
+
+  function abrirModalExclusao(btn) {
+    var data;
+    try {
+      data = JSON.parse(decodeURIComponent(btn.getAttribute('data-delete') || ''));
+    } catch (e) {
+      if (window.neofarmaToast) window.neofarmaToast('Não foi possível iniciar a exclusão.', 'danger');
+      return;
+    }
+
+    exclusaoId = data.id;
+    exclusaoNome = data.name || ('#' + data.id);
+    document.getElementById('exclusaoNome').textContent = exclusaoNome;
+    renderExclusaoWarnings([]);
+
+    fetch('/admin/produtos/' + data.id + '/exclusao', { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.body.ok) {
+          if (window.neofarmaToast) {
+            window.neofarmaToast((res.body && res.body.message) || 'Não foi possível verificar o produto.', 'danger');
+          }
+          return;
+        }
+        if (!res.body.canDelete) {
+          mostrarBloqueioExclusao(exclusaoNome, res.body);
+          return;
+        }
+        renderExclusaoWarnings(res.body.warnings || []);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalExclusao')).show();
+      })
+      .catch(function () {
+        if (window.neofarmaToast) window.neofarmaToast('Erro de conexão ao verificar exclusão.', 'danger');
+      });
+  }
+
+  document.getElementById('btnConfirmarExclusao').addEventListener('click', function () {
     if (!exclusaoId) return;
     var id = exclusaoId;
-    exclusaoId = null;
-    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
-    fetch('/admin/produtos/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) location.reload(); else window.neofarmaToast(d.message, 'danger');
-    }).catch(function() { window.neofarmaToast('Erro ao excluir.', 'danger'); });
-  });
-  document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
-    if (!exclusaoId) return;
-    var id = exclusaoId;
-    var nome = document.getElementById('exclusaoNome').textContent;
-    exclusaoId = null;
-    bootstrap.Modal.getInstance(document.getElementById('modalExclusao')).hide();
-    fetch('/admin/produtos/' + id, { method: 'DELETE' }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) {
-        sessionStorage.setItem('prodAdminFlash', JSON.stringify({ type: 'success', message: 'Produto "' + nome + '" removido com sucesso.' }));
-        location.reload();
-      } else {
-        window.neofarmaToast(d.message || 'Não foi possível excluir o produto.', 'danger');
-      }
-    }).catch(function() { window.neofarmaToast('Erro de conexão ao excluir. Tente novamente.', 'danger'); });
+    var nome = exclusaoNome || document.getElementById('exclusaoNome').textContent;
+    var btn = this;
+    var btnHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Excluindo...';
+
+    fetch('/admin/produtos/' + id, { method: 'DELETE', headers: { Accept: 'application/json' } })
+      .then(function (r) {
+        return r.json().then(function (body) {
+          return { httpOk: r.ok, status: r.status, body: body };
+        });
+      })
+      .then(function (res) {
+        btn.disabled = false;
+        btn.innerHTML = btnHtml;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalExclusao')).hide();
+
+        if (res.httpOk && res.body.ok) {
+          sessionStorage.setItem('prodAdminFlash', JSON.stringify({
+            type: 'success',
+            message: res.body.message || ('Produto "' + nome + '" removido com sucesso.'),
+          }));
+          location.reload();
+          return;
+        }
+
+        if (res.status === 409 && res.body && res.body.blockers) {
+          mostrarBloqueioExclusao(nome, res.body);
+          return;
+        }
+
+        if (window.neofarmaToast) {
+          window.neofarmaToast((res.body && res.body.message) || 'Não foi possível excluir o produto.', 'danger');
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.innerHTML = btnHtml;
+        if (window.neofarmaToast) window.neofarmaToast('Erro de conexão ao excluir. Tente novamente.', 'danger');
+      });
   });
 
   document.getElementById('btnSalvarProd').addEventListener('click', function() {

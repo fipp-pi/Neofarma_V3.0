@@ -32,7 +32,7 @@
                         </div>
                       </td>
                       <td>R$ <%= i.unit_price.toFixed(2).replace('.', ',') %></td>
-                      <td><input class="form-control form-control-sm qty-input" style="width:90px" type="number" min="1" value="<%= i.quantity %>"></td>
+                      <td><input class="form-control form-control-sm qty-input" style="width:90px" type="number" min="1" step="1" inputmode="numeric" value="<%= i.quantity %>"></td>
                       <td>R$ <%= i.line_total.toFixed(2).replace('.', ',') %></td>
                       <td><button class="btn btn-sm btn-outline-danger btn-remove">Remover</button></td>
                     </tr>
@@ -94,11 +94,24 @@
     input.addEventListener('change', async () => {
       const tr = input.closest('tr');
       const productId = Number(tr.dataset.id);
-      await fetch(`/api/cart/items/${productId}`, {
+      const parsed = window.NeoWholeUnits
+        ? NeoWholeUnits.parseWholeUnits(input.value, { min: 1 })
+        : { ok: Number(input.value) >= 1, value: Number(input.value), message: 'Informe uma quantidade válida.' };
+      if (!parsed.ok) {
+        if (window.neofarmaToast) window.neofarmaToast(parsed.message, 'danger');
+        input.value = input.defaultValue || '1';
+        return;
+      }
+      const resp = await fetch(`/api/cart/items/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity: Number(input.value || 1) })
+        body: JSON.stringify({ quantity: parsed.value })
       });
+      const data = await resp.json();
+      if (!data.ok) {
+        if (window.neofarmaToast) window.neofarmaToast(data.message || 'Não foi possível atualizar a quantidade.', 'danger');
+        return;
+      }
       refreshCart();
     });
   });

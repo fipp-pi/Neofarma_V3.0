@@ -231,6 +231,22 @@ const DISPOSAL_SELECT = `
     ELSE 'PARTIAL'
   END AS disposal_status`;
 
+const FEFO_RANK_SELECT = `
+  CASE
+    WHEN b.quantity > 0 AND b.expiry_date >= CURDATE() THEN (
+      SELECT COUNT(*) + 1
+      FROM inventory_batches b2
+      WHERE b2.product_id = b.product_id
+        AND b2.quantity > 0
+        AND b2.expiry_date >= CURDATE()
+        AND (
+          b2.expiry_date < b.expiry_date
+          OR (b2.expiry_date = b.expiry_date AND b2.id < b.id)
+        )
+    )
+    ELSE NULL
+  END AS fefo_rank`;
+
 function applyGlobalFilters(options = {}) {
   const statusFilter = String(options.status || 'ALL').toUpperCase();
   const search = String(options.search || '').trim();
@@ -281,7 +297,8 @@ async function findAllGlobal(options = {}) {
               ELSE 'VALID'
             END AS validity_status,
             DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
-            ${DISPOSAL_SELECT}
+            ${DISPOSAL_SELECT},
+            ${FEFO_RANK_SELECT}
      FROM inventory_batches b
      INNER JOIN products p ON p.id = b.product_id
      ${DISPOSAL_JOIN}
@@ -324,7 +341,8 @@ async function findAllGlobalPaginated(options = {}) {
               ELSE 'VALID'
             END AS validity_status,
             DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
-            ${DISPOSAL_SELECT}
+            ${DISPOSAL_SELECT},
+            ${FEFO_RANK_SELECT}
      FROM inventory_batches b
      INNER JOIN products p ON p.id = b.product_id
      ${DISPOSAL_JOIN}
@@ -426,6 +444,124 @@ async function restoreAllocations(connection, allocations = []) {
   }
 }
 
+/**
+ * Resumo global de estoque por lote (cards do admin /admin/lotes).
+ */
+async function getGlobalStockSummary() {
+  const [rows] = await pool.execute(
+    `SELECT
+       COALESCE(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END), 0) AS total_units,
+       COUNT(DISTINCT CASE WHEN quantity > 0 THEN product_id END) AS products_with_stock,
+       SUM(CASE WHEN quantity > 0 THEN 1 ELSE 0 END) AS batches_with_stock,
+       SUM(CASE WHEN quantity = 0 THEN 1 ELSE 0 END) AS batches_zero_stock
+     FROM inventory_batches`
+  );
+  return rows[0] || {
+    total_units: 0,
+    products_with_stock: 0,
+    batches_with_stock: 0,
+    batches_zero_stock: 0,
+  };
+}
+
+/**
+ * Detalhe operacional de um lote: produto, movimentações e fila FEFO do produto.
+ *
+ * @param {number|string} batchId
+ */
+async function getDetailById(batchId) {
+  const id = Number(batchId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+
+  const [batchRows] = await pool.execute(
+    `SELECT b.id, b.product_id, b.batch_code, b.mfg_date, b.expiry_date, b.quantity,
+            p.name AS product_name, p.sku, p.status AS product_status,
+            CASE
+              WHEN b.expiry_date < CURDATE() THEN 'EXPIRED'
+              WHEN b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'EXPIRING'
+              ELSE 'VALID'
+            END AS validity_status,
+            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
+            ${DISPOSAL_SELECT},
+            ${FEFO_RANK_SELECT}
+     FROM inventory_batches b
+     INNER JOIN products p ON p.id = b.product_id
+     ${DISPOSAL_JOIN}
+     WHERE b.id = ?
+     LIMIT 1`,
+    [id]
+  );
+  const batch = batchRows[0];
+  if (!batch) return null;
+
+  const InventoryDisposal = require('./InventoryDisposal');
+  const saleFilter = "o.payment_status = 'PAID' AND o.status <> 'CANCELLED'";
+  const [orderStatsRows] = await pool.execute(
+    `SELECT
+       COUNT(DISTINCT CASE WHEN ${saleFilter} THEN oi.order_id END) AS orders_count,
+       COALESCE(SUM(CASE WHEN ${saleFilter} THEN oi.quantity ELSE 0 END), 0) AS units_sold,
+       COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN oi.order_id END) AS orders_cancelled_count,
+       COALESCE(SUM(CASE WHEN o.status = 'CANCELLED' THEN oi.quantity ELSE 0 END), 0) AS units_cancelled
+     FROM order_items oi
+     INNER JOIN orders o ON o.id = oi.order_id
+     WHERE oi.batch_id = ?`,
+    [id]
+  );
+  const [recentOrders] = await pool.execute(
+    `SELECT oi.order_id, oi.quantity, oi.line_total, o.created_at,
+            o.status AS order_status, o.payment_status,
+            CASE WHEN ${saleFilter} THEN 1 ELSE 0 END AS counts_as_sale
+     FROM order_items oi
+     INNER JOIN orders o ON o.id = oi.order_id
+     WHERE oi.batch_id = ?
+     ORDER BY o.created_at DESC
+     LIMIT 8`,
+    [id]
+  );
+  const [fefoQueue] = await pool.execute(
+    `SELECT b.id, b.batch_code, b.expiry_date, b.quantity,
+            DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
+            ${FEFO_RANK_SELECT}
+     FROM inventory_batches b
+     WHERE b.product_id = ?
+       AND b.quantity > 0
+       AND b.expiry_date >= CURDATE()
+     ORDER BY b.expiry_date ASC, b.id ASC
+     LIMIT 12`,
+    [batch.product_id]
+  );
+  const [validStockRows] = await pool.execute(
+    `SELECT COALESCE(SUM(quantity), 0) AS valid_stock
+     FROM inventory_batches
+     WHERE product_id = ?
+       AND quantity > 0
+       AND expiry_date >= CURDATE()`,
+    [batch.product_id]
+  );
+
+  const disposals = await InventoryDisposal.findByBatchId(id, 20);
+
+  return {
+    batch,
+    product: {
+      id: batch.product_id,
+      name: batch.product_name,
+      sku: batch.sku,
+      status: batch.product_status,
+      valid_stock: Number(validStockRows[0]?.valid_stock || 0),
+    },
+    order_usage: {
+      orders_count: Number(orderStatsRows[0]?.orders_count || 0),
+      units_sold: Number(orderStatsRows[0]?.units_sold || 0),
+      orders_cancelled_count: Number(orderStatsRows[0]?.orders_cancelled_count || 0),
+      units_cancelled: Number(orderStatsRows[0]?.units_cancelled || 0),
+      recent: recentOrders || [],
+    },
+    disposals,
+    fefo_queue: fefoQueue || [],
+  };
+}
+
 module.exports = {
   create,
   findById,
@@ -442,4 +578,6 @@ module.exports = {
   allocateFEFO,
   restoreAllocations,
   countExpiredAwaitingDisposal,
+  getGlobalStockSummary,
+  getDetailById,
 };

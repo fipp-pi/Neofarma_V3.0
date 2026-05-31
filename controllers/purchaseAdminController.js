@@ -2,6 +2,7 @@ const { pool } = require('../config/database');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const Supplier = require('../models/Supplier');
 const Product = require('../models/Product');
+const { parseWholeUnits } = require('../utils/quantity');
 
 async function renderPage(req, res, next) {
   try {
@@ -46,13 +47,18 @@ async function createOrder(req, res, next) {
     const supplierId = Number(b.supplier_id);
     if (!supplierId) return res.status(400).json({ ok: false, message: 'Selecione o fornecedor.' });
     const items = Array.isArray(b.items) ? b.items : [];
-    const parsed = items
-      .map((it) => ({
-        product_id: Number(it.product_id),
-        quantity: Number(it.quantity),
-        unit_cost: Number(String(it.unit_cost || '').replace(',', '.')),
-      }))
-      .filter((it) => it.product_id && it.quantity > 0 && it.unit_cost >= 0);
+    const parsed = [];
+    for (const it of items) {
+      const qtyParsed = parseWholeUnits(it.quantity, { emptyMessage: 'Informe a quantidade do item.' });
+      if (!qtyParsed.ok) {
+        return res.status(400).json({ ok: false, message: qtyParsed.message });
+      }
+      const productId = Number(it.product_id);
+      const unitCost = Number(String(it.unit_cost || '').replace(',', '.'));
+      if (productId && qtyParsed.value > 0 && unitCost >= 0) {
+        parsed.push({ product_id: productId, quantity: qtyParsed.value, unit_cost: unitCost });
+      }
+    }
     if (!parsed.length) return res.status(400).json({ ok: false, message: 'Adicione ao menos um produto.' });
 
     await connection.beginTransaction();
@@ -71,6 +77,9 @@ async function createOrder(req, res, next) {
     return res.status(201).json({ ok: true, id, message: 'Pedido de compra registrado (rascunho).' });
   } catch (err) {
     await connection.rollback();
+    if (err.code === 'INVALID_QUANTITY') {
+      return res.status(400).json({ ok: false, message: err.message });
+    }
     next(err);
   } finally {
     connection.release();

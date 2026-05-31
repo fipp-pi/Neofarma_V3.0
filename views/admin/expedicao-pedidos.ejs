@@ -1,0 +1,505 @@
+<%- include('partials/header') %>
+
+<div class="container admin-catalog admin-expedicao">
+  <%
+    function toLocaleString(v) {
+      const n = Number(v || 0);
+      return n.toFixed(2).replace('.', ',');
+    }
+    function queueLabel(q) {
+      const map = {
+        STOCK_PENDING: 'Aguardando estoque',
+        READY_TO_SHIP: 'Pronto para envio',
+        SHIPPED: 'Enviado',
+        DELIVERED: 'Entregue',
+        OTHER: 'Outros',
+      };
+      return map[String(q || '').toUpperCase()] || q || '—';
+    }
+    function queueBadgeClass(q) {
+      const map = {
+        STOCK_PENDING: 'warning text-dark',
+        READY_TO_SHIP: 'info text-dark',
+        SHIPPED: 'primary',
+        DELIVERED: 'success',
+        OTHER: 'secondary',
+      };
+      return map[String(q || '').toUpperCase()] || 'secondary';
+    }
+    const currentQueue = (filters.queue || 'ALL').toUpperCase();
+    const queueTabs = [
+      { key: 'ALL', label: 'Todos', count: stats.total_active },
+      { key: 'STOCK_PENDING', label: 'Aguardando estoque', count: stats.stock_pending },
+      { key: 'READY_TO_SHIP', label: 'Pronto para envio', count: stats.ready_to_ship },
+      { key: 'SHIPPED', label: 'Enviados', count: stats.shipped },
+      { key: 'DELIVERED', label: 'Entregues', count: stats.delivered },
+    ];
+  %>
+
+  <div class="list-header mb-3">
+    <div>
+      <h2 class="neo-heading">Expedição de pedidos</h2>
+      <p class="text-muted mb-0">Fila operacional: separação de estoque, despacho com rastreio e confirmação de entrega.</p>
+    </div>
+
+    <form id="expFilterForm" method="GET" action="/admin/expedicao" class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input
+          type="text"
+          class="form-control"
+          name="search"
+          placeholder="Buscar por pedido, cliente ou rastreio..."
+          value="<%= filters.search || '' %>"
+          onkeydown="if (event.key === 'Enter') document.getElementById('expFilterForm').submit();"
+        >
+      </div>
+      <input type="hidden" name="queue" id="expQueueInput" value="<%= currentQueue %>">
+      <input type="hidden" name="pageSize" value="<%= filters.pageSize || 20 %>">
+      <button type="submit" class="btn btn-outline-primary btn-sm">Buscar</button>
+    </form>
+  </div>
+
+  <div class="admin-exp-queue-tabs mb-3">
+    <% queueTabs.forEach(function(tab) { %>
+      <a
+        href="?queue=<%= encodeURIComponent(tab.key) %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= filters.pageSize || 20 %>"
+        class="admin-exp-queue-tab <%= currentQueue === tab.key ? 'is-active' : '' %>"
+      >
+        <span class="admin-exp-queue-tab__label"><%= tab.label %></span>
+        <span class="admin-exp-queue-tab__count"><%= tab.count %></span>
+      </a>
+    <% }) %>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle" id="expOrdersTable">
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th>Cliente</th>
+              <th>Itens</th>
+              <th>Fila</th>
+              <th>Rastreio</th>
+              <th class="text-end">Total</th>
+              <th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (orders && orders.length) { %>
+              <% orders.forEach(function(o) { %>
+                <tr data-order-id="<%= o.id %>" data-queue="<%= o.fulfillment_queue %>">
+                  <td class="fw-bold">
+                    <button type="button" class="btn btn-link btn-sm p-0 fw-bold exp-btn-order-detail" data-order-id="<%= o.id %>">#<%= o.id %></button>
+                    <div class="text-muted small"><%= fmtDateTime(o.created_at) %></div>
+                    <% if (o.shipping_service) { %>
+                      <div class="text-muted small"><%= o.shipping_service %></div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
+                    <div class="text-muted small text-break"><%= o.email || '' %></div>
+                    <% if (o.shipping_zip) { %>
+                      <div class="text-muted small">CEP <%= String(o.shipping_zip).replace(/(\d{5})(\d{3})/, '$1-$2') %></div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (Number(o.items_qty || 0) > 0) { %>
+                      <span class="badge bg-light text-dark border"><%= o.items_qty %> un.<% if (Number(o.items_lines || 0) > 1) { %> · <%= o.items_lines %> linhas<% } %></span>
+                    <% } else if (Number(o.pending_lines || 0) > 0) { %>
+                      <span class="badge bg-warning text-dark"><%= o.pending_lines %> pendente(s)</span>
+                    <% } else { %>
+                      <span class="badge bg-light text-muted border">Sem itens</span>
+                    <% } %>
+                    <% if (o.items_preview) { %>
+                      <div class="small text-muted text-truncate admin-fin-order-preview" title="<%= o.items_preview %>"><%= o.items_preview %></div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="badge bg-<%= queueBadgeClass(o.fulfillment_queue) %>"><%= queueLabel(o.fulfillment_queue) %></span>
+                    <div class="text-muted small mt-1"><%= t('orderStatus', o.order_status) %></div>
+                  </td>
+                  <td>
+                    <% if (o.tracking_code) { %>
+                      <code class="small"><%= o.tracking_code %></code>
+                      <% if (o.shipped_at) { %>
+                        <div class="text-muted small">Enviado <%= fmtDateTime(o.shipped_at) %></div>
+                      <% } %>
+                    <% } else { %>
+                      <span class="text-muted small">—</span>
+                    <% } %>
+                    <% if (o.delivered_at) { %>
+                      <div class="text-success small">Entregue <%= fmtDateTime(o.delivered_at) %></div>
+                    <% } %>
+                  </td>
+                  <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
+                  <td class="text-end">
+                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                      <button type="button" class="btn btn-sm btn-outline-primary exp-btn-order-detail" data-order-id="<%= o.id %>">
+                        <i class="bi bi-info-circle"></i> Detalhes
+                      </button>
+                      <% if (o.fulfillment_queue === 'READY_TO_SHIP') { %>
+                        <button type="button" class="btn btn-sm btn-primary exp-btn-dispatch" data-order-id="<%= o.id %>">
+                          <i class="bi bi-truck"></i> Despachar
+                        </button>
+                      <% } %>
+                      <% if (o.fulfillment_queue === 'SHIPPED') { %>
+                        <button type="button" class="btn btn-sm btn-success exp-btn-deliver" data-order-id="<%= o.id %>">
+                          <i class="bi bi-check2-circle"></i> Entregar
+                        </button>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr><td colspan="7" class="text-muted py-4 text-center">Nenhum pedido nesta fila.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if (pagination && pagination.totalPages > 1) { %>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+          <small class="text-muted">Página <%= pagination.page %> de <%= pagination.totalPages %> (total: <%= pagination.total %>)</small>
+          <nav>
+            <ul class="pagination pagination-sm mb-0">
+              <%
+                const startPage = Math.max(1, (pagination.page || 1) - 2);
+                const endPage = Math.min(pagination.totalPages, (pagination.page || 1) + 2);
+              %>
+              <% for (let p = startPage; p <= endPage; p++) { %>
+                <li class="page-item <%= p === pagination.page ? 'active' : '' %>">
+                  <a class="page-link" href="?queue=<%= encodeURIComponent(currentQueue) %>&search=<%= encodeURIComponent(filters.search || '') %>&pageSize=<%= filters.pageSize || 20 %>&page=<%= p %>"><%= p %></a>
+                </li>
+              <% } %>
+            </ul>
+          </nav>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: detalhe do pedido -->
+<div class="modal fade modal-cadastro" id="modalExpOrderDetail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expOrderDetailTitle"><i class="bi bi-box-seam me-2"></i>Pedido</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="expOrderDetailBody">
+        <div class="text-center py-4 text-muted">
+          <span class="spinner-border spinner-border-sm me-2"></span> Carregando pedido...
+        </div>
+      </div>
+      <div class="modal-footer" id="expOrderDetailFooter">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: despachar -->
+<div class="modal fade modal-cadastro" id="modalExpDispatch" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Despachar pedido</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Informe o código de rastreio. O pedido passará para status <strong>Enviado</strong>.</p>
+        <input type="hidden" id="expDispatchOrderId" value="">
+        <label class="form-label" for="expDispatchTracking">Código de rastreio</label>
+        <input type="text" class="form-control" id="expDispatchTracking" placeholder="Ex.: BR123456789BR" maxlength="80" autocomplete="off">
+        <div class="invalid-feedback" id="expDispatchError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="expDispatchConfirmBtn">
+          <i class="bi bi-truck"></i> Confirmar despacho
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var detailModalEl = document.getElementById('modalExpOrderDetail');
+  var detailBody = document.getElementById('expOrderDetailBody');
+  var detailTitle = document.getElementById('expOrderDetailTitle');
+  var detailFooter = document.getElementById('expOrderDetailFooter');
+  var dispatchModalEl = document.getElementById('modalExpDispatch');
+  var dispatchOrderIdInput = document.getElementById('expDispatchOrderId');
+  var dispatchTrackingInput = document.getElementById('expDispatchTracking');
+  var dispatchConfirmBtn = document.getElementById('expDispatchConfirmBtn');
+  var dispatchError = document.getElementById('expDispatchError');
+
+  function formatMoney(v) {
+    return Number(v || 0).toFixed(2).replace('.', ',');
+  }
+
+  function escapeHtml(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function labelOrderStatus(v) {
+    return window.NeoLabels ? NeoLabels.orderStatus(v) : String(v || '');
+  }
+
+  function labelPaymentStatus(v) {
+    return window.NeoLabels ? NeoLabels.paymentStatus(v) : String(v || '-');
+  }
+
+  function labelPaymentMethod(v) {
+    return window.NeoLabels ? NeoLabels.paymentMethod(v) : String(v || '');
+  }
+
+  function formatDateTime(v) {
+    if (!v) return '—';
+    return window.NeoDates ? NeoDates.formatDateTime(v) : String(v);
+  }
+
+  function formatDateOnly(v) {
+    if (!v) return '—';
+    return window.NeoDates ? NeoDates.formatDate(v) : String(v).slice(0, 10);
+  }
+
+  function formatZip(zip) {
+    var d = String(zip || '').replace(/\D/g, '');
+    if (d.length !== 8) return zip || '—';
+    return d.slice(0, 5) + '-' + d.slice(5);
+  }
+
+  function renderOrderDetailHtml(data) {
+    var o = data.order || {};
+    var items = data.items || [];
+    var pending = data.pending_items || [];
+    var summary = data.summary || {};
+
+    var html = '<div class="admin-fin-order-detail-grid">';
+
+    html += '<div class="admin-fin-order-detail-card">';
+    html += '<div class="admin-fin-order-detail-card-title">Cliente</div>';
+    html += '<p class="mb-1 fw-semibold">' + escapeHtml(o.full_name || 'Cliente') + '</p>';
+    if (o.email) html += '<p class="mb-1 small text-muted">' + escapeHtml(o.email) + '</p>';
+    if (o.phone) html += '<p class="mb-0 small">Tel.: ' + escapeHtml(o.phone) + '</p>';
+    html += '</div>';
+
+    html += '<div class="admin-fin-order-detail-card">';
+    html += '<div class="admin-fin-order-detail-card-title">Pagamento</div>';
+    html += '<div class="small">';
+    html += '<div class="mb-1"><span class="text-muted">Status:</span> ' + escapeHtml(labelPaymentStatus(o.payment_status)) + '</div>';
+    html += '<div class="mb-1"><span class="text-muted">Forma:</span> ' + escapeHtml(labelPaymentMethod(o.payment_method)) + '</div>';
+    html += '<div class="mb-1"><span class="text-muted">Pedido:</span> ' + escapeHtml(labelOrderStatus(o.order_status)) + '</div>';
+    html += '<div><span class="text-muted">Realizado em:</span> ' + escapeHtml(formatDateTime(o.created_at)) + '</div>';
+    html += '</div></div>';
+
+    html += '<div class="admin-fin-order-detail-card">';
+    html += '<div class="admin-fin-order-detail-card-title">Entrega e expedição</div>';
+    html += '<div class="small">';
+    if (o.street) {
+      html += '<p class="mb-1">' + escapeHtml(o.street) + ', ' + escapeHtml(o.number || 's/n');
+      if (o.complement) html += ' · ' + escapeHtml(o.complement);
+      html += '</p>';
+      html += '<p class="mb-1">' + escapeHtml(o.district || '') + ' — ' + escapeHtml(o.city || '') + '/' + escapeHtml(o.state || '') + '</p>';
+      html += '<p class="mb-1">CEP ' + escapeHtml(formatZip(o.zip_code)) + '</p>';
+    }
+    if (o.shipping_service) html += '<p class="mb-1"><span class="text-muted">Frete:</span> ' + escapeHtml(o.shipping_service) + '</p>';
+    if (o.tracking_code) html += '<p class="mb-1"><span class="text-muted">Rastreio:</span> <code>' + escapeHtml(o.tracking_code) + '</code></p>';
+    if (o.shipped_at) html += '<p class="mb-1"><span class="text-muted">Despachado em:</span> ' + escapeHtml(formatDateTime(o.shipped_at)) + '</p>';
+    if (o.delivered_at) {
+      html += '<p class="mb-1"><span class="text-muted">Entregue em:</span> ' + escapeHtml(formatDateTime(o.delivered_at)) + '</p>';
+      if (o.delivered_by_name) html += '<p class="mb-0"><span class="text-muted">Confirmado por:</span> ' + escapeHtml(o.delivered_by_name) + '</p>';
+    }
+    html += '</div></div>';
+    html += '</div>';
+
+    html += '<div class="cadastro-edit-section-title">Itens separados (' + items.length + ')</div>';
+    if (items.length) {
+      html += '<div class="table-responsive mb-3"><table class="table table-sm table-custom align-middle mb-0">';
+      html += '<thead><tr><th>Produto</th><th>SKU</th><th class="text-center">Qtd</th><th class="text-end">Unit.</th><th class="text-end">Subtotal</th><th>Lote</th><th>Validade</th></tr></thead><tbody>';
+      items.forEach(function (it) {
+        html += '<tr>';
+        html += '<td class="fw-semibold">' + escapeHtml(it.product_name || 'Produto') + '</td>';
+        html += '<td class="small text-muted">' + escapeHtml(it.sku || '—') + '</td>';
+        html += '<td class="text-center">' + Number(it.quantity || 0) + '</td>';
+        html += '<td class="text-end">R$ ' + formatMoney(it.unit_price) + '</td>';
+        html += '<td class="text-end fw-semibold">R$ ' + formatMoney(it.line_total) + '</td>';
+        html += '<td class="small">' + escapeHtml(it.batch_code || '—') + '</td>';
+        html += '<td class="small">' + escapeHtml(formatDateOnly(it.expiry_date)) + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p class="text-muted small mb-3">Nenhum item separado registrado.</p>';
+    }
+
+    if (pending.length) {
+      html += '<div class="alert alert-warning border small py-2 px-3 mb-3">';
+      html += '<strong><i class="bi bi-hourglass-split me-1"></i> Itens pendentes de estoque (' + pending.length + ')</strong>';
+      html += '</div>';
+    }
+
+    html += '<div class="admin-fin-order-totals">';
+    html += '<div class="admin-fin-order-totals-row"><span>Subtotal produtos</span><span>R$ ' + formatMoney(summary.subtotal) + '</span></div>';
+    html += '<div class="admin-fin-order-totals-row"><span>Frete</span><span>R$ ' + formatMoney(summary.shipping) + '</span></div>';
+    html += '<div class="admin-fin-order-totals-row admin-fin-order-totals-row--total"><span>Total do pedido</span><span>R$ ' + formatMoney(summary.total) + '</span></div>';
+    html += '</div>';
+
+    return html;
+  }
+
+  function getDetailModal() {
+    if (!detailModalEl || !window.bootstrap) return null;
+    return window.bootstrap.Modal.getOrCreateInstance(detailModalEl);
+  }
+
+  function getDispatchModal() {
+    if (!dispatchModalEl || !window.bootstrap) return null;
+    return window.bootstrap.Modal.getOrCreateInstance(dispatchModalEl);
+  }
+
+  async function abrirDetalhePedido(orderId) {
+    if (!detailModalEl || !detailBody) return;
+    detailTitle.innerHTML = '<i class="bi bi-box-seam me-2"></i>Pedido #' + escapeHtml(orderId);
+    detailBody.innerHTML = '<div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Carregando pedido...</div>';
+    if (detailFooter) detailFooter.innerHTML = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>';
+    getDetailModal().show();
+
+    try {
+      var res = await fetch('/admin/expedicao/pedidos/' + encodeURIComponent(orderId));
+      var data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Erro ao carregar pedido.');
+      detailBody.innerHTML = renderOrderDetailHtml(data);
+
+      var st = String((data.order || {}).order_status || '').toUpperCase();
+      var pay = String((data.order || {}).payment_status || '').toUpperCase();
+      var hasItems = (data.items || []).length > 0;
+      var footerHtml = '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>';
+      if (pay === 'PAID' && st === 'PROCESSING' && hasItems) {
+        footerHtml += '<button type="button" class="btn btn-primary exp-btn-dispatch" data-order-id="' + escapeHtml(orderId) + '"><i class="bi bi-truck"></i> Despachar</button>';
+      }
+      if (pay === 'PAID' && st === 'SHIPPED') {
+        footerHtml += '<button type="button" class="btn btn-success exp-btn-deliver" data-order-id="' + escapeHtml(orderId) + '"><i class="bi bi-check2-circle"></i> Confirmar entrega</button>';
+      }
+      if (detailFooter) detailFooter.innerHTML = footerHtml;
+    } catch (err) {
+      detailBody.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(err.message || 'Erro ao carregar.') + '</div>';
+    }
+  }
+
+  function abrirDespacho(orderId) {
+    if (!dispatchModalEl) return;
+    dispatchOrderIdInput.value = orderId;
+    dispatchTrackingInput.value = '';
+    dispatchTrackingInput.classList.remove('is-invalid');
+    if (dispatchError) dispatchError.textContent = '';
+    getDispatchModal().show();
+    setTimeout(function () { dispatchTrackingInput.focus(); }, 300);
+  }
+
+  function expToast(msg, type) {
+    if (typeof window.neofarmaToast === 'function') {
+      window.neofarmaToast(msg, type);
+      return;
+    }
+    alert(msg);
+  }
+
+  async function confirmarDespacho() {
+    var orderId = dispatchOrderIdInput.value;
+    var tracking = (dispatchTrackingInput.value || '').trim();
+    if (!tracking) {
+      dispatchTrackingInput.classList.add('is-invalid');
+      if (dispatchError) dispatchError.textContent = 'Informe o código de rastreio.';
+      return;
+    }
+    dispatchConfirmBtn.disabled = true;
+    try {
+      var res = await fetch('/admin/expedicao/pedidos/' + encodeURIComponent(orderId) + '/despachar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ tracking_code: tracking }),
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Falha ao despachar.');
+      expToast(data.message || 'Pedido despachado.', 'success');
+      getDispatchModal().hide();
+      window.location.reload();
+    } catch (err) {
+      dispatchTrackingInput.classList.add('is-invalid');
+      if (dispatchError) dispatchError.textContent = err.message || 'Erro ao despachar.';
+    } finally {
+      dispatchConfirmBtn.disabled = false;
+    }
+  }
+
+  async function confirmarEntrega(orderId) {
+    var ok = typeof window.neofarmaConfirm === 'function'
+      ? await window.neofarmaConfirm({
+          message: 'Confirmar entrega do pedido #' + orderId + '?',
+          confirmText: 'Sim, entregar',
+          confirmClass: 'btn-success',
+        })
+      : window.confirm('Confirmar entrega do pedido #' + orderId + '?');
+    if (!ok) return;
+
+    try {
+      var res = await fetch('/admin/expedicao/pedidos/' + encodeURIComponent(orderId) + '/entregar', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Falha ao confirmar entrega.');
+      expToast(data.message || 'Entrega confirmada.', 'success');
+      window.location.reload();
+    } catch (err) {
+      expToast(err.message || 'Erro.', 'danger');
+    }
+  }
+
+  document.addEventListener('click', function (ev) {
+    var detailBtn = ev.target.closest('.exp-btn-order-detail');
+    if (detailBtn) {
+      ev.preventDefault();
+      abrirDetalhePedido(detailBtn.getAttribute('data-order-id'));
+      return;
+    }
+    var dispatchBtn = ev.target.closest('.exp-btn-dispatch');
+    if (dispatchBtn) {
+      ev.preventDefault();
+      abrirDespacho(dispatchBtn.getAttribute('data-order-id'));
+      return;
+    }
+    var deliverBtn = ev.target.closest('.exp-btn-deliver');
+    if (deliverBtn) {
+      ev.preventDefault();
+      confirmarEntrega(deliverBtn.getAttribute('data-order-id'));
+    }
+  });
+
+  if (dispatchConfirmBtn) {
+    dispatchConfirmBtn.addEventListener('click', confirmarDespacho);
+  }
+  if (dispatchTrackingInput) {
+    dispatchTrackingInput.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        confirmarDespacho();
+      }
+    });
+  }
+})();
+</script>
+
+<%- include('partials/footer') %>

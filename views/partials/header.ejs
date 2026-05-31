@@ -42,7 +42,7 @@
 
   <!-- Global toast (substitui alert() por mensagem mais profissional) -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
-    <div id="neofarmaToast" class="toast align-items-center border-0 text-bg-success" role="status" aria-live="polite" aria-atomic="true" aria-label="Mensagem" data-bs-delay="4000">
+    <div id="neofarmaToastEl" class="toast align-items-center border-0 text-bg-success" role="status" aria-live="polite" aria-atomic="true" aria-label="Mensagem" data-bs-delay="4000">
       <div class="d-flex align-items-center">
         <div id="neofarmaToastIcon" class="p-2 me-2 d-flex align-items-center justify-content-center">
           <i class="bi bi-check2-circle"></i>
@@ -73,9 +73,10 @@
   </div>
 
   <script>
-    window.neofarmaToast = window.neofarmaToast || function (message, type) {
+    if (typeof window.neofarmaToast !== 'function') {
+      window.neofarmaToast = function (message, type) {
       try {
-        var toastEl = document.getElementById('neofarmaToast');
+        var toastEl = document.getElementById('neofarmaToastEl');
         if (!toastEl) return;
         var bodyEl = document.getElementById('neofarmaToastBody');
         var iconEl = document.getElementById('neofarmaToastIcon');
@@ -103,8 +104,10 @@
         // silencioso
       }
     };
+    }
 
-    window.neofarmaConfirm = window.neofarmaConfirm || function (opts) {
+    if (typeof window.neofarmaConfirm !== 'function') {
+      window.neofarmaConfirm = function (opts) {
       opts = opts || {};
       return new Promise(function (resolve) {
         try {
@@ -118,7 +121,10 @@
 
           if (titleEl) titleEl.textContent = opts.title ? String(opts.title) : 'Confirmação';
           if (msgEl) msgEl.textContent = opts.message ? String(opts.message) : '';
-          if (confirmBtn) confirmBtn.textContent = opts.confirmText ? String(opts.confirmText) : 'Confirmar';
+          if (confirmBtn) {
+            confirmBtn.textContent = opts.confirmText ? String(opts.confirmText) : 'Confirmar';
+            confirmBtn.className = 'btn ' + (opts.confirmClass ? String(opts.confirmClass) : 'btn-danger');
+          }
 
           var modalInstance = null;
           if (window.bootstrap && window.bootstrap.Modal) {
@@ -128,7 +134,28 @@
           function finalize(value) {
             if (resolved) return;
             resolved = true;
+            modalEl.style.zIndex = '';
             resolve(!!value);
+          }
+
+          function stackConfirmAboveOpenModals() {
+            var openOthers = Array.prototype.filter.call(
+              document.querySelectorAll('.modal.show'),
+              function (el) { return el !== modalEl; }
+            );
+            var maxZ = 1050;
+            openOthers.forEach(function (el) {
+              var z = parseInt(el.style.zIndex || window.getComputedStyle(el).zIndex, 10);
+              if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+            });
+            var modalZ = maxZ + 10;
+            modalEl.style.zIndex = String(modalZ);
+            modalEl.addEventListener('shown.bs.modal', function () {
+              var backdrops = document.querySelectorAll('.modal-backdrop.show');
+              if (backdrops.length) {
+                backdrops[backdrops.length - 1].style.zIndex = String(modalZ - 5);
+              }
+            }, { once: true });
           }
 
           if (confirmBtn) {
@@ -143,6 +170,7 @@
             finalize(false);
           }, { once: true });
 
+          stackConfirmAboveOpenModals();
           if (modalInstance) modalInstance.show();
           else finalize(false);
         } catch (e) {
@@ -150,6 +178,7 @@
         }
       });
     };
+    }
   </script>
 
   <header id="header" class="header sticky-top">

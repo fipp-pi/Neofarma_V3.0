@@ -25,10 +25,9 @@ function mapOrderStatus(order) {
   const paymentStatus = String(order.payment_status || '').toUpperCase();
   if (status === 'CANCELLED') return { label: 'Cancelado', badge: 'danger' };
   if (paymentStatus === 'PENDING') return { label: 'Aguardando pagamento', badge: 'warning text-dark' };
-  if (paymentStatus === 'PAID' && ['SHIPPED', 'DELIVERED'].includes(status)) {
-    if (status === 'DELIVERED') return { label: 'Entregue', badge: 'success' };
-    return { label: 'Enviado', badge: 'primary' };
-  }
+  if (paymentStatus === 'PAID' && status === 'DELIVERED') return { label: 'Entregue', badge: 'success' };
+  if (paymentStatus === 'PAID' && status === 'SHIPPED') return { label: 'Enviado', badge: 'primary' };
+  if (paymentStatus === 'PAID' && status === 'PROCESSING') return { label: 'Preparando envio', badge: 'info text-dark' };
   if (paymentStatus === 'PAID') return { label: 'Pagamento recebido', badge: 'info text-dark' };
   if (paymentStatus === 'FAILED') return { label: 'Pagamento recusado', badge: 'danger' };
   return { label: 'Em processamento', badge: 'secondary' };

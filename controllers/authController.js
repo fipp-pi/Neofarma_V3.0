@@ -116,6 +116,20 @@ async function postRegister(req, res, next) {
         },
       });
     }
+    if (
+      err.code === 'ER_TRUNCATED_WRONG_VALUE'
+      || err.code === 'ER_WRONG_VALUE'
+      || err.code === 'ER_WRONG_VALUE_FOR_TYPE'
+      || (err.message && /Incorrect date value/i.test(err.message))
+    ) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Revise os campos destacados antes de continuar.',
+        fields: mapRegisterFieldsToPublic({
+          birth_date: 'Informe uma data de nascimento válida (ano entre 1900 e o ano atual).',
+        }),
+      });
+    }
     if (err.code === 'ER_NO_REFERENCED_ROW_2' || (err.message && err.message.includes('default_address_id'))) {
       return res.status(500).json({ ok: false, message: 'Tabela customers sem coluna default_address_id. Adicione a coluna ou use apenas customer_addresses.' });
     }

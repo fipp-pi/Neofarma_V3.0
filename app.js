@@ -131,8 +131,15 @@ app.listen(PORT, async () => {
   console.log(`🚀 Servidor Neofarma rodando na porta ${PORT}`);
   console.log(`🔗 Acesse: http://localhost:${PORT}`);
   const ok = await testConnection();
-  if (ok) console.log('✅ MySQL conectado (neofarma).');
-  else console.log('⚠️ MySQL não conectado. Verifique config/database.js e o banco neofarma.');
+  if (ok) {
+    console.log('✅ MySQL conectado (neofarma).');
+    try {
+      const OrderFulfillment = require('./models/OrderFulfillment');
+      await OrderFulfillment.ensureColumns();
+    } catch (err) {
+      console.warn('⚠️ Migração de colunas de expedição:', err.message || err);
+    }
+  } else console.log('⚠️ MySQL não conectado. Verifique config/database.js e o banco neofarma.');
 });
 
 module.exports = app;

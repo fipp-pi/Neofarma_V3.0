@@ -114,6 +114,9 @@ async function findByCustomerId(customerId, limit = 30) {
        o.shipping_cost,
        o.total,
        o.shipping_service,
+       o.tracking_code,
+       o.shipped_at,
+       o.delivered_at,
        o.created_at,
        COALESCE(x.items_count, 0) AS items_count
      FROM orders o

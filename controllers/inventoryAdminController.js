@@ -9,6 +9,7 @@ const InventoryDisposal = require('../models/InventoryDisposal');
 const Product = require('../models/Product');
 const displayLabels = require('../utils/displayLabels');
 const { formatDateTimeSecBr, formatDateBr } = require('../utils/dateFormat');
+const { parseWholeUnits } = require('../utils/quantity');
 const { pool } = require('../config/database');
 
 /**
@@ -59,15 +60,16 @@ async function createBatch(req, res, next) {
     if (!batch_code || !expiry_date) {
       return res.status(400).json({ ok: false, message: 'Informe lote e validade.' });
     }
-    if (Number(quantity || 0) < 0) {
-      return res.status(400).json({ ok: false, message: 'Quantidade não pode ser negativa.' });
+    const qtyParsed = parseWholeUnits(quantity, { allowZero: true, emptyMessage: 'Informe a quantidade do lote.' });
+    if (!qtyParsed.ok) {
+      return res.status(400).json({ ok: false, message: qtyParsed.message });
     }
     const id = await InventoryBatch.create({
       product_id,
       batch_code: String(batch_code).trim(),
       mfg_date: mfg_date || null,
       expiry_date,
-      quantity: Number(quantity || 0),
+      quantity: qtyParsed.value,
     });
     await writeAudit(req, 'CREATE', {
       batch_id: id,
@@ -75,7 +77,7 @@ async function createBatch(req, res, next) {
       batch_code: String(batch_code).trim(),
       mfg_date: mfg_date || null,
       expiry_date,
-      quantity: Number(quantity || 0),
+      quantity: qtyParsed.value,
     });
     res.status(201).json({ ok: true, id });
   } catch (err) {
@@ -96,8 +98,9 @@ async function updateBatch(req, res, next) {
     if (!batch_code || !expiry_date) {
       return res.status(400).json({ ok: false, message: 'Informe lote e validade.' });
     }
-    if (Number(quantity || 0) < 0) {
-      return res.status(400).json({ ok: false, message: 'Quantidade não pode ser negativa.' });
+    const qtyParsed = parseWholeUnits(quantity, { allowZero: true, emptyMessage: 'Informe a quantidade do lote.' });
+    if (!qtyParsed.ok) {
+      return res.status(400).json({ ok: false, message: qtyParsed.message });
     }
     const batch = await InventoryBatch.findById(batchId);
     if (!batch) return res.status(404).json({ ok: false, message: 'Lote não encontrado.' });
@@ -105,7 +108,7 @@ async function updateBatch(req, res, next) {
       batch_code: String(batch_code).trim(),
       mfg_date: mfg_date || null,
       expiry_date,
-      quantity: Number(quantity || 0),
+      quantity: qtyParsed.value,
     };
     await InventoryBatch.updateById(batchId, {
       ...payload,
@@ -162,6 +165,7 @@ async function listAllBatchesPage(req, res, next) {
     const paged = await InventoryBatch.findAllGlobalPaginated({ status, sort, search, page, pageSize, hideDisposed });
     const validityCounts = await InventoryBatch.getDashboardValidityCounts(30);
     const expiredAwaiting = await InventoryBatch.countExpiredAwaitingDisposal();
+    const stockSummary = await InventoryBatch.getGlobalStockSummary();
     const [validRows] = await pool.execute(
       `SELECT COUNT(*) AS c FROM inventory_batches WHERE quantity > 0 AND expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)`
     );
@@ -177,6 +181,9 @@ async function listAllBatchesPage(req, res, next) {
         expiring: Number(validityCounts.expiring_count || 0),
         expired: Number(validityCounts.expired_count || 0),
         expiredAwaiting,
+        totalUnits: Number(stockSummary.total_units || 0),
+        productsWithStock: Number(stockSummary.products_with_stock || 0),
+        batchesWithStock: Number(stockSummary.batches_with_stock || 0),
       },
       expiredAwaiting,
       pagination: {
@@ -218,6 +225,21 @@ async function exportCsv(req, res, next) {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="lotes.csv"');
     res.send('\uFEFF' + lines.join('\n'));
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /admin/lotes/:id — detalhe operacional do lote (JSON).
+ */
+async function getBatchDetail(req, res, next) {
+  try {
+    const batchId = Number(req.params.id);
+    if (!batchId) return res.status(400).json({ ok: false, message: 'Lote inválido.' });
+    const detail = await InventoryBatch.getDetailById(batchId);
+    if (!detail) return res.status(404).json({ ok: false, message: 'Lote não encontrado.' });
+    return res.json({ ok: true, ...detail });
   } catch (err) {
     next(err);
   }
@@ -276,11 +298,15 @@ async function registerDisposal(req, res, next) {
     const b = req.body || {};
     const productId = Number(b.product_id);
     const batchId = Number(b.batch_id);
-    const quantity = Number(b.quantity);
     const reason = String(b.reason || '').trim();
-    if (!productId || !batchId || quantity <= 0 || !reason) {
+    const qtyParsed = parseWholeUnits(b.quantity, { emptyMessage: 'Informe a quantidade a descartar.' });
+    if (!productId || !batchId || !reason) {
       return res.status(400).json({ ok: false, message: 'Preencha produto, lote, quantidade e motivo.' });
     }
+    if (!qtyParsed.ok) {
+      return res.status(400).json({ ok: false, message: qtyParsed.message });
+    }
+    const quantity = qtyParsed.value;
     await connection.beginTransaction();
     const id = await InventoryDisposal.create(
       {
@@ -307,6 +333,9 @@ async function registerDisposal(req, res, next) {
     });
   } catch (err) {
     await connection.rollback();
+    if (err.code === 'INVALID') {
+      return res.status(400).json({ ok: false, message: err.message });
+    }
     if (err.code === 'INSUFFICIENT_STOCK' || err.code === 'BATCH_NOT_FOUND') {
       return res.status(409).json({ ok: false, message: err.message });
     }
@@ -333,6 +362,7 @@ async function listBatchesForProduct(req, res, next) {
 module.exports = {
   listAllBatchesPage,
   exportCsv,
+  getBatchDetail,
   deleteManyBatches,
   listBatches,
   createBatch,

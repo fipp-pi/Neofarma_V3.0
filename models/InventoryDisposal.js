@@ -1,9 +1,20 @@
 const { pool } = require('../config/database');
 const InventoryBatch = require('./InventoryBatch');
+const { parseWholeUnitsOrThrow } = require('../utils/quantity');
 
 async function create({ product_id, batch_id, quantity, reason, disposed_by }, connection = pool) {
-  const qty = Number(quantity);
-  if (!product_id || !batch_id || qty <= 0 || !String(reason || '').trim()) {
+  let qty;
+  try {
+    qty = parseWholeUnitsOrThrow(quantity, { emptyMessage: 'Informe a quantidade a descartar.' });
+  } catch (err) {
+    if (err.code === 'INVALID_QUANTITY') {
+      const invalidErr = new Error(err.message);
+      invalidErr.code = 'INVALID';
+      throw invalidErr;
+    }
+    throw err;
+  }
+  if (!product_id || !batch_id || !String(reason || '').trim()) {
     const err = new Error('Dados de descarte inválidos.');
     err.code = 'INVALID';
     throw err;
@@ -50,4 +61,20 @@ async function findAll(limit = 100) {
   return rows;
 }
 
-module.exports = { create, findAll };
+async function findByBatchId(batchId, limit = 50) {
+  const id = Number(batchId);
+  if (!Number.isFinite(id) || id <= 0) return [];
+  const lim = Math.max(1, Math.min(100, Number(limit) || 50));
+  const [rows] = await pool.execute(
+    `SELECT d.id, d.quantity, d.reason, d.created_at, u.full_name AS disposed_by_name
+     FROM inventory_disposals d
+     LEFT JOIN users u ON u.id = d.disposed_by
+     WHERE d.batch_id = ?
+     ORDER BY d.created_at DESC
+     LIMIT ${lim}`,
+    [id]
+  );
+  return rows;
+}
+
+module.exports = { create, findAll, findByBatchId };

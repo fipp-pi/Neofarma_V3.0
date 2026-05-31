@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const InventoryBatch = require('./InventoryBatch');
+const { parseWholeUnits } = require('../utils/quantity');
 
 async function findAll(filters = {}) {
   let sql = `SELECT po.*, s.trade_name AS supplier_name, s.corporate_name AS supplier_corporate
@@ -68,7 +69,13 @@ async function createDraft(data, items, connection = pool) {
   );
   const orderId = result.insertId;
   for (const it of items) {
-    const qty = Number(it.quantity);
+    const qtyParsed = parseWholeUnits(it.quantity, { emptyMessage: 'Informe a quantidade do item.' });
+    if (!qtyParsed.ok) {
+      const err = new Error(qtyParsed.message);
+      err.code = 'INVALID_QUANTITY';
+      throw err;
+    }
+    const qty = qtyParsed.value;
     const cost = Number(it.unit_cost);
     await connection.execute(
       `INSERT INTO purchase_order_items (purchase_order_id, product_id, quantity, unit_cost, total_cost)
@@ -101,7 +108,11 @@ async function receiveDelivery(orderId, lines, connection = pool) {
   for (const item of items) {
     const input = lineMap.get(Number(item.id));
     if (!input) continue;
-    const qtyRecv = Number(input.quantity_received);
+    const qtyParsed = parseWholeUnits(input.quantity_received, { allowZero: true, emptyMessage: 'Informe a quantidade recebida.' });
+    if (!qtyParsed.ok) {
+      return { ok: false, code: 'QTY_INVALID', message: qtyParsed.message };
+    }
+    const qtyRecv = qtyParsed.value;
     if (qtyRecv <= 0) continue;
     if (qtyRecv > Number(item.quantity)) {
       return { ok: false, code: 'QTY_INVALID', message: `Quantidade recebida maior que pedida (${item.product_name}).` };

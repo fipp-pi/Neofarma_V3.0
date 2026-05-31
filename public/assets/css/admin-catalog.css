@@ -137,6 +137,101 @@ button.admin-catalog__tab { font-family: inherit; }
 .admin-financas-nav__tabs { margin-bottom: 0; }
 .admin-financas-nav__back { white-space: nowrap; }
 
+.admin-fin-order-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+.admin-fin-order-detail-card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  background: #fafbfc;
+}
+.admin-fin-order-detail-card-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6c757d;
+  margin-bottom: 0.45rem;
+}
+.admin-fin-order-preview {
+  max-width: 200px;
+  line-height: 1.25;
+}
+.fin-btn-order-detail {
+  text-decoration: none;
+  color: inherit;
+}
+.fin-btn-order-detail:hover {
+  color: var(--accent-color);
+}
+.admin-fin-order-totals {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+}
+.admin-fin-order-totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  padding: 0.15rem 0;
+}
+.admin-fin-order-totals-row--total {
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+  margin-top: 0.35rem;
+  padding-top: 0.5rem;
+}
+
+/* Expedição de pedidos */
+.admin-exp-queue-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-exp-queue-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #495057;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.admin-exp-queue-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  color: inherit;
+}
+.admin-exp-queue-tab.is-active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: var(--contrast-color);
+}
+.admin-exp-queue-tab__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 0.75rem;
+}
+.admin-exp-queue-tab.is-active .admin-exp-queue-tab__count {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 /* Relatórios gerenciais */
 .admin-relatorios__hero {
   display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem;

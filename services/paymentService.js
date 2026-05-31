@@ -192,13 +192,58 @@ function buildInstallments(total) {
  * Simula autorização de cartão: valida formato mínimo e retorna metadados.
  * Não integra com adquirente real.
  */
-function buildCardPayload({ card_number, installments, total }) {
+function validateCreditCardInput({ card_number, card_holder, card_expiry, card_cvv }) {
   const clean = String(card_number || '').replace(/\D/g, '');
-  if (clean.length < 13) {
+  const brand = detectBrand(clean);
+  const minLen = brand === 'AMEX' ? 15 : 13;
+  const maxLen = brand === 'AMEX' ? 15 : 19;
+  if (clean.length < minLen || clean.length > maxLen) {
     const err = new Error('Número do cartão inválido.');
     err.code = 'INVALID_CARD';
     throw err;
   }
+
+  const holder = String(card_holder || '').trim();
+  if (holder.length < 3 || !/[A-Za-zÀ-ÿ]/.test(holder)) {
+    const err = new Error('Informe o nome do titular como impresso no cartão.');
+    err.code = 'INVALID_CARD_HOLDER';
+    throw err;
+  }
+
+  const expiryDigits = String(card_expiry || '').replace(/\D/g, '');
+  if (expiryDigits.length !== 4) {
+    const err = new Error('Validade do cartão inválida. Use MM/AA.');
+    err.code = 'INVALID_CARD_EXPIRY';
+    throw err;
+  }
+  const month = Number(expiryDigits.slice(0, 2));
+  const year = Number(expiryDigits.slice(2, 4));
+  if (month < 1 || month > 12) {
+    const err = new Error('Mês de validade inválido.');
+    err.code = 'INVALID_CARD_EXPIRY';
+    throw err;
+  }
+  const now = new Date();
+  const currentYear = now.getFullYear() % 100;
+  const currentMonth = now.getMonth() + 1;
+  if (year < currentYear || (year === currentYear && month < currentMonth)) {
+    const err = new Error('Cartão expirado.');
+    err.code = 'INVALID_CARD_EXPIRY';
+    throw err;
+  }
+
+  const cvvDigits = String(card_cvv || '').replace(/\D/g, '');
+  const cvvLen = brand === 'AMEX' ? 4 : 3;
+  if (cvvDigits.length !== cvvLen) {
+    const err = new Error('CVV inválido.');
+    err.code = 'INVALID_CARD_CVV';
+    throw err;
+  }
+}
+
+function buildCardPayload({ card_number, card_holder, card_expiry, card_cvv, installments, total }) {
+  validateCreditCardInput({ card_number, card_holder, card_expiry, card_cvv });
+  const clean = String(card_number || '').replace(/\D/g, '');
   const allPlans = buildInstallments(total);
   const selected = allPlans.find((p) => p.installments === Number(installments || 1)) || allPlans[0];
   return {

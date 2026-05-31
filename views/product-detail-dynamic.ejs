@@ -46,7 +46,7 @@
             <% } %>
           </p>
           <div class="d-flex gap-2 mb-4">
-            <input id="qtyInput" type="number" min="1" max="<%= product.available_stock || 1 %>" value="1" class="form-control" style="max-width:120px;" <%= product.can_buy ? '' : 'disabled' %>>
+            <input id="qtyInput" type="number" min="1" step="1" inputmode="numeric" max="<%= product.available_stock || 1 %>" value="1" class="form-control" style="max-width:120px;" <%= product.can_buy ? '' : 'disabled' %>>
             <button id="btnAddCart" class="btn btn-primary" <%= product.can_buy ? '' : 'disabled' %>>Adicionar ao Carrinho</button>
             <a href="/cart" class="btn btn-outline-secondary">Ir para carrinho</a>
           </div>
@@ -123,11 +123,17 @@
   const btnAddCart = document.getElementById('btnAddCart');
   if (btnAddCart) {
     btnAddCart.addEventListener('click', async function() {
-      const quantity = Number(document.getElementById('qtyInput').value || 1);
+      const parsed = window.NeoWholeUnits
+        ? NeoWholeUnits.parseWholeUnits(document.getElementById('qtyInput').value, { min: 1 })
+        : { ok: true, value: Number(document.getElementById('qtyInput').value || 1) };
+      if (!parsed.ok) {
+        window.neofarmaToast(parsed.message, 'danger');
+        return;
+      }
       const resp = await fetch('/api/cart/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: <%= product.id %>, quantity })
+        body: JSON.stringify({ product_id: <%= product.id %>, quantity: parsed.value })
       });
       const data = await resp.json();
       if (data.ok) {

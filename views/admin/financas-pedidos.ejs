@@ -79,6 +79,7 @@
                 <tr>
                   <th>Pedido</th>
                   <th>Cliente</th>
+                  <th>Itens</th>
                   <th>Método</th>
                   <th>Status</th>
                   <th class="text-end">Valor</th>
@@ -89,10 +90,25 @@
                 <% if (orders && orders.length) { %>
                   <% orders.forEach(function(o) { %>
                     <tr>
-                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= fmtDateTime(o.created_at) %></div></td>
+                      <td class="fw-bold">
+                        <button type="button" class="btn btn-link btn-sm p-0 fw-bold fin-btn-order-detail" data-order-id="<%= o.id %>">#<%= o.id %></button>
+                        <div class="text-muted small"><%= fmtDateTime(o.created_at) %></div>
+                      </td>
                       <td>
                         <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
                         <div class="text-muted small text-break"><%= o.email || '' %></div>
+                      </td>
+                      <td>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-start fin-btn-order-detail" data-order-id="<%= o.id %>">
+                          <% if (Number(o.items_qty || 0) > 0) { %>
+                            <span class="badge bg-light text-dark border"><%= o.items_qty %> un.<% if (Number(o.items_lines || 0) > 1) { %> · <%= o.items_lines %> linhas<% } %></span>
+                          <% } else { %>
+                            <span class="badge bg-light text-muted border">Sem itens</span>
+                          <% } %>
+                          <% if (o.items_preview) { %>
+                            <div class="small text-muted text-truncate fin-order-preview" title="<%= o.items_preview %>"><%= o.items_preview %></div>
+                          <% } %>
+                        </button>
                       </td>
                       <td><span class="badge bg-light text-dark border"><%= t('paymentMethod', o.payment_method) %></span></td>
                       <td>
@@ -105,19 +121,20 @@
                       </td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
                       <td class="text-end">
-                        <% if (String(o.payment_status || '') === 'PENDING') { %>
-                          <div class="d-flex justify-content-end gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="<%= o.id %>" type="button">Marcar pago</button>
-                            <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="<%= o.id %>" type="button">Marcar falhou</button>
-                          </div>
-                        <% } else { %>
-                          <span class="text-muted small">Ação indisponível</span>
-                        <% } %>
+                        <div class="d-flex justify-content-end gap-2 flex-wrap">
+                          <button type="button" class="btn btn-sm btn-outline-primary fin-btn-order-detail" data-order-id="<%= o.id %>">
+                            <i class="bi bi-info-circle"></i> Detalhes
+                          </button>
+                          <% if (String(o.payment_status || '') === 'PENDING') { %>
+                            <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="<%= o.id %>" type="button">Pago</button>
+                            <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="<%= o.id %>" type="button">Falhou</button>
+                          <% } %>
+                        </div>
                       </td>
                     </tr>
                   <% }) %>
                 <% } else { %>
-                  <tr><td colspan="6" class="text-muted">Nenhum pedido encontrado.</td></tr>
+                  <tr><td colspan="7" class="text-muted">Nenhum pedido encontrado.</td></tr>
                 <% } %>
               </tbody>
             </table>
@@ -171,6 +188,7 @@
                 <tr>
                   <th>Pedido</th>
                   <th>Cliente</th>
+                  <th>Itens</th>
                   <th>Método</th>
                   <th>Status</th>
                   <th class="text-end">Valor</th>
@@ -181,10 +199,25 @@
                 <% if (orders && orders.length) { %>
                   <% orders.forEach(function(o) { %>
                     <tr>
-                      <td class="fw-bold">#<%= o.id %><div class="text-muted small"><%= fmtDateTime(o.created_at) %></div></td>
+                      <td class="fw-bold">
+                        <button type="button" class="btn btn-link btn-sm p-0 fw-bold fin-btn-order-detail" data-order-id="<%= o.id %>">#<%= o.id %></button>
+                        <div class="text-muted small"><%= fmtDateTime(o.created_at) %></div>
+                      </td>
                       <td>
                         <div class="fw-bold"><%= o.full_name || 'Cliente' %></div>
                         <div class="text-muted small text-break"><%= o.email || '' %></div>
+                      </td>
+                      <td>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-start fin-btn-order-detail" data-order-id="<%= o.id %>">
+                          <% if (Number(o.items_qty || 0) > 0) { %>
+                            <span class="badge bg-light text-dark border"><%= o.items_qty %> un.<% if (Number(o.items_lines || 0) > 1) { %> · <%= o.items_lines %> linhas<% } %></span>
+                          <% } else { %>
+                            <span class="badge bg-light text-muted border">Sem itens</span>
+                          <% } %>
+                          <% if (o.items_preview) { %>
+                            <div class="small text-muted text-truncate fin-order-preview" title="<%= o.items_preview %>"><%= o.items_preview %></div>
+                          <% } %>
+                        </button>
                       </td>
                       <td><span class="badge bg-light text-dark border"><%= t('paymentMethod', o.payment_method) %></span></td>
                       <td>
@@ -197,19 +230,20 @@
                       </td>
                       <td class="text-end fw-semibold">R$ <%= toLocaleString(o.total) %></td>
                       <td class="text-end">
-                        <% if (String(o.payment_status || '') === 'PENDING') { %>
-                          <div class="d-flex justify-content-end gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="<%= o.id %>" type="button">Marcar pago</button>
-                            <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="<%= o.id %>" type="button">Marcar falhou</button>
-                          </div>
-                        <% } else { %>
-                          <span class="text-muted small">Ação indisponível</span>
-                        <% } %>
+                        <div class="d-flex justify-content-end gap-2 flex-wrap">
+                          <button type="button" class="btn btn-sm btn-outline-primary fin-btn-order-detail" data-order-id="<%= o.id %>">
+                            <i class="bi bi-info-circle"></i> Detalhes
+                          </button>
+                          <% if (String(o.payment_status || '') === 'PENDING') { %>
+                            <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="<%= o.id %>" type="button">Pago</button>
+                            <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="<%= o.id %>" type="button">Falhou</button>
+                          <% } %>
+                        </div>
                       </td>
                     </tr>
                   <% }) %>
                 <% } else { %>
-                  <tr><td colspan="6" class="text-muted">Nenhum pedido encontrado.</td></tr>
+                  <tr><td colspan="7" class="text-muted">Nenhum pedido encontrado.</td></tr>
                 <% } %>
               </tbody>
             </table>
@@ -243,6 +277,26 @@
               </nav>
             </div>
           <% } %>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: detalhe do pedido -->
+  <div class="modal fade modal-cadastro" id="modalFinOrderDetail" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="finOrderDetailTitle"><i class="bi bi-receipt me-2"></i>Pedido</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body" id="finOrderDetailBody">
+          <div class="text-center py-4 text-muted">
+            <span class="spinner-border spinner-border-sm me-2"></span> Carregando pedido...
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -286,8 +340,178 @@
       return window.NeoLabels ? NeoLabels.orderStatus(v) : String(v || '');
     }
 
-    // Delegação de eventos para funcionar também após paginação via AJAX no modal
+    function formatDateOnly(v) {
+      if (!v) return '—';
+      return window.NeoDates ? NeoDates.formatDate(v) : String(v).slice(0, 10);
+    }
+
+    function formatDateTime(v) {
+      if (!v) return '—';
+      return window.NeoDates ? NeoDates.formatDateTime(v) : String(v);
+    }
+
+    function formatZip(zip) {
+      var d = String(zip || '').replace(/\D/g, '');
+      if (d.length !== 8) return zip || '—';
+      return d.slice(0, 5) + '-' + d.slice(5);
+    }
+
+    function escapeHtml(v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderOrderDetailHtml(data) {
+      var o = data.order || {};
+      var items = data.items || [];
+      var pending = data.pending_items || [];
+      var summary = data.summary || {};
+      var payBadge = getPaymentBadgeClass(o.payment_status);
+
+      var html = '<div class="admin-fin-order-detail-grid">';
+
+      html += '<div class="admin-fin-order-detail-card">';
+      html += '<div class="admin-fin-order-detail-card-title">Cliente</div>';
+      html += '<p class="mb-1 fw-semibold">' + escapeHtml(o.full_name || 'Cliente') + '</p>';
+      if (o.email) html += '<p class="mb-1 small text-muted">' + escapeHtml(o.email) + '</p>';
+      if (o.phone) html += '<p class="mb-0 small">Tel.: ' + escapeHtml(o.phone) + '</p>';
+      html += '</div>';
+
+      html += '<div class="admin-fin-order-detail-card">';
+      html += '<div class="admin-fin-order-detail-card-title">Pagamento</div>';
+      html += '<div class="small">';
+      html += '<div class="mb-1"><span class="text-muted">Status:</span> <span class="badge bg-' + payBadge + '">' + escapeHtml(labelPaymentStatus(o.payment_status)) + '</span></div>';
+      html += '<div class="mb-1"><span class="text-muted">Forma:</span> ' + escapeHtml(labelPaymentMethod(o.payment_method)) + '</div>';
+      html += '<div class="mb-1"><span class="text-muted">Pedido:</span> ' + escapeHtml(labelOrderStatus(o.order_status)) + '</div>';
+      html += '<div><span class="text-muted">Realizado em:</span> ' + escapeHtml(formatDateTime(o.created_at)) + '</div>';
+      html += '</div></div>';
+
+      html += '<div class="admin-fin-order-detail-card">';
+      html += '<div class="admin-fin-order-detail-card-title">Entrega</div>';
+      html += '<div class="small">';
+      if (o.street) {
+        html += '<p class="mb-1">' + escapeHtml(o.street) + ', ' + escapeHtml(o.number || 's/n');
+        if (o.complement) html += ' · ' + escapeHtml(o.complement);
+        html += '</p>';
+        html += '<p class="mb-1">' + escapeHtml(o.district || '') + ' — ' + escapeHtml(o.city || '') + '/' + escapeHtml(o.state || '') + '</p>';
+        html += '<p class="mb-1">CEP ' + escapeHtml(formatZip(o.zip_code)) + '</p>';
+      }
+      if (o.shipping_service) html += '<p class="mb-1"><span class="text-muted">Frete:</span> ' + escapeHtml(o.shipping_service) + '</p>';
+      if (o.shipping_deadline_days) html += '<p class="mb-1"><span class="text-muted">Prazo:</span> ' + escapeHtml(o.shipping_deadline_days) + ' dia(s)</p>';
+      if (o.tracking_code) html += '<p class="mb-1"><span class="text-muted">Rastreio:</span> <code>' + escapeHtml(o.tracking_code) + '</code></p>';
+      if (o.shipped_at) html += '<p class="mb-1"><span class="text-muted">Despachado em:</span> ' + escapeHtml(formatDateTime(o.shipped_at)) + '</p>';
+      if (o.delivered_at) {
+        html += '<p class="mb-1"><span class="text-muted">Entregue em:</span> ' + escapeHtml(formatDateTime(o.delivered_at)) + '</p>';
+        if (o.delivered_by_name) html += '<p class="mb-0"><span class="text-muted">Confirmado por:</span> ' + escapeHtml(o.delivered_by_name) + '</p>';
+      } else if (!o.shipped_at) {
+        html += '<p class="mb-0"><span class="text-muted">Expedição:</span> aguardando despacho</p>';
+      }
+      html += '</div></div>';
+      html += '</div>';
+
+      html += '<div class="cadastro-edit-section-title">Itens separados (' + items.length + ')</div>';
+      if (items.length) {
+        html += '<div class="table-responsive mb-3"><table class="table table-sm table-custom align-middle mb-0">';
+        html += '<thead><tr><th>Produto</th><th>SKU</th><th>Laboratório</th><th class="text-center">Qtd</th><th class="text-end">Unit.</th><th class="text-end">Subtotal</th><th>Lote</th><th>Validade</th></tr></thead><tbody>';
+        items.forEach(function (it) {
+          var batchLink = it.batch_code
+            ? '<a href="/admin/lotes?search=' + encodeURIComponent(it.batch_code) + '" class="text-decoration-none">' + escapeHtml(it.batch_code) + '</a>'
+            : '<span class="text-muted">—</span>';
+          html += '<tr>';
+          html += '<td class="fw-semibold">' + escapeHtml(it.product_name || 'Produto') + '</td>';
+          html += '<td class="small text-muted">' + escapeHtml(it.sku || '—') + '</td>';
+          html += '<td class="small">' + escapeHtml(it.lab_name || '—') + '</td>';
+          html += '<td class="text-center">' + Number(it.quantity || 0) + '</td>';
+          html += '<td class="text-end">R$ ' + formatMoney(it.unit_price) + '</td>';
+          html += '<td class="text-end fw-semibold">R$ ' + formatMoney(it.line_total) + '</td>';
+          html += '<td class="small">' + batchLink + '</td>';
+          html += '<td class="small">' + escapeHtml(formatDateOnly(it.expiry_date)) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p class="text-muted small mb-3">Nenhum item separado registrado.</p>';
+      }
+
+      if (pending.length) {
+        html += '<div class="alert alert-warning border small py-2 px-3 mb-3">';
+        html += '<strong><i class="bi bi-hourglass-split me-1"></i> Itens pendentes de estoque (' + pending.length + ')</strong>';
+        html += '<div class="table-responsive mt-2"><table class="table table-sm mb-0 align-middle">';
+        html += '<thead><tr><th>Produto</th><th>SKU</th><th class="text-center">Qtd</th><th class="text-end">Unit.</th><th class="text-end">Subtotal</th></tr></thead><tbody>';
+        pending.forEach(function (it) {
+          html += '<tr>';
+          html += '<td>' + escapeHtml(it.product_name || 'Produto') + '</td>';
+          html += '<td class="small text-muted">' + escapeHtml(it.sku || '—') + '</td>';
+          html += '<td class="text-center">' + Number(it.quantity || 0) + '</td>';
+          html += '<td class="text-end">R$ ' + formatMoney(it.unit_price) + '</td>';
+          html += '<td class="text-end">R$ ' + formatMoney(it.line_total) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+      }
+
+      html += '<div class="admin-fin-order-totals">';
+      html += '<div class="admin-fin-order-totals-row"><span>Subtotal produtos</span><span>R$ ' + formatMoney(summary.subtotal) + '</span></div>';
+      html += '<div class="admin-fin-order-totals-row"><span>Frete</span><span>R$ ' + formatMoney(summary.shipping) + '</span></div>';
+      html += '<div class="admin-fin-order-totals-row admin-fin-order-totals-row--total"><span>Total do pedido</span><span>R$ ' + formatMoney(summary.total) + '</span></div>';
+      html += '<div class="small text-muted mt-2">' + Number(summary.qty_total || 0) + ' unidade(s) · ' + (Number(summary.lines_fulfilled || 0) + Number(summary.lines_pending || 0)) + ' linha(s)</div>';
+      html += '</div>';
+
+      return html;
+    }
+
+    async function abrirDetalhePedido(orderId) {
+      var detailModalEl = document.getElementById('modalFinOrderDetail');
+      var detailBody = document.getElementById('finOrderDetailBody');
+      var detailTitle = document.getElementById('finOrderDetailTitle');
+      if (!detailModalEl || !detailBody) return;
+
+      detailTitle.innerHTML = '<i class="bi bi-receipt me-2"></i>Pedido #' + escapeHtml(orderId);
+      detailBody.innerHTML = '<div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Carregando pedido...</div>';
+
+      var openOthers = document.querySelectorAll('.modal.show');
+      if (openOthers.length) {
+        var maxZ = 1050;
+        openOthers.forEach(function (el) {
+          if (el === detailModalEl) return;
+          var z = parseInt(el.style.zIndex || window.getComputedStyle(el).zIndex, 10);
+          if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+        });
+        detailModalEl.style.zIndex = String(maxZ + 10);
+      }
+
+      bootstrap.Modal.getOrCreateInstance(detailModalEl).show();
+      detailModalEl.addEventListener('hidden.bs.modal', function () {
+        detailModalEl.style.zIndex = '';
+      }, { once: true });
+
+      try {
+        var res = await fetch('/admin/financas/orders/' + encodeURIComponent(orderId), { headers: { Accept: 'application/json' } });
+        var data = await res.json();
+        if (!res.ok || !data.ok) {
+          detailBody.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml((data && data.message) || 'Não foi possível carregar o pedido.') + '</div>';
+          return;
+        }
+        detailTitle.innerHTML = '<i class="bi bi-receipt me-2"></i>Pedido #' + escapeHtml(data.order && data.order.id ? data.order.id : orderId);
+        detailBody.innerHTML = renderOrderDetailHtml(data);
+      } catch (e) {
+        detailBody.innerHTML = '<div class="alert alert-danger mb-0">Erro de conexão ao carregar o pedido.</div>';
+      }
+    }
+
     document.addEventListener('click', function (e) {
+      var detailBtn = e.target.closest && e.target.closest('.fin-btn-order-detail');
+      if (detailBtn) {
+        var orderId = detailBtn.getAttribute('data-order-id');
+        if (!orderId) return;
+        e.preventDefault();
+        abrirDetalhePedido(orderId);
+        return;
+      }
+
       var paidBtn = e.target.closest && e.target.closest('.btn-mark-paid');
       var failedBtn = e.target.closest && e.target.closest('.btn-mark-failed');
       var btn = paidBtn || failedBtn;
@@ -357,39 +581,51 @@
         return '/admin/financas/orders?' + params.toString();
       }
 
+      function renderItemsCell(o) {
+        var qty = Number(o.items_qty || 0);
+        var lines = Number(o.items_lines || 0);
+        var badge = qty > 0
+          ? '<span class="badge bg-light text-dark border">' + qty + ' un.' + (lines > 1 ? ' · ' + lines + ' linhas' : '') + '</span>'
+          : '<span class="badge bg-light text-muted border">Sem itens</span>';
+        var preview = o.items_preview
+          ? '<div class="small text-muted text-truncate fin-order-preview" title="' + String(o.items_preview).replace(/"/g, '&quot;') + '">' + String(o.items_preview) + '</div>'
+          : '';
+        return '<button type="button" class="btn btn-link btn-sm p-0 text-start fin-btn-order-detail" data-order-id="' + String(o.id) + '">' + badge + preview + '</button>';
+      }
+
       function renderOrdersRows(orders) {
         modalTbody.innerHTML = '';
         if (!orders || !orders.length) {
           var tr = document.createElement('tr');
-          tr.innerHTML = '<td colspan="6" class="text-muted">Nenhum pedido encontrado.</td>';
+          tr.innerHTML = '<td colspan="7" class="text-muted">Nenhum pedido encontrado.</td>';
           modalTbody.appendChild(tr);
           return;
         }
 
         orders.forEach(function (o) {
           var tr = document.createElement('tr');
-
           var createdStr = o.created_at ? (window.NeoDates ? NeoDates.formatDateTime(o.created_at) : o.created_at) : '';
           var pay = String(o.payment_status || '');
           var badgeClass = getPaymentBadgeClass(pay);
 
-          var actionsHtml = '';
+          var actionsHtml = '<div class="d-flex justify-content-end gap-2 flex-wrap">' +
+            '<button type="button" class="btn btn-sm btn-outline-primary fin-btn-order-detail" data-order-id="' + String(o.id) + '"><i class="bi bi-info-circle"></i> Detalhes</button>';
           if (pay === 'PENDING') {
-            actionsHtml = '\
-              <div class="d-flex justify-content-end gap-2 flex-wrap">\
-                <button class="btn btn-sm btn-success btn-mark-paid" data-order-id="' + String(o.id) + '" type="button">Marcar pago</button>\
-                <button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="' + String(o.id) + '" type="button">Marcar falhou</button>\
-              </div>';
-          } else {
-            actionsHtml = '<span class="text-muted small">Ação indisponível</span>';
+            actionsHtml += '<button class="btn btn-sm btn-success btn-mark-paid" data-order-id="' + String(o.id) + '" type="button">Pago</button>' +
+              '<button class="btn btn-sm btn-danger btn-mark-failed" data-order-id="' + String(o.id) + '" type="button">Falhou</button>';
           }
+          actionsHtml += '</div>';
 
           tr.innerHTML = '\
-            <td class="fw-bold">#' + String(o.id) + '<div class="text-muted small">' + createdStr + '</div></td>\
+            <td class="fw-bold">\
+              <button type="button" class="btn btn-link btn-sm p-0 fw-bold fin-btn-order-detail" data-order-id="' + String(o.id) + '">#' + String(o.id) + '</button>\
+              <div class="text-muted small">' + createdStr + '</div>\
+            </td>\
             <td>\
               <div class="fw-bold">' + (o.full_name ? String(o.full_name) : 'Cliente') + '</div>\
               <div class="text-muted small text-break">' + (o.email ? String(o.email) : '') + '</div>\
             </td>\
+            <td>' + renderItemsCell(o) + '</td>\
             <td><span class="badge bg-light text-dark border">' + labelPaymentMethod(o.payment_method) + '</span></td>\
             <td>\
               <span class="badge bg-' + badgeClass + '">' + labelPaymentStatus(pay) + '</span>\
